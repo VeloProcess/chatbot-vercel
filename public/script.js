@@ -104,6 +104,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // script.js (adicionar esta nova função)
+
+// Nova função para registrar a pergunta na planilha
+async function logQuestionOnSheet(question, email) {
+    if (!question || !email) return; // Não faz nada se não tiver os dados
+
+    try {
+        await fetch('/api/logQuestion', { // Chama a nova API
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                question: question,
+                email: email
+            })
+        });
+    } catch (error) {
+        // Apenas loga o erro no console para não interromper a experiência do usuário
+        console.error("Erro ao registrar a pergunta na planilha:", error);
+    }
+}
+
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
     function iniciarBot() {
         const chatBox = document.getElementById('chat-box');
@@ -156,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 feedbackContainer.className = 'feedback-container';
                 const positiveBtn = document.createElement('button');
                 positiveBtn.className = 'feedback-btn';
-                positiveBtn.innerHTML = '�';
+                positiveBtn.innerHTML = '👍';
                 positiveBtn.title = 'Resposta útil';
                 positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
                 const negativeBtn = document.createElement('button');
@@ -257,6 +278,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // CORREÇÃO APLICADA AQUI
         const feedbackText = document.getElementById('feedback-comment');
         let activeFeedbackContainer = null;
+
+         logQuestionOnSheet(trimmedText, dadosAtendente.email);
+
+    buscarResposta(trimmedText);
+    userInput.value = '';
+
 
         function abrirModalFeedback(container) {
             activeFeedbackContainer = container;
