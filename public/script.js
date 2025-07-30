@@ -262,33 +262,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Buscar resposta do backend
-        async function buscarResposta(textoDaPergunta) {
-            ultimaPergunta = textoDaPergunta;
-            ultimaLinhaDaFonte = null;
-            if (!textoDaPergunta.trim()) return;
-            showTypingIndicator();
-            try {
-                const url = `${BACKEND_URL}?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
-                const response = await fetch(url); // Removido o method/headers desnecessários para um GET simples
-                hideTypingIndicator();
+       async function buscarResposta(textoDaPergunta) {
+    ultimaPergunta = textoDaPergunta;
+    ultimaLinhaDaFonte = null;
+    if (!textoDaPergunta.trim()) return;
+    showTypingIndicator();
 
-                if (!response.ok) {
-                    throw new Error(`Erro de rede ou CORS: ${response.status}`);
-                }
-                const data = await response.json();
-                
-                if (data.status === 'sucesso') {
-                    ultimaLinhaDaFonte = data.sourceRow;
-                    addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
-                } else {
-                    addMessage(data.mensagem || "Ocorreu um erro ao processar sua pergunta.", 'bot');
-                }
-            } catch (error) {
-                hideTypingIndicator();
-                addMessage("Erro de conexão. Verifique se a URL do Backend está correta e se o script foi reimplantado. Detalhes no console (F12).", 'bot');
-                console.error("Detalhes do erro de fetch:", error);
-            }
+    try {
+        // Esta é a linha correta para a Vercel
+        const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}`;
+
+        const response = await fetch(url);
+        hideTypingIndicator();
+
+        if (!response.ok) {
+            throw new Error(`Erro de rede ou API: ${response.status}`);
         }
+
+        const data = await response.json();
+        
+        // A lógica para tratar a resposta continua a mesma
+        if (data.status === 'sucesso') {
+            ultimaLinhaDaFonte = data.sourceRow;
+            addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
+        } else {
+            addMessage(data.resposta || "Ocorreu um erro ao processar sua pergunta.", 'bot');
+        }
+    } catch (error) {
+        hideTypingIndicator();
+        addMessage("Erro de conexão com o backend. Verifique o console (F12) para mais detalhes.", 'bot');
+        console.error("Detalhes do erro de fetch:", error);
+    }
+}
 
         // Enviar mensagem
         function handleSendMessage(text) {
