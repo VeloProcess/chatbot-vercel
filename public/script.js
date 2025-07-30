@@ -31,23 +31,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Promise((resolve, reject) => {
             const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
             if (!script) {
-                reject(new Error('Script Google Identity Services não encontrado no HTML.'));
-                return;
+                return reject(new Error('Script Google Identity Services não encontrado no HTML.'));
             }
             if (window.google && window.google.accounts) {
-                resolve(window.google.accounts);
-                return;
+                return resolve(window.google.accounts);
             }
-            script.addEventListener('load', () => {
+            script.onload = () => {
                 if (window.google && window.google.accounts) {
                     resolve(window.google.accounts);
                 } else {
                     reject(new Error('Falha ao carregar Google Identity Services.'));
                 }
-            });
-            script.addEventListener('error', () => {
-                reject(new Error('Erro ao carregar o script Google Identity Services.'));
-            });
+            };
+            script.onerror = () => reject(new Error('Erro ao carregar o script Google Identity Services.'));
         });
     }
 
@@ -58,9 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 scope: 'profile email',
                 callback: handleGoogleSignIn
             });
-            document.getElementById('google-signin-button').addEventListener('click', function() {
-                tokenClient.requestAccessToken();
-            });
+            document.getElementById('google-signin-button').addEventListener('click', () => tokenClient.requestAccessToken());
             verificarIdentificacao();
         }).catch(error => {
             errorMsg.textContent = 'Erro ao carregar autenticação do Google. Verifique sua conexão ou tente novamente mais tarde.';
@@ -70,24 +64,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleGoogleSignIn(response) {
         fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: {
-                Authorization: `Bearer ${response.access_token}`
-            }
+            headers: { Authorization: `Bearer ${response.access_token}` }
         })
         .then(res => res.json())
         .then(user => {
-            const email = user.email;
-            if (email && email.endsWith(DOMINIO_PERMITIDO)) {
+            if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
                 dadosAtendente = { nome: user.name, email: user.email, timestamp: Date.now() };
                 localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
                 hideOverlay();
-                iniciarBot(); // Passar dadosAtendente não é mais necessário aqui, pois é uma variável global
+                iniciarBot();
             } else {
                 errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
                 errorMsg.classList.remove('hidden');
             }
         })
-        .catch(error => {
+        .catch(() => {
             errorMsg.textContent = 'Erro ao verificar login. Tente novamente.';
             errorMsg.classList.remove('hidden');
         });
@@ -98,14 +89,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let dadosSalvos = null;
         try {
             const dadosSalvosString = localStorage.getItem('dadosAtendenteChatbot');
-            if (dadosSalvosString) {
-                dadosSalvos = JSON.parse(dadosSalvosString);
-            }
+            if (dadosSalvosString) dadosSalvos = JSON.parse(dadosSalvosString);
         } catch (e) {
             localStorage.removeItem('dadosAtendenteChatbot');
         }
+
         if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
-            dadosAtendente = dadosSalvos; // Garante que dadosAtendente seja preenchido
+            dadosAtendente = dadosSalvos;
             hideOverlay();
             iniciarBot();
         } else {
@@ -116,7 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
     function iniciarBot() {
-        // Elementos do DOM do bot
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
@@ -124,11 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.body;
         const questionSearch = document.getElementById('question-search');
 
-        document.getElementById('gemini-button').addEventListener('click', function() {
-            window.open('https://gemini.google.com/app?hl=pt-BR', '_blank');
-        });
+        document.getElementById('gemini-button').addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
 
-        // Filtro de busca de perguntas
         questionSearch.addEventListener('input', (e) => {
             const searchTerm = e.target.value.toLowerCase();
             const questions = document.querySelectorAll('#quick-questions-list li, #more-questions-list-financeiro li, #more-questions-list-tecnico li');
@@ -138,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Indicador de digitação
         function showTypingIndicator() {
             if (isTyping) return;
             isTyping = true;
@@ -156,15 +141,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove();
         }
 
-        // Adicionar mensagem ao chat (com lógica de feedback atualizada)
         function addMessage(message, sender, options = {}) {
             const { sourceRow = null } = options;
             const messageContainer = document.createElement('div');
             messageContainer.classList.add('message-container', sender);
-
             const avatarDiv = `<div class="avatar">${sender === 'user' ? '👤' : '🤖'}</div>`;
             const messageContentDiv = `<div class="message-content"><div class="message">${message.replace(/\n/g, '<br>')}</div></div>`;
-
             messageContainer.innerHTML = sender === 'user' ? messageContentDiv + avatarDiv : avatarDiv + messageContentDiv;
             chatBox.appendChild(messageContainer);
 
@@ -172,19 +154,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const messageBox = messageContainer.querySelector('.message-content');
                 const feedbackContainer = document.createElement('div');
                 feedbackContainer.className = 'feedback-container';
-
                 const positiveBtn = document.createElement('button');
                 positiveBtn.className = 'feedback-btn';
                 positiveBtn.innerHTML = '👍';
                 positiveBtn.title = 'Resposta útil';
                 positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-
                 const negativeBtn = document.createElement('button');
                 negativeBtn.className = 'feedback-btn';
                 negativeBtn.innerHTML = '👎';
                 negativeBtn.title = 'Resposta incorreta ou incompleta';
                 negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-
                 feedbackContainer.appendChild(positiveBtn);
                 feedbackContainer.appendChild(negativeBtn);
                 messageBox.appendChild(feedbackContainer);
@@ -192,24 +171,15 @@ document.addEventListener('DOMContentLoaded', () => {
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Enviar feedback (com suporte a sugestão e LOGS DE DEBUG)
         async function enviarFeedback(action, container, sugestao = null) {
-            console.log("--- DEBUG FEEDBACK ---");
-            console.log("1. Tentando enviar feedback. Ação:", action);
-            console.log("2. Valor ATUAL de 'ultimaPergunta':", `"${ultimaPergunta}"`);
-            console.log("3. Valor ATUAL de 'ultimaLinhaDaFonte':", ultimaLinhaDaFonte);
-
             if (!ultimaPergunta || !ultimaLinhaDaFonte) {
-                console.error("4. FALHA: Feedback não enviado. 'ultimaPergunta' ou 'ultimaLinhaDaFonte' está vazio ou nulo. Verifique a resposta da API na aba 'Network'.");
+                console.error("FALHA: Feedback não enviado. 'ultimaPergunta' ou 'ultimaLinhaDaFonte' está vazio ou nulo.");
                 return;
             }
-
             container.textContent = 'Obrigado pelo feedback!';
             container.className = 'feedback-thanks';
-
             try {
-                console.log("4. SUCESSO: Variáveis validadas. Enviando para /api/feedback...");
-                const response = await fetch('/api/feedback', {
+                await fetch('/api/feedback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -220,38 +190,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         sugestao: sugestao
                     })
                 });
-                if (!response.ok) {
-                    console.error("5. ERRO NO BACKEND: A API /api/feedback respondeu com um erro.", response.status, response.statusText);
-                } else {
-                    console.log("5. SUCESSO: Feedback enviado para o backend.");
-                }
             } catch (error) {
                 console.error("ERRO DE REDE ao enviar feedback:", error);
             }
         }
 
-        // Buscar resposta do backend (com LOGS DE DEBUG)
         async function buscarResposta(textoDaPergunta) {
             ultimaPergunta = textoDaPergunta;
             ultimaLinhaDaFonte = null;
             if (!textoDaPergunta.trim()) return;
             showTypingIndicator();
-
             try {
                 const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}`;
                 const response = await fetch(url);
                 hideTypingIndicator();
-
-                if (!response.ok) {
-                    throw new Error(`Erro de rede ou API: ${response.status}`);
-                }
-
+                if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
-                
-                // LOG DE DEBUG ADICIONADO AQUI
-                console.log("--- DEBUG RESPOSTA ---");
-                console.log("Dados recebidos de /api/ask:", data);
-
                 if (data.status === 'sucesso') {
                     ultimaLinhaDaFonte = data.sourceRow;
                     addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
@@ -265,7 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Enviar mensagem
         function handleSendMessage(text) {
             const trimmedText = text.trim();
             if (!trimmedText) return;
@@ -274,7 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
             userInput.value = '';
         }
 
-        // Listeners de eventos
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -289,8 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('expandable-faq-header').addEventListener('click', (e) => {
             e.currentTarget.classList.toggle('expanded');
-            const moreQuestions = document.getElementById('more-questions');
-            moreQuestions.classList.toggle('hidden', !e.currentTarget.classList.contains('expanded'));
+            document.getElementById('more-questions').classList.toggle('hidden', !e.currentTarget.classList.contains('expanded'));
         });
 
         themeSwitcher.addEventListener('click', () => {
@@ -300,9 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
             themeSwitcher.innerHTML = isDark ? '🌙' : '☀️';
         });
 
-        // ==================================================
-        //  LÓGICA PARA CONTROLAR O MODAL DE FEEDBACK
-        // ==================================================
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
@@ -324,14 +272,22 @@ document.addEventListener('DOMContentLoaded', () => {
         feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
 
         feedbackSendBtn.addEventListener('click', () => {
+            // LÓGICA DE DEBUG ADICIONADA AQUI
+            console.log("--- DEBUG ENVIO SUGESTÃO ---");
             const sugestao = feedbackText.value.trim();
+            console.log("1. Botão 'Enviar Sugestão' clicado.");
+            console.log("2. Texto capturado da caixa de texto:", `"${sugestao}"`);
+            console.log("3. Container de feedback ativo:", activeFeedbackContainer ? "Sim" : "Não");
+
             if (activeFeedbackContainer) {
+                console.log("4. Enviando feedback negativo com a sugestão...");
                 enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
                 fecharModalFeedback();
+            } else {
+                console.error("5. FALHA: Nenhum 'activeFeedbackContainer' encontrado. O modal não foi aberto corretamente.");
             }
         });
 
-        // Configurar tema inicial e mensagem de boas-vindas
         function setInitialTheme() {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark') {
@@ -348,6 +304,5 @@ document.addEventListener('DOMContentLoaded', () => {
         setInitialTheme();
     }
 
-    // Inicia a aplicação
     initGoogleSignIn();
 });
