@@ -240,34 +240,44 @@ document.addEventListener('DOMContentLoaded', () => {
         // Enviar feedback
         // Substitua sua função antiga por esta em public/script.js
 
+// Substitua sua função antiga por esta versão com os "espiões"
 async function enviarFeedback(action, container) {
-    if (!ultimaPergunta || !ultimaLinhaDaFonte) return;
+    console.log("---------------------------------");
+    console.log("1. Função 'enviarFeedback' foi chamada com a ação:", action);
+
+    // Adicionamos logs para verificar o estado das variáveis críticas
+    console.log("2. Valor de 'ultimaPergunta':", ultimaPergunta);
+    console.log("3. Valor de 'ultimaLinhaDaFonte':", ultimaLinhaDaFonte);
+
+    // Esta é a verificação que suspeitamos estar falhando
+    if (!ultimaPergunta || !ultimaLinhaDaFonte) {
+        console.error("ERRO DE LÓGICA: A função parou porque 'ultimaPergunta' ou 'ultimaLinhaDaFonte' está nula ou vazia.");
+        return; // A função para aqui
+    }
     
-    // Atualiza a UI para dar um feedback visual imediato
     container.textContent = 'Obrigado!';
     container.className = 'feedback-thanks';
 
     try {
-        // O fetch agora aponta para nossa nova API de feedback
+        console.log("4. Tudo certo! Enviando dados para o backend...");
         await fetch('/api/feedback', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            // Enviamos os dados no corpo da requisição
             body: JSON.stringify({
                 action: action,
                 question: ultimaPergunta,
                 sourceRow: ultimaLinhaDaFonte,
-                email: dadosAtendente.email // dadosAtendente deve estar disponível no escopo
+                email: dadosAtendente.email 
             })
         });
+        console.log("5. Feedback enviado com sucesso!");
+
     } catch (error) {
-        console.error("Erro ao enviar feedback:", error);
-        // Silenciar erro de feedback para não atrapalhar o usuário
+        console.error("ERRO AO ENVIAR FEEDBACK (DENTRO DO CATCH):", error);
     }
 }
-
         // Buscar resposta do backend
        async function buscarResposta(textoDaPergunta) {
     ultimaPergunta = textoDaPergunta;
