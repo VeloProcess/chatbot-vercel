@@ -238,27 +238,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Enviar feedback
-        async function enviarFeedback(action, container) {
-            if (!ultimaPergunta || !ultimaLinhaDaFonte) return;
-            // CORRIGIDO (CSP): Usa classe em vez de estilo inline
-            container.textContent = 'Obrigado!';
-            container.className = 'feedback-thanks';
+        // Substitua sua função antiga por esta em public/script.js
 
-            try {
-                await fetch(BACKEND_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: action,
-                        question: ultimaPergunta,
-                        sourceRow: ultimaLinhaDaFonte,
-                        email: dadosAtendente.email
-                    })
-                });
-            } catch (error) {
-                // Silenciar erro de feedback
-            }
-        }
+async function enviarFeedback(action, container) {
+    if (!ultimaPergunta || !ultimaLinhaDaFonte) return;
+    
+    // Atualiza a UI para dar um feedback visual imediato
+    container.textContent = 'Obrigado!';
+    container.className = 'feedback-thanks';
+
+    try {
+        // O fetch agora aponta para nossa nova API de feedback
+        await fetch('/api/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            // Enviamos os dados no corpo da requisição
+            body: JSON.stringify({
+                action: action,
+                question: ultimaPergunta,
+                sourceRow: ultimaLinhaDaFonte,
+                email: dadosAtendente.email // dadosAtendente deve estar disponível no escopo
+            })
+        });
+    } catch (error) {
+        console.error("Erro ao enviar feedback:", error);
+        // Silenciar erro de feedback para não atrapalhar o usuário
+    }
+}
 
         // Buscar resposta do backend
        async function buscarResposta(textoDaPergunta) {
