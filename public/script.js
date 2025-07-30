@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 feedbackContainer.className = 'feedback-container';
                 const positiveBtn = document.createElement('button');
                 positiveBtn.className = 'feedback-btn';
-                positiveBtn.innerHTML = '👍';
+                positiveBtn.innerHTML = '�';
                 positiveBtn.title = 'Resposta útil';
                 positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
                 const negativeBtn = document.createElement('button');
@@ -254,7 +254,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        const feedbackText = document.getElementById('feedback-text');
+        // CORREÇÃO APLICADA AQUI
+        const feedbackText = document.getElementById('feedback-comment');
         let activeFeedbackContainer = null;
 
         function abrirModalFeedback(container) {
@@ -272,19 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
         feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
 
         feedbackSendBtn.addEventListener('click', () => {
-            // LÓGICA DE DEBUG ADICIONADA AQUI
-            console.log("--- DEBUG ENVIO SUGESTÃO ---");
             const sugestao = feedbackText.value.trim();
-            console.log("1. Botão 'Enviar Sugestão' clicado.");
-            console.log("2. Texto capturado da caixa de texto:", `"${sugestao}"`);
-            console.log("3. Container de feedback ativo:", activeFeedbackContainer ? "Sim" : "Não");
-
             if (activeFeedbackContainer) {
-                console.log("4. Enviando feedback negativo com a sugestão...");
                 enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
                 fecharModalFeedback();
             } else {
-                console.error("5. FALHA: Nenhum 'activeFeedbackContainer' encontrado. O modal não foi aberto corretamente.");
+                console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado. O modal não foi aberto corretamente.");
             }
         });
 
