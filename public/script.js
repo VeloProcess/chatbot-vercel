@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // ================== CONFIGURAÇÕES ==================
-    // ⚠️ ATENÇÃO: Verifique se esta URL é a URL da sua ÚLTIMA implantação do Google Apps Script.
-    
+    // ================== CONFIGURAÇÕES GLOBAIS ==================
     const DOMINIO_PERMITIDO = "@velotax.com.br";
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
 
@@ -22,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         identificacaoOverlay.classList.remove('hidden');
         appWrapper.classList.add('hidden');
     }
+
     function hideOverlay() {
         identificacaoOverlay.classList.add('hidden');
         appWrapper.classList.remove('hidden');
@@ -65,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
             verificarIdentificacao();
         }).catch(error => {
             errorMsg.textContent = 'Erro ao carregar autenticação do Google. Verifique sua conexão ou tente novamente mais tarde.';
-            errorMsg.classList.remove('hidden'); // CORRIGIDO (CSP)
+            errorMsg.classList.remove('hidden');
         });
     }
 
@@ -85,12 +84,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 iniciarBot(dadosAtendente);
             } else {
                 errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
-                errorMsg.classList.remove('hidden'); // CORRIGIDO (CSP)
+                errorMsg.classList.remove('hidden');
             }
         })
         .catch(error => {
             errorMsg.textContent = 'Erro ao verificar login. Tente novamente.';
-            errorMsg.classList.remove('hidden'); // CORRIGIDO (CSP)
+            errorMsg.classList.remove('hidden');
         });
     }
 
@@ -115,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
-    function iniciarBot(dadosAtendente) {
+    function iniciarBot() {
         // Elementos do DOM do bot
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
@@ -123,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const themeSwitcher = document.getElementById('theme-switcher');
         const body = document.body;
         const questionSearch = document.getElementById('question-search');
-        
+
         document.getElementById('gemini-button').addEventListener('click', function() {
             window.open('https://gemini.google.com/app?hl=pt-BR', '_blank');
         });
@@ -134,7 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const questions = document.querySelectorAll('#quick-questions-list li, #more-questions-list-financeiro li, #more-questions-list-tecnico li');
             questions.forEach(question => {
                 const text = question.textContent.toLowerCase();
-                // CORRIGIDO (CSP): Usa 'toggle' com a classe 'hidden'
                 question.classList.toggle('hidden', !text.includes(searchTerm));
             });
         });
@@ -157,160 +155,97 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove();
         }
 
-        // Função para copiar texto para a área de transferência
-        async function copiarTextoParaClipboard(texto) {
-            try {
-                await navigator.clipboard.writeText(texto);
-                return true;
-            } catch (err) {
-                // Fallback para navegadores mais antigos
-                const textArea = document.createElement("textarea");
-                textArea.value = texto;
-                // CORRIGIDO (CSP): Usa classe em vez de estilo inline
-                textArea.className = 'clipboard-helper'; 
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    return true;
-                } catch (fallbackErr) {
-                    document.body.removeChild(textArea);
-                    return false;
-                }
-            }
-        }
-
-        // Adicionar mensagem ao chat
+        // Adicionar mensagem ao chat (com lógica de feedback atualizada)
         function addMessage(message, sender, options = {}) {
             const { sourceRow = null } = options;
             const messageContainer = document.createElement('div');
             messageContainer.classList.add('message-container', sender);
+
             const avatarDiv = `<div class="avatar">${sender === 'user' ? '👤' : '🤖'}</div>`;
             const messageContentDiv = `<div class="message-content"><div class="message">${message.replace(/\n/g, '<br>')}</div></div>`;
+
             messageContainer.innerHTML = sender === 'user' ? messageContentDiv + avatarDiv : avatarDiv + messageContentDiv;
             chatBox.appendChild(messageContainer);
 
             if (sender === 'bot' && sourceRow) {
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-btn';
-                copyBtn.title = 'Copiar resposta';
-                copyBtn.innerHTML = '📋';
-                copyBtn.onclick = () => {
-                    const textToCopy = messageContainer.querySelector('.message').textContent;
-                    copiarTextoParaClipboard(textToCopy).then(success => {
-                        if (success) {
-                            copyBtn.innerHTML = '✅';
-                            copyBtn.classList.add('copied');
-                            setTimeout(() => {
-                                copyBtn.innerHTML = '📋';
-                                copyBtn.classList.remove('copied');
-                            }, 2000);
-                        } else {
-                            alert('Não foi possível copiar o texto.');
-                        }
-                    });
-                };
-
-                if (sender === 'bot') {
-    messageContainer.classList.add('bot-msg');
-}
-                messageContainer.appendChild(copyBtn);
-
+                const messageBox = messageContainer.querySelector('.message-content');
                 const feedbackContainer = document.createElement('div');
                 feedbackContainer.className = 'feedback-container';
+
                 const positiveBtn = document.createElement('button');
                 positiveBtn.className = 'feedback-btn';
                 positiveBtn.innerHTML = '👍';
                 positiveBtn.title = 'Resposta útil';
                 positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+
                 const negativeBtn = document.createElement('button');
                 negativeBtn.className = 'feedback-btn';
                 negativeBtn.innerHTML = '👎';
-                negativeBtn.title = 'Resposta incorreta';
-                negativeBtn.onclick = () => enviarFeedback('logFeedbackNegativo', feedbackContainer);
+                negativeBtn.title = 'Resposta incorreta ou incompleta';
+                negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+
                 feedbackContainer.appendChild(positiveBtn);
                 feedbackContainer.appendChild(negativeBtn);
-                messageContainer.querySelector('.message-content').appendChild(feedbackContainer);
+                messageBox.appendChild(feedbackContainer);
             }
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Enviar feedback
-        // Substitua sua função antiga por esta em public/script.js
+        // Enviar feedback (com suporte a sugestão)
+        async function enviarFeedback(action, container, sugestao = null) {
+            if (!ultimaPergunta || !ultimaLinhaDaFonte) {
+                console.error("Não foi possível enviar feedback: ultimaPergunta ou ultimaLinhaDaFonte está nula.");
+                return;
+            }
+            container.textContent = 'Obrigado pelo feedback!';
+            container.className = 'feedback-thanks';
 
-// Substitua sua função antiga por esta versão com os "espiões"
-async function enviarFeedback(action, container) {
-    console.log("---------------------------------");
-    console.log("1. Função 'enviarFeedback' foi chamada com a ação:", action);
-
-    // Adicionamos logs para verificar o estado das variáveis críticas
-    console.log("2. Valor de 'ultimaPergunta':", ultimaPergunta);
-    console.log("3. Valor de 'ultimaLinhaDaFonte':", ultimaLinhaDaFonte);
-
-    // Esta é a verificação que suspeitamos estar falhando
-    if (!ultimaPergunta || !ultimaLinhaDaFonte) {
-        console.error("ERRO DE LÓGICA: A função parou porque 'ultimaPergunta' ou 'ultimaLinhaDaFonte' está nula ou vazia.");
-        return; // A função para aqui
-    }
-    
-    container.textContent = 'Obrigado!';
-    container.className = 'feedback-thanks';
-
-    try {
-        console.log("4. Tudo certo! Enviando dados para o backend...");
-        await fetch('/api/feedback', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: action,
-                question: ultimaPergunta,
-                sourceRow: ultimaLinhaDaFonte,
-                email: dadosAtendente.email 
-            })
-        });
-        console.log("5. Feedback enviado com sucesso!");
-
-    } catch (error) {
-        console.error("ERRO AO ENVIAR FEEDBACK (DENTRO DO CATCH):", error);
-    }
-}
-        // Buscar resposta do backend
-       async function buscarResposta(textoDaPergunta) {
-    ultimaPergunta = textoDaPergunta;
-    ultimaLinhaDaFonte = null;
-    if (!textoDaPergunta.trim()) return;
-    showTypingIndicator();
-
-    try {
-        // Esta é a linha correta para a Vercel
-        const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}`;
-
-        const response = await fetch(url);
-        hideTypingIndicator();
-
-        if (!response.ok) {
-            throw new Error(`Erro de rede ou API: ${response.status}`);
+            try {
+                await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: action,
+                        question: ultimaPergunta,
+                        sourceRow: ultimaLinhaDaFonte,
+                        email: dadosAtendente.email,
+                        sugestao: sugestao
+                    })
+                });
+            } catch (error) {
+                console.error("Erro ao enviar feedback:", error);
+            }
         }
 
-        const data = await response.json();
-        
-        // A lógica para tratar a resposta continua a mesma
-        if (data.status === 'sucesso') {
-            ultimaLinhaDaFonte = data.sourceRow;
-            addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
-        } else {
-            addMessage(data.resposta || "Ocorreu um erro ao processar sua pergunta.", 'bot');
+        // Buscar resposta do backend (apontando para a API da Vercel)
+        async function buscarResposta(textoDaPergunta) {
+            ultimaPergunta = textoDaPergunta;
+            ultimaLinhaDaFonte = null;
+            if (!textoDaPergunta.trim()) return;
+            showTypingIndicator();
+
+            try {
+                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}`;
+                const response = await fetch(url);
+                hideTypingIndicator();
+
+                if (!response.ok) {
+                    throw new Error(`Erro de rede ou API: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.status === 'sucesso') {
+                    ultimaLinhaDaFonte = data.sourceRow;
+                    addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
+                } else {
+                    addMessage(data.resposta || "Ocorreu um erro ao processar sua pergunta.", 'bot');
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage("Erro de conexão com o backend. Verifique o console (F12) para mais detalhes.", 'bot');
+                console.error("Detalhes do erro de fetch:", error);
+            }
         }
-    } catch (error) {
-        hideTypingIndicator();
-        addMessage("Erro de conexão com o backend. Verifique o console (F12) para mais detalhes.", 'bot');
-        console.error("Detalhes do erro de fetch:", error);
-    }
-}
 
         // Enviar mensagem
         function handleSendMessage(text) {
@@ -329,18 +264,17 @@ async function enviarFeedback(action, container) {
             }
         });
         sendButton.addEventListener('click', () => handleSendMessage(userInput.value));
-        
+
         document.querySelectorAll('#quick-questions-list li, #more-questions-list-financeiro li, #more-questions-list-tecnico li').forEach(item => {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
-        
+
         document.getElementById('expandable-faq-header').addEventListener('click', (e) => {
             e.currentTarget.classList.toggle('expanded');
             const moreQuestions = document.getElementById('more-questions');
-            // CORRIGIDO (CSP): Usa 'toggle' com a classe 'hidden'
             moreQuestions.classList.toggle('hidden', !e.currentTarget.classList.contains('expanded'));
         });
-        
+
         themeSwitcher.addEventListener('click', () => {
             body.classList.toggle('dark-theme');
             const isDark = body.classList.contains('dark-theme');
@@ -348,7 +282,38 @@ async function enviarFeedback(action, container) {
             themeSwitcher.innerHTML = isDark ? '🌙' : '☀️';
         });
 
-        // Configurar tema inicial
+        // ==================================================
+        //  LÓGICA PARA CONTROLAR O MODAL DE FEEDBACK
+        // ==================================================
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const feedbackSendBtn = document.getElementById('feedback-send');
+        const feedbackCancelBtn = document.getElementById('feedback-cancel');
+        const feedbackText = document.getElementById('feedback-text');
+        let activeFeedbackContainer = null;
+
+        function abrirModalFeedback(container) {
+            activeFeedbackContainer = container;
+            feedbackOverlay.classList.remove('hidden');
+            feedbackText.focus();
+        }
+
+        function fecharModalFeedback() {
+            feedbackOverlay.classList.add('hidden');
+            feedbackText.value = '';
+            activeFeedbackContainer = null;
+        }
+
+        feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
+
+        feedbackSendBtn.addEventListener('click', () => {
+            const sugestao = feedbackText.value.trim();
+            if (activeFeedbackContainer) {
+                enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
+                fecharModalFeedback();
+            }
+        });
+
+        // Configurar tema inicial e mensagem de boas-vindas
         function setInitialTheme() {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark') {
@@ -360,7 +325,6 @@ async function enviarFeedback(action, container) {
             }
         }
 
-        // Mensagem de boas-vindas
         const primeiroNome = dadosAtendente.nome.split(' ')[0];
         addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot');
         setInitialTheme();
