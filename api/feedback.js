@@ -14,11 +14,6 @@ export default async function handler(req, res) {
   try {
     const dados = req.body;
 
-    // ================================================================
-    // LINHA DE DEBUG: Vamos verificar os dados recebidos
-    console.log("Dados recebidos no backend de feedback:", JSON.stringify(dados, null, 2));
-    // ================================================================
-
     const auth = new google.auth.GoogleAuth({
       credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -27,14 +22,15 @@ export default async function handler(req, res) {
     const sheets = google.sheets({ version: 'v4', auth });
 
     const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo 👎';
-    
+
+    // Prepara a nova linha, agora incluindo a sugestão
     const newRow = [
       new Date().toISOString(),
       dados.email || 'nao_fornecido',
       dados.question,
       tipoFeedback,
       dados.sourceRow,
-      dados.sugestao || '' // Adiciona a sugestão, ou uma string vazia se não houver
+      dados.sugestao || '' // <-- ESTA LINHA É CRUCIAL
     ];
 
     await sheets.spreadsheets.values.append({
@@ -46,10 +42,10 @@ export default async function handler(req, res) {
       },
     });
 
-    return res.status(200).json({ status: 'sucesso', message: 'Feedback registrado.' });
+    return res.status(200).json({ status: 'sucesso', message: 'Feedback registado.' });
 
   } catch (error) {
     console.error("ERRO NO BACKEND DE FEEDBACK:", error);
-    return res.status(500).json({ error: "Erro interno ao registrar feedback.", details: error.message });
+    return res.status(500).json({ error: "Erro interno ao registar feedback.", details: error.message });
   }
 }
