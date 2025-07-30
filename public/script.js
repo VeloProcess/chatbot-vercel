@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dadosAtendente = { nome: user.name, email: user.email, timestamp: Date.now() };
                 localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
                 hideOverlay();
-                iniciarBot(dadosAtendente);
+                iniciarBot(); // Passar dadosAtendente não é mais necessário aqui, pois é uma variável global
             } else {
                 errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
                 errorMsg.classList.remove('hidden');
@@ -105,8 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem('dadosAtendenteChatbot');
         }
         if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
+            dadosAtendente = dadosSalvos; // Garante que dadosAtendente seja preenchido
             hideOverlay();
-            iniciarBot(dadosSalvos);
+            iniciarBot();
         } else {
             localStorage.removeItem('dadosAtendenteChatbot');
             showOverlay();
@@ -191,17 +192,24 @@ document.addEventListener('DOMContentLoaded', () => {
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Enviar feedback (com suporte a sugestão)
+        // Enviar feedback (com suporte a sugestão e LOGS DE DEBUG)
         async function enviarFeedback(action, container, sugestao = null) {
+            console.log("--- DEBUG FEEDBACK ---");
+            console.log("1. Tentando enviar feedback. Ação:", action);
+            console.log("2. Valor ATUAL de 'ultimaPergunta':", `"${ultimaPergunta}"`);
+            console.log("3. Valor ATUAL de 'ultimaLinhaDaFonte':", ultimaLinhaDaFonte);
+
             if (!ultimaPergunta || !ultimaLinhaDaFonte) {
-                console.error("Não foi possível enviar feedback: ultimaPergunta ou ultimaLinhaDaFonte está nula.");
+                console.error("4. FALHA: Feedback não enviado. 'ultimaPergunta' ou 'ultimaLinhaDaFonte' está vazio ou nulo. Verifique a resposta da API na aba 'Network'.");
                 return;
             }
+
             container.textContent = 'Obrigado pelo feedback!';
             container.className = 'feedback-thanks';
 
             try {
-                await fetch('/api/feedback', {
+                console.log("4. SUCESSO: Variáveis validadas. Enviando para /api/feedback...");
+                const response = await fetch('/api/feedback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -212,12 +220,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         sugestao: sugestao
                     })
                 });
+                if (!response.ok) {
+                    console.error("5. ERRO NO BACKEND: A API /api/feedback respondeu com um erro.", response.status, response.statusText);
+                } else {
+                    console.log("5. SUCESSO: Feedback enviado para o backend.");
+                }
             } catch (error) {
-                console.error("Erro ao enviar feedback:", error);
+                console.error("ERRO DE REDE ao enviar feedback:", error);
             }
         }
 
-        // Buscar resposta do backend (apontando para a API da Vercel)
+        // Buscar resposta do backend (com LOGS DE DEBUG)
         async function buscarResposta(textoDaPergunta) {
             ultimaPergunta = textoDaPergunta;
             ultimaLinhaDaFonte = null;
@@ -234,6 +247,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const data = await response.json();
+                
+                // LOG DE DEBUG ADICIONADO AQUI
+                console.log("--- DEBUG RESPOSTA ---");
+                console.log("Dados recebidos de /api/ask:", data);
+
                 if (data.status === 'sucesso') {
                     ultimaLinhaDaFonte = data.sourceRow;
                     addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
