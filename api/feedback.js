@@ -1,4 +1,4 @@
-// api/feedback.js (Versão Final e Robusta)
+// api/feedback.js (Versão Final com Ordem de Dados Otimizada)
 
 const { google } = require('googleapis');
 
@@ -9,23 +9,7 @@ export default async function handler(req, res) {
   try {
     const dados = req.body;
 
-    // **A Mágica Acontece Aqui:**
-    // Validação e conversão de todos os dados para texto, garantindo que não haja erros.
-    const question = String(dados.question || 'Pergunta não informada');
-    const email = String(dados.email || 'nao_fornecido');
-    const sourceRow = String(dados.sourceRow !== null ? dados.sourceRow : 'N/A');
-    const sugestao = String(dados.sugestao || ''); // Garante que a sugestão seja sempre um texto, mesmo que vazio.
-    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo 👎';
-
-    const newRow = [
-      new Date().toISOString(),
-      email,
-      question,
-      tipoFeedback,
-      sourceRow,
-      sugestao,
-    ];
-
+    // 1. Prepara a autenticação primeiro
     const auth = new google.auth.GoogleAuth({
       credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -33,6 +17,19 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth });
 
+    // 2. Prepara e limpa os dados para a nova linha
+    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo 👎';
+    
+    const newRow = [
+      new Date().toISOString(),
+      String(dados.email || 'nao_fornecido'),
+      String(dados.question || 'N/A'),
+      tipoFeedback,
+      String(dados.sourceRow !== null ? dados.sourceRow : 'N/A'),
+      String(dados.sugestao || '') // Garante que a sugestão seja sempre um texto
+    ];
+
+    // 3. Envia os dados já prontos
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: LOG_SHEET_NAME,
