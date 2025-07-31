@@ -104,26 +104,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // script.js (adicionar esta nova função)
+    // Nova função para registrar a pergunta na planilha
+    async function logQuestionOnSheet(question, email) {
+        if (!question || !email) return;
 
-// Nova função para registrar a pergunta na planilha
-async function logQuestionOnSheet(question, email) {
-    if (!question || !email) return; // Não faz nada se não tiver os dados
-
-    try {
-        await fetch('/api/logQuestion', { // Chama a nova API
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                question: question,
-                email: email
-            })
-        });
-    } catch (error) {
-        // Apenas loga o erro no console para não interromper a experiência do usuário
-        console.error("Erro ao registrar a pergunta na planilha:", error);
+        try {
+            await fetch('/api/logQuestion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: question,
+                    email: email
+                })
+            });
+        } catch (error) {
+            console.error("Erro ao registrar a pergunta na planilha:", error);
+        }
     }
-}
 
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
     function iniciarBot() {
@@ -133,6 +130,10 @@ async function logQuestionOnSheet(question, email) {
         const themeSwitcher = document.getElementById('theme-switcher');
         const body = document.body;
         const questionSearch = document.getElementById('question-search');
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const feedbackSendBtn = document.getElementById('feedback-send');
+        const feedbackCancelBtn = document.getElementById('feedback-cancel');
+        let activeFeedbackContainer = null;
 
         document.getElementById('gemini-button').addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
 
@@ -166,7 +167,7 @@ async function logQuestionOnSheet(question, email) {
             const { sourceRow = null } = options;
             const messageContainer = document.createElement('div');
             messageContainer.classList.add('message-container', sender);
-            const avatarDiv = `<div class="avatar">${sender === 'user' ? '👤' : '🤖'}</div>`;
+            const avatarDiv = `<div class="avatar ${sender === 'user' ? 'user' : 'bot'}">${sender === 'user' ? '👤' : '🤖'}</div>`;
             const messageContentDiv = `<div class="message-content"><div class="message">${message.replace(/\n/g, '<br>')}</div></div>`;
             messageContainer.innerHTML = sender === 'user' ? messageContentDiv + avatarDiv : avatarDiv + messageContentDiv;
             chatBox.appendChild(messageContainer);
@@ -197,8 +198,10 @@ async function logQuestionOnSheet(question, email) {
                 console.error("FALHA: Feedback não enviado. 'ultimaPergunta' ou 'ultimaLinhaDaFonte' está vazio ou nulo.");
                 return;
             }
-            container.textContent = 'Obrigado pelo feedback!';
-            container.className = 'feedback-thanks';
+            if (container) {
+                container.textContent = 'Obrigado pelo feedback!';
+                container.className = 'feedback-thanks';
+            }
             try {
                 await fetch('/api/feedback', {
                     method: 'POST',
@@ -240,10 +243,13 @@ async function logQuestionOnSheet(question, email) {
             }
         }
 
+        // CORREÇÃO: Função de envio de mensagem restaurada
         function handleSendMessage(text) {
             const trimmedText = text.trim();
             if (!trimmedText) return;
             addMessage(trimmedText, 'user');
+            // As chamadas foram movidas para cá, que é o lugar correto.
+            logQuestionOnSheet(trimmedText, dadosAtendente.email);
             buscarResposta(trimmedText);
             userInput.value = '';
         }
@@ -271,41 +277,39 @@ async function logQuestionOnSheet(question, email) {
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeSwitcher.innerHTML = isDark ? '🌙' : '☀️';
         });
-
-        const feedbackOverlay = document.getElementById('feedback-overlay');
-        const feedbackSendBtn = document.getElementById('feedback-send');
-        const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        // CORREÇÃO APLICADA AQUI
-        const feedbackText = document.getElementById('feedback-comment');
-        let activeFeedbackContainer = null;
-
-         logQuestionOnSheet(trimmedText, dadosAtendente.email);
-
-    buscarResposta(trimmedText);
-    userInput.value = '';
-
-
+        
         function abrirModalFeedback(container) {
+            const feedbackText = document.getElementById('feedback-comment');
             activeFeedbackContainer = container;
             feedbackOverlay.classList.remove('hidden');
-            feedbackText.focus();
+            if (feedbackText) feedbackText.focus();
         }
 
         function fecharModalFeedback() {
+            const feedbackText = document.getElementById('feedback-comment');
             feedbackOverlay.classList.add('hidden');
-            feedbackText.value = '';
+            if(feedbackText) feedbackText.value = '';
             activeFeedbackContainer = null;
         }
 
         feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
-
+        
+        // CORREÇÃO: Lógica de envio de feedback substituída pela versão mais segura
         feedbackSendBtn.addEventListener('click', () => {
-            const sugestao = feedbackText.value.trim();
+            const commentTextarea = document.getElementById('feedback-comment');
+            if (!commentTextarea) {
+                alert("ERRO CRÍTICO: A caixa de texto com o ID 'feedback-comment' não foi encontrada no HTML.");
+                return;
+            }
+            const sugestao = commentTextarea.value.trim();
+
             if (activeFeedbackContainer) {
-                enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
+                enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao);
                 fecharModalFeedback();
             } else {
-                console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado. O modal não foi aberto corretamente.");
+                console.error("ALERTA: 'activeFeedbackContainer' não foi encontrado, mas tentando enviar o feedback mesmo assim.");
+                enviarFeedback('logFeedbackNegativo', null, sugestao);
+                fecharModalFeedback();
             }
         });
 
