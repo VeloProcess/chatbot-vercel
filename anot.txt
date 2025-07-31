@@ -1,0 +1,12 @@
+# 1. Adiciona todos os arquivos
+git add .
+
+# 2. Salva com uma mensagem
+git commit -m "Sua mensagem descritiva aqui"
+
+# 3. Envia para o servidor
+git push
+
+#para baixar novos
+git pull
+

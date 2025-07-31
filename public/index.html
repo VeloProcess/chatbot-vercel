@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- CSP ajustada: libera fetch para Google APIs e Apps Script -->
     <meta http-equiv="Content-Security-Policy"
       content="default-src 'self';
                img-src 'self' https://github.com https://raw.githubusercontent.com https://www.google.com;
@@ -14,7 +13,6 @@
     <title>Painel Interno com ChatBot - Tema Clássico</title>
     <link rel="icon" type="image/png" href="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true">
     <link rel="stylesheet" href="style.css">
-    <!-- Script Google Identity Services antes do JS principal -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -42,11 +40,12 @@
                 </div>
                 <div class="question-category">Mais Comuns</div>
                 <ul id="quick-questions-list">
-                    <li data-question="E-mail de procuração, o que dizer?">E-mail de procuração, o que dizer?</li>
-                    <li data-question="Quero fazer a exclusão da minha conta">Quero fazer a exclusão da minha conta</li>
+                    <li data-question="Cenário 1: Valor creditado na conta Velobank e empréstimo liquidado">Cenário 1: Valor creditado na conta Velobank e empréstimo liquidado</li>
+                    <li data-question="Cenário 2: Valor creditado pela Receita, mas não processado na conta Velobank">Cenário 2: Valor creditado pela Receita, mas não processado na conta Velobank</li>
                     <li data-question="Problema no login do app">Problema no login do app</li>
                     <li data-question="Informação sobre os valores da restituição">Informação sobre os valores da restituição</li>
                 </ul>
+
                 <div id="expandable-faq-container">
                     <div id="expandable-faq-header" class="expandable-header">
                         <span>Outras Perguntas</span>
@@ -77,32 +76,32 @@
         </div>
         
         <div id="curadoria-overlay" class="hidden">
-    <div id="curadoria-box">
-        <h2>Sugerir Correção</h2>
-        <p>A resposta do bot não foi útil. Por favor, descreva qual seria o procedimento ou a informação correta.</p>
-        <form id="curadoria-form">
-            <textarea id="curadoria-comentario" placeholder="Ex: O link correto é outro, o prazo mudou para 5 dias úteis, o documento necessário é o RG..." required></textarea>
-            <div class="feedback-form-buttons">
-                <button type="button" id="curadoria-cancel">Cancelar</button>
-                <button type="submit" id="curadoria-send">Enviar Sugestão</button>
+            <div id="curadoria-box">
+                <h2>Sugerir Correção</h2>
+                <p>A resposta do bot não foi útil. Por favor, descreva qual seria o procedimento ou a informação correta.</p>
+                <form id="curadoria-form">
+                    <textarea id="curadoria-comentario" placeholder="Ex: O link correto é outro, o prazo mudou para 5 dias úteis, o documento necessário é o RG..." required></textarea>
+                    <div class="feedback-form-buttons">
+                        <button type="button" id="curadoria-cancel">Cancelar</button>
+                        <button type="submit" id="curadoria-send">Enviar Sugestão</button>
+                    </div>
+                </form>
             </div>
-        </form>
-    </div>
-</div>
+        </div>
 
         <div id="feedback-overlay" class="hidden">
-    <div id="feedback-box">
-        <h2>Melhorar esta Resposta</h2>
-        <p>Obrigado pelo seu feedback! Por favor, nos diga o que estava errado ou o que estava faltando na resposta.</p>
-        <form id="feedback-form">
-            <textarea id="feedback-comment" placeholder="Ex: A resposta está desatualizada, o link está quebrado, a informação correta é..." required></textarea>
-            <div class="feedback-form-buttons">
-                <button type="button" id="feedback-cancel">Cancelar</button>
-                <button type="submit" id="feedback-send">Enviar Feedback</button>
+            <div id="feedback-box">
+                <h2>Melhorar esta Resposta</h2>
+                <p>Obrigado pelo seu feedback! Por favor, nos diga o que estava errado ou o que estava faltando na resposta.</p>
+                <form id="feedback-form">
+                    <textarea id="feedback-comment" placeholder="Ex: A resposta está desatualizada, o link está quebrado, a informação correta é..." required></textarea>
+                    <div class="feedback-form-buttons">
+                        <button type="button" id="feedback-cancel">Cancelar</button>
+                        <button type="submit" id="feedback-send">Enviar Feedback</button>
+                    </div>
+                </form>
             </div>
-        </form>
-    </div>
-</div>
+        </div>
 
         <div class="chat-container panel">
             <div class="chat-header">
@@ -144,17 +143,6 @@
                     <p></p>
                 </div>
             </div>
-        </div>
-    </div>
-     <div id="feedback-overlay" class="hidden">
-        <div id="feedback-box">
-            <h2>Melhorar esta Resposta</h2>
-            <p>Obrigado pelo seu feedback! Por favor, nos diga o que estava errado ou o que estava faltando na resposta.</p>
-            <textarea id="feedback-text" placeholder="Descreva o problema ou sugestão..."></textarea>
-<div class="feedback-form-buttons">
-    <button id="feedback-cancel" type="button">Cancelar</button>
-    <button id="feedback-send" type="button">Enviar Sugestão</button>
-</div>
         </div>
     </div>
 
