@@ -2,7 +2,7 @@
 git add .
 
 # 2. Salva com uma mensagem
-git commit -m "Sua mensagem descritiva aqui"
+git commit -m "nova loga temporaria de feedback"
 
 # 3. Envia para o servidor
 git push
