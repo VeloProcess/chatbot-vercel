@@ -1,89 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
     // ================== CONFIGURAÇÕES GLOBAIS ==================
+    // ⚠️ ATENÇÃO: Verifique se esta URL é a URL da sua ÚLTIMA implantação do Google Apps Script.
+    const BACKEND_URL = "https://script.google.com/macros/s/AKfycbw8n95lQr5-RbxG9qYG7O_3ZEOVkVQ3K50C3iFM9JViLyEsa8hiDuRuCzlgy_YPoI43/exec";
+    
     const DOMINIO_PERMITIDO = "@velotax.com.br";
-    const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
 
     // ================== ELEMENTOS DO DOM ==================
     const identificacaoOverlay = document.getElementById('identificacao-overlay');
+    const identificacaoForm = document.getElementById('identificacao-form');
     const appWrapper = document.querySelector('.app-wrapper');
     const errorMsg = document.getElementById('identificacao-error');
 
     // ================== VARIÁVEIS DE ESTADO ==================
     let ultimaPergunta = '';
+    let ultimaResposta = '';
     let ultimaLinhaDaFonte = null;
     let isTyping = false;
     let dadosAtendente = null;
-    let tokenClient = null;
-
-    // ================== FUNÇÕES DE CONTROLE DE UI ==================
-    function showOverlay() {
-        identificacaoOverlay.classList.remove('hidden');
-        appWrapper.classList.add('hidden');
-    }
-
-    function hideOverlay() {
-        identificacaoOverlay.classList.add('hidden');
-        appWrapper.classList.remove('hidden');
-    }
 
     // ================== LÓGICA DE AUTENTICAÇÃO ==================
-    function waitForGoogleScript() {
-        return new Promise((resolve, reject) => {
-            const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-            if (!script) {
-                return reject(new Error('Script Google Identity Services não encontrado no HTML.'));
-            }
-            if (window.google && window.google.accounts) {
-                return resolve(window.google.accounts);
-            }
-            script.onload = () => {
-                if (window.google && window.google.accounts) {
-                    resolve(window.google.accounts);
-                } else {
-                    reject(new Error('Falha ao carregar Google Identity Services.'));
-                }
-            };
-            script.onerror = () => reject(new Error('Erro ao carregar o script Google Identity Services.'));
-        });
-    }
-
-    function initGoogleSignIn() {
-        waitForGoogleScript().then(accounts => {
-            tokenClient = accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: 'profile email',
-                callback: handleGoogleSignIn
-            });
-            document.getElementById('google-signin-button').addEventListener('click', () => tokenClient.requestAccessToken());
-            verificarIdentificacao();
-        }).catch(error => {
-            errorMsg.textContent = 'Erro ao carregar autenticação do Google. Verifique sua conexão ou tente novamente mais tarde.';
-            errorMsg.classList.remove('hidden');
-        });
-    }
-
-    function handleGoogleSignIn(response) {
-        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${response.access_token}` }
-        })
-        .then(res => res.json())
-        .then(user => {
-            if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
-                dadosAtendente = { nome: user.name, email: user.email, timestamp: Date.now() };
-                localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
-                hideOverlay();
-                iniciarBot();
-            } else {
-                errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
-                errorMsg.classList.remove('hidden');
-            }
-        })
-        .catch(() => {
-            errorMsg.textContent = 'Erro ao verificar login. Tente novamente.';
-            errorMsg.classList.remove('hidden');
-        });
-    }
-
     function verificarIdentificacao() {
         const umDiaEmMs = 24 * 60 * 60 * 1000;
         let dadosSalvos = null;
@@ -93,88 +28,82 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             localStorage.removeItem('dadosAtendenteChatbot');
         }
-
-        if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
-            dadosAtendente = dadosSalvos;
-            hideOverlay();
-            iniciarBot();
+        
+        if (!dadosSalvos || (Date.now() - dadosSalvos.timestamp > umDiaEmMs) || !dadosSalvos.email.endsWith(DOMINIO_PERMITIDO)) {
+            identificacaoOverlay.style.display = 'flex';
+            appWrapper.style.visibility = 'hidden';
         } else {
-            localStorage.removeItem('dadosAtendenteChatbot');
-            showOverlay();
+            identificacaoOverlay.style.display = 'none';
+            appWrapper.style.visibility = 'visible';
+            iniciarBot(dadosSalvos);
         }
     }
 
-    // script.js (adicionar esta nova função)
+    identificacaoForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const nome = document.getElementById('nome-input').value.trim();
+        const email = document.getElementById('email-input').value.trim().toLowerCase();
 
-// Nova função para registrar a pergunta na planilha
-async function logQuestionOnSheet(question, email) {
-    if (!question || !email) return; // Não faz nada se não tiver os dados
-
-    try {
-        await fetch('/api/logQuestion', { // Chama a nova API
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                question: question,
-                email: email
-            })
-        });
-    } catch (error) {
-        // Apenas loga o erro no console para não interromper a experiência do usuário
-        console.error("Erro ao registrar a pergunta na planilha:", error);
-    }
-}
+        if (nome && email && email.endsWith(DOMINIO_PERMITIDO)) {
+            const dadosAtendenteParaSalvar = { nome, email, timestamp: Date.now() };
+            localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendenteParaSalvar));
+            identificacaoOverlay.style.display = 'none';
+            appWrapper.style.visibility = 'visible';
+            iniciarBot(dadosAtendenteParaSalvar);
+        } else {
+            errorMsg.style.display = 'block';
+        }
+    });
 
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
-    function iniciarBot() {
+    function iniciarBot(dadosDoAtendente) {
+        dadosAtendente = dadosDoAtendente;
+
+        // --- Referências aos elementos do painel ---
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
         const themeSwitcher = document.getElementById('theme-switcher');
         const body = document.body;
         const questionSearch = document.getElementById('question-search');
+        const expandableHeader = document.getElementById('expandable-faq-header');
+        const moreQuestions = document.getElementById('more-questions');
+        const allQuestionItems = document.querySelectorAll('#quick-questions-list li, #more-questions-list li');
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const feedbackForm = document.getElementById('feedback-form');
+        const feedbackCancelBtn = document.getElementById('feedback-cancel');
+        const feedbackComment = document.getElementById('feedback-comment');
+        let activeFeedbackContainer = null;
 
-        document.getElementById('gemini-button').addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
+        // --- FUNÇÕES AUXILIARES ---
 
-        questionSearch.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const questions = document.querySelectorAll('#quick-questions-list li, #more-questions-list-financeiro li, #more-questions-list-tecnico li');
-            questions.forEach(question => {
-                const text = question.textContent.toLowerCase();
-                question.classList.toggle('hidden', !text.includes(searchTerm));
-            });
-        });
-/**
- * Formata um nome completo para uma assinatura com o primeiro nome e a inicial do segundo.
- * Ex: "Gabriel Araujo" se torna "Gabriel A."
- * @param {string} nomeCompleto O nome completo do atendente.
- * @returns {string} O nome formatado para a assinatura.
- */
-function formatarAssinatura(nomeCompleto) {
-    if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
-        return ''; // Retorna vazio se o nome for inválido
-    }
+        function formatarAssinatura(nomeCompleto) {
+            if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
+                return '';
+            }
+            const nomes = nomeCompleto.trim().split(' ');
+            const primeiroNome = nomes[0];
+            let assinaturaFormatada = primeiroNome;
+            if (nomes.length > 1 && nomes[1]) {
+                const inicialDoSegundoNome = nomes[1].charAt(0).toUpperCase();
+                assinaturaFormatada += ` ${inicialDoSegundoNome}.`;
+            }
+            return assinaturaFormatada;
+        }
 
-    const nomes = nomeCompleto.trim().split(' ');
-    const primeiroNome = nomes[0];
-
-    let assinaturaFormatada = primeiroNome;
-
-    // Verifica se existe um segundo nome para pegar a inicial
-    if (nomes.length > 1 && nomes[1]) {
-        const inicialDoSegundoNome = nomes[1].charAt(0).toUpperCase();
-        assinaturaFormatada += ` ${inicialDoSegundoNome}.`;
-    }
-
-    return assinaturaFormatada;
-}
         function showTypingIndicator() {
             if (isTyping) return;
             isTyping = true;
             const typingContainer = document.createElement('div');
-            typingContainer.className = 'message-container bot typing-indicator';
             typingContainer.id = 'typing-indicator';
-            typingContainer.innerHTML = `<div class="avatar bot">🤖</div><div class="message-content"><div class="message"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+            typingContainer.className = 'message-container bot typing-indicator';
+            typingContainer.innerHTML = `
+                <div class="avatar bot">🤖</div>
+                <div class="message-content">
+                    <div class="message">
+                        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+                    </div>
+                </div>`;
             chatBox.appendChild(typingContainer);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
@@ -184,107 +113,150 @@ function formatarAssinatura(nomeCompleto) {
             const typingIndicator = document.getElementById('typing-indicator');
             if (typingIndicator) typingIndicator.remove();
         }
-
- function addMessage(message, sender, options = {}) {
-    let mensagemFinal = message; // Começa com a mensagem original
-
-    // --- NOVA LÓGICA DE FORMATAÇÃO DE ASSINATURA ---
-    // Se a mensagem for do bot e contiver o placeholder, ele é substituído.
-    if (sender === 'bot' && dadosAtendente && typeof mensagemFinal === 'string' && mensagemFinal.includes('{{ASSINATURA_ATENDENTE}}')) {
-        // 1. Gera a assinatura personalizada com o nome do atendente logado
-        const assinatura = formatarAssinatura(dadosAtendente.nome);
         
-        // 2. Substitui todas as ocorrências do placeholder pela assinatura gerada
-        mensagemFinal = mensagemFinal.replace(/{{ASSINATURA_ATENDENTE}}/g, assinatura);
-    }
-    // --- FIM DA NOVA LÓGICA ---
+        function addMessage(message, sender, options = {}) {
+            let mensagemFinal = message;
 
-    // O resto da sua função original continua abaixo, usando a "mensagemFinal"
-    const { sourceRow = null } = options;
-    const messageContainer = document.createElement('div');
-    messageContainer.classList.add('message-container', sender);
-    
-    const avatarDiv = `<div class="avatar ${sender === 'user' ? 'user' : 'bot'}">${sender === 'user' ? '👤' : '🤖'}</div>`;
-    
-    // Usa a mensagemFinal (que pode ter sido alterada) para criar o conteúdo
-    const messageContentDiv = `<div class="message-content"><div class="message">${mensagemFinal.replace(/\n/g, '<br>')}</div></div>`;
-    
-    messageContainer.innerHTML = sender === 'user' ? messageContentDiv + avatarDiv : avatarDiv + messageContentDiv;
-    chatBox.appendChild(messageContainer);
-
-    if (sender === 'bot' && sourceRow) {
-        // Salva a última resposta e a linha da fonte para a lógica de feedback
-        ultimaResposta = messageContainer.querySelector('.message').textContent;
-        ultimaLinhaDaFonte = sourceRow;
-
-        const messageBox = messageContainer.querySelector('.message-content');
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.className = 'feedback-container';
-        
-        const positiveBtn = document.createElement('button');
-        positiveBtn.className = 'feedback-btn';
-        positiveBtn.innerHTML = '👍';
-        positiveBtn.title = 'Resposta útil';
-        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-
-        const negativeBtn = document.createElement('button');
-        negativeBtn.className = 'feedback-btn';
-        negativeBtn.innerHTML = '👎';
-        negativeBtn.title = 'Resposta incorreta ou incompleta';
-        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-        
-        feedbackContainer.appendChild(positiveBtn);
-        feedbackContainer.appendChild(negativeBtn);
-        messageBox.appendChild(feedbackContainer);
-    }
-    
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-        async function enviarFeedback(action, container, sugestao = null) {
-            if (!ultimaPergunta || !ultimaLinhaDaFonte) {
-                console.error("FALHA: Feedback não enviado. 'ultimaPergunta' ou 'ultimaLinhaDaFonte' está vazio ou nulo.");
-                return;
+            if (sender === 'bot' && dadosAtendente && typeof mensagemFinal === 'string' && mensagemFinal.includes('{{ASSINATURA_ATENDENTE}}')) {
+                const assinatura = formatarAssinatura(dadosAtendente.nome);
+                mensagemFinal = mensagemFinal.replace(/{{ASSINATURA_ATENDENTE}}/g, assinatura);
             }
-            container.textContent = 'Obrigado pelo feedback!';
-            container.className = 'feedback-thanks';
+
+            const { sourceRow = null } = options;
+            const messageContainer = document.createElement('div');
+            messageContainer.classList.add('message-container', sender);
+
+            const avatar = document.createElement('div');
+            avatar.className = `avatar ${sender}`;
+            avatar.innerHTML = sender === 'user' ? '👤' : '🤖';
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.innerHTML = mensagemFinal.replace(/\n/g, '<br>');
+
+            if (sender === 'bot') {
+                ultimaResposta = messageElement.textContent.trim();
+            }
+            
+            messageContent.appendChild(messageElement);
+            
+            const timeElement = document.createElement('div');
+            timeElement.className = 'message-time';
+            timeElement.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            messageContent.appendChild(timeElement);
+
+            if (sender === 'user') {
+                messageContainer.appendChild(messageContent);
+                messageContainer.appendChild(avatar);
+            } else {
+                messageContainer.appendChild(avatar);
+                messageContainer.appendChild(messageContent);
+            }
+
+            chatBox.appendChild(messageContainer);
+
+            if (sender === 'bot' && sourceRow) {
+                ultimaLinhaDaFonte = sourceRow;
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.innerHTML = '📋';
+                copyBtn.title = 'Copiar resposta';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(messageElement.textContent.trim()).then(() => {
+                        copyBtn.classList.add('copied');
+                        setTimeout(() => copyBtn.classList.remove('copied'), 2000);
+                    });
+                };
+                messageContainer.appendChild(copyBtn);
+
+                const feedbackContainer = document.createElement('div');
+                feedbackContainer.className = 'feedback-container';
+                const positiveBtn = document.createElement('button');
+                positiveBtn.className = 'feedback-btn';
+                positiveBtn.innerHTML = '👍';
+                positiveBtn.title = 'Resposta útil';
+                positiveBtn.onclick = () => {
+                    positiveBtn.classList.add('active', 'positive');
+                    negativeBtn.classList.remove('active', 'negative');
+                    enviarFeedback('logFeedbackPositivo', feedbackContainer);
+                };
+
+                const negativeBtn = document.createElement('button');
+                negativeBtn.className = 'feedback-btn';
+                negativeBtn.innerHTML = '👎';
+                negativeBtn.title = 'Resposta incorreta';
+                negativeBtn.onclick = () => {
+                    negativeBtn.classList.add('active', 'negative');
+                    positiveBtn.classList.remove('active', 'positive');
+                    abrirModalFeedback(feedbackContainer);
+                };
+                
+                feedbackContainer.appendChild(positiveBtn);
+                feedbackContainer.appendChild(negativeBtn);
+                messageContent.appendChild(feedbackContainer);
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function abrirModalFeedback(container) {
+            activeFeedbackContainer = container;
+            feedbackComment.value = '';
+            feedbackOverlay.classList.remove('hidden');
+            feedbackComment.focus();
+        }
+
+        function fecharModalFeedback() {
+            feedbackOverlay.classList.add('hidden');
+        }
+
+        async function enviarFeedback(action, container, comment = null) {
+            if (!ultimaPergunta || !ultimaLinhaDaFonte) return;
+            
+            if (container) {
+                container.innerHTML = `<span class="feedback-thanks">Obrigado!</span>`;
+            }
+
             try {
-                await fetch('/api/feedback', {
+                await fetch(BACKEND_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'no-cors',
                     body: JSON.stringify({
-                        action: action,
+                        action: action === 'registrar_curadoria' ? action : 'logFeedbackPositivo',
                         question: ultimaPergunta,
+                        botResponse: ultimaResposta,
+                        comment: comment,
                         sourceRow: ultimaLinhaDaFonte,
-                        email: dadosAtendente.email,
-                        sugestao: sugestao
+                        email: dadosAtendente.email
                     })
                 });
             } catch (error) {
-                console.error("ERRO DE REDE ao enviar feedback:", error);
+                console.error("Erro ao enviar feedback:", error);
             }
         }
 
         async function buscarResposta(textoDaPergunta) {
             ultimaPergunta = textoDaPergunta;
-            ultimaLinhaDaFonte = null;
             if (!textoDaPergunta.trim()) return;
             showTypingIndicator();
             try {
-                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}`;
+                const url = `${BACKEND_URL}?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
                 const response = await fetch(url);
-                hideTypingIndicator();
-                if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
+                if (!response.ok) throw new Error(`Erro de rede: ${response.status}`);
                 const data = await response.json();
+                hideTypingIndicator();
+                
                 if (data.status === 'sucesso') {
-                    ultimaLinhaDaFonte = data.sourceRow;
                     addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
                 } else {
-                    addMessage(data.resposta || "Ocorreu um erro ao processar sua pergunta.", 'bot');
+                    addMessage(data.mensagem || "Ocorreu um erro.", 'bot');
                 }
             } catch (error) {
                 hideTypingIndicator();
-                addMessage("Erro de conexão com o backend. Verifique o console (F12) para mais detalhes.", 'bot');
+                addMessage("Erro de conexão. Verifique o console (F12).", 'bot');
                 console.error("Detalhes do erro de fetch:", error);
             }
         }
@@ -296,65 +268,37 @@ function formatarAssinatura(nomeCompleto) {
             buscarResposta(trimmedText);
             userInput.value = '';
         }
-
-        userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleSendMessage(userInput.value);
-            }
-        });
+        
+        // --- INICIALIZAÇÃO E EVENT LISTENERS ---
         sendButton.addEventListener('click', () => handleSendMessage(userInput.value));
-
-        document.querySelectorAll('#quick-questions-list li, #more-questions-list-financeiro li, #more-questions-list-tecnico li').forEach(item => {
+        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(userInput.value); } });
+        
+        allQuestionItems.forEach(item => {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
 
-        document.getElementById('expandable-faq-header').addEventListener('click', (e) => {
+        expandableHeader.addEventListener('click', (e) => {
+            const arrow = e.currentTarget.querySelector('.arrow');
             e.currentTarget.classList.toggle('expanded');
-            document.getElementById('more-questions').classList.toggle('hidden', !e.currentTarget.classList.contains('expanded'));
+            moreQuestions.classList.toggle('hidden');
+            arrow.classList.toggle('expanded');
         });
 
-        themeSwitcher.addEventListener('click', () => {
-            body.classList.toggle('dark-theme');
-            const isDark = body.classList.contains('dark-theme');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            themeSwitcher.innerHTML = isDark ? '🌙' : '☀️';
+        questionSearch.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            allQuestionItems.forEach(question => {
+                const text = question.getAttribute('data-question').toLowerCase();
+                question.classList.toggle('hidden', !text.includes(searchTerm));
+            });
         });
-
-        const feedbackOverlay = document.getElementById('feedback-overlay');
-        const feedbackSendBtn = document.getElementById('feedback-send');
-        const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        // CORREÇÃO APLICADA AQUI
-        const feedbackText = document.getElementById('feedback-comment');
-        let activeFeedbackContainer = null;
-
-         logQuestionOnSheet(trimmedText, dadosAtendente.email);
-
-    buscarResposta(trimmedText);
-    userInput.value = '';
-
-
-        function abrirModalFeedback(container) {
-            activeFeedbackContainer = container;
-            feedbackOverlay.classList.remove('hidden');
-            feedbackText.focus();
-        }
-
-        function fecharModalFeedback() {
-            feedbackOverlay.classList.add('hidden');
-            feedbackText.value = '';
-            activeFeedbackContainer = null;
-        }
 
         feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
-
-        feedbackSendBtn.addEventListener('click', () => {
-            const sugestao = feedbackText.value.trim();
-            if (activeFeedbackContainer) {
-                enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
+        feedbackForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const comentario = feedbackComment.value.trim();
+            if (comentario) {
+                enviarFeedback('registrar_curadoria', activeFeedbackContainer, comentario);
                 fecharModalFeedback();
-            } else {
-                console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado. O modal não foi aberto corretamente.");
             }
         });
 
@@ -368,11 +312,21 @@ function formatarAssinatura(nomeCompleto) {
                 themeSwitcher.innerHTML = '☀️';
             }
         }
+        
+        themeSwitcher.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            const isDark = body.classList.contains('dark-theme');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeSwitcher.innerHTML = isDark ? '🌙' : '☀️';
+        });
 
+        // Saudação inicial e tema
         const primeiroNome = dadosAtendente.nome.split(' ')[0];
-        addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot');
+        const hora = new Date().getHours();
+        let saudacao = (hora >= 5 && hora < 12) ? 'Bom dia' : (hora >= 12 && hora < 18) ? 'Boa tarde' : 'Boa noite';
+        addMessage(`${saudacao}, ${primeiroNome}! Como posso ajudar?`, 'bot');
         setInitialTheme();
     }
-
-    initGoogleSignIn();
+    
+    verificarIdentificacao();
 });
