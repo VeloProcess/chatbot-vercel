@@ -445,35 +445,6 @@ body.dark-theme::before {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.expandable-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    padding: var(--espaco-sm) var(--espaco-md);
-    margin-top: var(--espaco-md);
-    border: 1px solid var(--cor-borda);
-    border-radius: var(--borda-raio);
-    background-color: var(--cor-fundo);
-    font-weight: bold;
-}
-.expandable-header:hover {
-    background-color: rgba(0,0,0,0.03);
-}
-.expandable-header .arrow {
-    transition: transform var(--transicao-rapida);
-}
-.expandable-header.expanded .arrow {
-    transform: rotate(90deg);
-}
-
-.hidden-questions {
-    display: none;
-    padding-left: var(--espaco-md);
-    margin-top: var(--espaco-sm);
-    border-left: 2px solid var(--cor-azul-claro);
-}
-
 /* --- 🚨 PAINEL DE NOTÍCIAS 🚨 --- */
 .news-list {
     padding: var(--espaco-md);
