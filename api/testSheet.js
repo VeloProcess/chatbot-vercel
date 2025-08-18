@@ -1,27 +1,41 @@
-// api/testSheet.js
+// api/testSheet.js (Versão Corrigida e Otimizada)
 
-const { google } = require('googleapis');
+import { google } from 'googleapis';
 
-// Usando exatamente as mesmas configurações que você confirmou
+// --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const LOG_SHEET_NAME = "Log_Feedback";
+const LOG_SHEET_NAME = "Log_Feedback"; // A aba onde o teste vai escrever
 
+// --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
+// Criado fora do handler para ser reutilizado
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+
+const sheets = google.sheets({ version: 'v4', auth });
+
+// --- A FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 export default async function handler(req, res) {
+  // --- CRÍTICO: ADIÇÃO DA CONFIGURAÇÃO CORS ---
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS'); // Permite GET para teste direto no navegador
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   console.log("--- INICIANDO TESTE DE ESCRITA NA PLANILHA ---");
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    console.log("[TESTE] Autenticação criada.");
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    console.log("[TESTE] Cliente do Google Sheets criado.");
+    // A autenticação e o cliente já foram criados fora da função
+    console.log("[TESTE] Usando cliente do Google Sheets pré-configurado.");
 
     const testRow = [
       new Date().toISOString(),
       'TESTE DE ESCRITA',
       'SE VOCÊ ESTÁ VENDO ISSO, A CONEXÃO FUNCIONOU!',
+      `Executado em: ${new Date().toLocaleString('pt-BR')}`
     ];
     console.log("[TESTE] Linha de teste preparada:", testRow);
 
@@ -35,10 +49,16 @@ export default async function handler(req, res) {
     });
     
     console.log("[TESTE] SUCESSO! A chamada para a API do Google foi concluída sem erros.");
-    return res.status(200).json({ status: 'Sucesso', message: 'Teste concluído. Verifique a planilha.' });
+    return res.status(200).json({ status: 'Sucesso', message: `Teste concluído às ${new Date().toLocaleTimeString('pt-BR')}. Verifique a aba '${LOG_SHEET_NAME}' da sua planilha.` });
 
   } catch (error) {
     console.error("!!!!!!!!!! [TESTE] OCORREU UM ERRO !!!!!!!!!!", error);
-    return res.status(500).json({ status: 'Erro', message: error.message, details: error });
+    // Retorna o erro completo para facilitar a depuração
+    return res.status(500).json({ 
+        status: 'Erro', 
+        message: "A escrita na planilha falhou. Verifique os logs da Vercel e as permissões da sua conta de serviço.",
+        error_message: error.message, 
+        error_details: error 
+    });
   }
 }

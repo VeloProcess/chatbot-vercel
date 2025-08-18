@@ -1,25 +1,117 @@
 // api/ask.js
 
-const { google } = require('googleapis');
+import { google } from 'googleapis';
 
-// As constantes da sua planilha
+// --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ";
+const FAQ_SHEET_NAME = "FAQ!A:D"; // Otimizado para ler apenas as colunas A, B, C e D
+const CACHE_DURATION_SECONDS = 300; // 5 minutos
 
-// Função para normalizar texto (igual à do Apps Script)
+// --- CACHE INTELIGENTE ---
+// Guarda os dados da planilha em memória para evitar leituras repetidas
+let cache = {
+  timestamp: null,
+  data: null,
+};
+
+// --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
+// Criado fora do handler para ser reutilizado entre as chamadas (melhor performance)
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
+  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+});
+
+const sheets = google.sheets({ version: 'v4', auth });
+
+// --- FUNÇÃO PARA BUSCAR E CACHEAR OS DADOS DA PLANILHA ---
+async function getFaqData() {
+  const now = new Date();
+  // Se o cache existe e ainda é válido (menos de 5 minutos), usa o cache
+  if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
+    console.log("Usando dados do cache.");
+    return cache.data;
+  }
+
+  console.log("Buscando dados novos da planilha...");
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: FAQ_SHEET_NAME,
+  });
+
+  if (!response.data.values || response.data.values.length === 0) {
+    throw new Error("Não foi possível ler dados da planilha FAQ ou ela está vazia.");
+  }
+
+  // Atualiza o cache com os novos dados
+  cache = {
+    timestamp: now,
+    data: response.data.values,
+  };
+
+  return cache.data;
+}
+
+// --- FUNÇÃO PARA NORMALIZAR TEXTO ---
 function normalizarTexto(texto) {
   if (!texto || typeof texto !== 'string') return '';
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-// A função principal do nosso backend
+// --- SUA LÓGICA DE BUSCA EM FUNIL (INTACTA) ---
+function findBestMatch(pergunta, faqData) {
+  const cabecalho = faqData[0];
+  const dados = faqData.slice(1);
+
+  const idxPergunta = cabecalho.indexOf("Pergunta");
+  const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
+  const idxResposta = cabecalho.indexOf("Resposta");
+  const idxScore = cabecalho.indexOf("Score");
+  
+  // Validação para garantir que as colunas existem
+  if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
+    throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas na planilha.");
+  }
+
+  const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p);
+  const termosDoFunil = [];
+  while (palavrasDaBusca.length > 0) {
+    termosDoFunil.push(palavrasDaBusca.join(' '));
+    palavrasDaBusca.pop();
+  }
+
+  for (const termo of termosDoFunil) {
+    const correspondencias = [];
+    for (let i = 0; i < dados.length; i++) {
+      const linhaAtual = dados[i];
+      const textoPergunta = normalizarTexto(linhaAtual[idxPergunta]);
+      const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave]);
+
+      if (textoPergunta.includes(termo) || textoPalavrasChave.includes(termo)) {
+        correspondencias.push({
+          dados: linhaAtual[idxResposta],
+          linha: i + 2, // +2 para compensar o cabeçalho e o array base 0
+          score: Number(linhaAtual[idxScore]) || 0
+        });
+      }
+    }
+
+    if (correspondencias.length > 0) {
+      correspondencias.sort((a, b) => b.score - a.score);
+      return correspondencias[0]; // Retorna o melhor resultado para este termo do funil
+    }
+  }
+
+  return null; // Retorna nulo se nenhum termo do funil encontrar correspondência
+}
+
+
+// --- A FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 export default async function handler(req, res) {
-  // Configura os cabeçalhos para permitir o acesso (bom para testes locais)
+  // Configuração dos cabeçalhos CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Se for uma requisição OPTIONS (pre-flight), apenas retorne OK.
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -30,75 +122,27 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
 
-    // --- AUTENTICAÇÃO COM GOOGLE SHEETS ---
-    const auth = new google.auth.GoogleAuth({
-      // As credenciais virão das Variáveis de Ambiente da Vercel
-      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    });
+    // 1. Pega os dados (do cache ou da planilha)
+    const faqData = await getFaqData();
+    
+    // 2. Roda a sua lógica de busca
+    const melhorResultado = findBestMatch(pergunta, faqData);
 
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    // --- BUSCA DOS DADOS NA PLANILHA ---
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: FAQ_SHEET_NAME,
-    });
-
-    const dados = response.data.values;
-    if (!dados || dados.length === 0) {
-      throw new Error("Não foi possível ler dados da planilha FAQ.");
-    }
-
-    const cabecalho = dados.shift();
-    const idxPergunta = cabecalho.indexOf("Pergunta");
-    const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
-    const idxResposta = cabecalho.indexOf("Resposta");
-    const idxScore = cabecalho.indexOf("Score");
-
-    // --- LÓGICA DA BUSCA EM FUNIL (exatamente a mesma de antes) ---
-    const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p);
-    const termosDoFunil = [];
-    while (palavrasDaBusca.length > 0) {
-      termosDoFunil.push(palavrasDaBusca.join(' '));
-      palavrasDaBusca.pop();
-    }
-
-    for (const termo of termosDoFunil) {
-      const correspondencias = [];
-      for (let i = 0; i < dados.length; i++) {
-        const linhaAtual = dados[i];
-        const textoPergunta = normalizarTexto(linhaAtual[idxPergunta]);
-        const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave]);
-
-        if (textoPergunta.includes(termo) || textoPalavrasChave.includes(termo)) {
-          correspondencias.push({
-            dados: linhaAtual[idxResposta],
-            linha: i + 2,
-            score: Number(linhaAtual[idxScore]) || 0
-          });
-        }
-      }
-
-      if (correspondencias.length > 0) {
-        correspondencias.sort((a, b) => b.score - a.score);
-        const melhorResultado = correspondencias[0];
-
-        // Se encontrou, retorna a resposta e encerra
-        return res.status(200).json({
-          status: "sucesso",
-          resposta: melhorResultado.dados,
-          sourceRow: melhorResultado.linha,
-        });
-      }
-    }
-
-    // Se o funil inteiro não encontrou nada
-    return res.status(200).json({
+    // 3. Retorna o resultado
+    if (melhorResultado) {
+      return res.status(200).json({
+        status: "sucesso",
+        resposta: melhorResultado.dados,
+        sourceRow: melhorResultado.linha,
+      });
+    } else {
+      // Se o funil inteiro não encontrou nada
+      return res.status(200).json({
         status: "nao_encontrado",
         resposta: `Não encontrei informações sobre "${pergunta}".`,
         sourceRow: null,
-    });
+      });
+    }
 
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);

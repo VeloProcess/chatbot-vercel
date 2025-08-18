@@ -1,53 +1,83 @@
-// api/logQuestion.js
+// api/log.js (Versão Corrigida e Otimizada)
 
-const { google } = require('googleapis');
+import { google } from 'googleapis';
 
-// ID da sua planilha
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ"; 
-// NOME DA ABA ONDE AS PERGUNTAS SERÃO SALVAS
-const LOG_SHEET_NAME = "Log_Perguntas"; 
+// --- CONFIGURAÇÃO ---
+const SPREADSHEET_ID = "1tnwusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 
+// Mapeamento dos tipos de log para os nomes das abas
+const SHEET_NAMES = {
+  question: "Log_Perguntas",
+  error: "Log_Erros",
+  access: "Log_Acessos"
+};
+
+// --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
+// Criado fora do handler para ser reutilizado
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+
+const sheets = google.sheets({ version: 'v4', auth });
+
+
+// --- A FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 export default async function handler(req, res) {
-  // Apenas aceita requisições do tipo POST
+  // --- CRÍTICO: ADIÇÃO DA CONFIGURAÇÃO CORS ---
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // Garante que apenas o método POST seja aceito
   if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+    return res.status(405).json({ error: 'Método não permitido. Use POST.' });
   }
 
   try {
-    // Pega os dados enviados pelo frontend
-    const { question, email } = req.body;
+    const { type, payload } = req.body;
 
-    // Autenticação com a API do Google Sheets
-    const auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    // Validação dos dados recebidos
+    if (!type || !payload || !SHEET_NAMES[type]) {
+      return res.status(400).json({ error: "Tipo de log ('type') inválido ou 'payload' ausente." });
+    }
 
-    const sheets = google.sheets({ version: 'v4', auth });
+    const sheetName = SHEET_NAMES[type];
+    let newRow = [new Date().toISOString()]; // Coluna de Timestamp é padrão para todos
 
-    // Prepara a nova linha com os dados no formato que você quer
-    const newRow = [
-      new Date().toISOString(), // Coluna 1: Data e Hora
-      question,                 // Coluna 2: Pergunta
-      email                     // Coluna 3: Email do usuário
-    ];
+    // Monta a linha com base no tipo de log
+    switch (type) {
+      case 'access':
+        newRow.push(payload.email || 'nao_fornecido');
+        break;
+      case 'question':
+      case 'error':
+        newRow.push(payload.email || 'nao_fornecido');
+        newRow.push(payload.question || 'N/A');
+        break;
+      default:
+        // Se um tipo não esperado for passado, não faz nada
+        return res.status(400).json({ error: `Tipo de log desconhecido: ${type}` });
+    }
 
-    // Adiciona a nova linha na aba especificada
+    // Envia os dados para a planilha
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: LOG_SHEET_NAME, // Usa a aba "Log_Perguntas"
+      range: sheetName,
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [newRow],
       },
     });
 
-    // Retorna uma resposta de sucesso
-    return res.status(200).json({ status: 'sucesso', message: 'Pergunta registrada.' });
+    return res.status(200).json({ status: 'sucesso', message: `Log do tipo '${type}' registrado.` });
 
   } catch (error) {
-    console.error("ERRO NO BACKEND DE LOG DE PERGUNTA:", error);
-    return res.status(500).json({ error: "Erro interno ao registrar pergunta.", details: error.message });
+    console.error(`ERRO NO ENDPOINT DE LOG (tipo: ${req.body.type}):`, error);
+    return res.status(500).json({ error: "Erro interno ao registrar o log.", details: error.message });
   }
 }
