@@ -73,6 +73,7 @@ function normalizarTexto(texto) {
 }
 
 // --- SUA LÓGICA DE BUSCA EM FUNIL (INTACTA) ---
+// --- SUA LÓGICA DE BUSCA EM FUNIL (MODIFICADA) ---
 function findBestMatch(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
@@ -81,10 +82,15 @@ function findBestMatch(pergunta, faqData) {
   const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
   const idxResposta = cabecalho.indexOf("Resposta");
   const idxScore = cabecalho.indexOf("Score");
-  
-  // Validação para garantir que as colunas existem
+  const idxUrl = cabecalho.indexOf("URL"); // <-- Adiciona a busca pela coluna URL
+
+  // Validação para garantir que as colunas essenciais existem
   if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas na planilha.");
+  }
+  
+  if (idxUrl === -1) {
+    console.warn("Aviso: Coluna 'URL' não encontrada na planilha. A busca em documentos não funcionará.");
   }
 
   const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p);
@@ -104,19 +110,21 @@ function findBestMatch(pergunta, faqData) {
       if (textoPergunta.includes(termo) || textoPalavrasChave.includes(termo)) {
         correspondencias.push({
           dados: linhaAtual[idxResposta],
-          linha: i + 2, // +2 para compensar o cabeçalho e o array base 0
-          score: Number(linhaAtual[idxScore]) || 0
+          linha: i + 2,
+          score: Number(linhaAtual[idxScore]) || 0,
+          // Adiciona a URL ao resultado se a coluna existir
+          url: idxUrl !== -1 ? linhaAtual[idxUrl] : null 
         });
       }
     }
 
     if (correspondencias.length > 0) {
       correspondencias.sort((a, b) => b.score - a.score);
-      return correspondencias[0]; // Retorna o melhor resultado para este termo do funil
+      return correspondencias[0];
     }
   }
 
-  return null; // Retorna nulo se nenhum termo do funil encontrar correspondência
+  return null;
 }
 
 
