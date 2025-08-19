@@ -3,7 +3,7 @@
 import { google } from 'googleapis';
 
 // --- CONFIGURAÇÃO ---
-const SPREADSHEET_ID = "1tnwusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
+const SPREADSHEET_ID = "1tyS89983odMbF04znYTmDLO6_6nZ9jFs0kz1fkEjnvY";
 
 // Mapeamento dos tipos de log para os nomes das abas
 const SHEET_NAMES = {

@@ -3,7 +3,7 @@
 import { google } from 'googleapis';
 
 // --- CONFIGURAÇÃO ---
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
+const SPREADSHEET_ID = "1tyS89983odMbF04znYTmDLO6_6nZ9jFs0kz1fkEjnvY";
 const DOCUMENT_ID = "1Mv81rBoeTmsoXYHFXyHSmkvPvnPi15w4h5CSojzFjCo"; // ID do documento Google Docs
 const FAQ_SHEET_NAME = "FAQ!A:D"; // Otimizado para ler apenas as colunas A, B, C e D
 const CACHE_DURATION_SECONDS = 300; // 5 minutos
