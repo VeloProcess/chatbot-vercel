@@ -1,20 +1,16 @@
-// api/ask.js (Versão Simplificada - Busca Apenas na Planilha)
+// api/ask.js (Versão com Lógica de Sugestões)
 
 import { google } from 'googleapis';
 
 // --- CONFIGURAÇÃO ---
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-// O range pode ser menor agora que não precisamos das colunas de URL e Imagem
-const FAQ_SHEET_NAME = "FAQ!A:D"; // Ajustado para as colunas essenciais
-const CACHE_DURATION_SECONDS = 300; // 5 minutos
+const SPREADSHEET_ID = "1tyS89983odMbF04znYTmDLO6_6nZ9jFs0kz1fkEjnvY";
+const FAQ_SHEET_NAME = "FAQ!A:D";
+const CACHE_DURATION_SECONDS = 300;
 
-// --- CACHE INTELIGENTE ---
-let cache = {
-  timestamp: null,
-  data: null,
-};
+// --- CACHE ---
+let cache = { timestamp: null, data: null };
 
-// --- CLIENTE GOOGLE OTIMIZADO ---
+// --- CLIENTE GOOGLE ---
 if (!process.env.GOOGLE_CREDENTIALS) {
   throw new Error("A variável de ambiente GOOGLE_CREDENTIALS não está definida.");
 }
@@ -27,20 +23,17 @@ try {
 
 const auth = new google.auth.GoogleAuth({
   credentials,
-  // A permissão para ler documentos foi removida
   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
 
 const sheets = google.sheets({ version: 'v4', auth });
 
-// --- FUNÇÃO PARA BUSCAR E CACHEAR OS DADOS DA PLANILHA ---
+// --- FUNÇÕES DE APOIO ---
 async function getFaqData() {
   const now = new Date();
   if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
-    console.log("Usando dados do cache.");
     return cache.data;
   }
-  console.log("Buscando dados novos da planilha...");
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: FAQ_SHEET_NAME,
@@ -48,20 +41,16 @@ async function getFaqData() {
   if (!response.data.values || response.data.values.length === 0) {
     throw new Error("Não foi possível ler dados da planilha FAQ ou ela está vazia.");
   }
-  cache = {
-    timestamp: now,
-    data: response.data.values,
-  };
+  cache = { timestamp: now, data: response.data.values };
   return cache.data;
 }
 
-// --- FUNÇÃO PARA NORMALIZAR TEXTO ---
 function normalizarTexto(texto) {
   if (!texto || typeof texto !== 'string') return '';
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-// --- LÓGICA DE BUSCA NA PLANILHA ---
+// --- LÓGICA DE BUSCA (ATUALIZADA PARA SUGESTÕES) ---
 function findBestMatch(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
@@ -83,10 +72,9 @@ function findBestMatch(pergunta, faqData) {
   }
 
   for (const termo of termosDoFunil) {
-    const correspondencias = [];
+    let correspondencias = [];
     for (let i = 0; i < dados.length; i++) {
       const linhaAtual = dados[i];
-      // Pula a linha se as células de busca estiverem vazias
       if (!linhaAtual[idxPergunta] && !linhaAtual[idxPalavrasChave]) continue;
       
       const textoPergunta = normalizarTexto(linhaAtual[idxPergunta]);
@@ -97,24 +85,30 @@ function findBestMatch(pergunta, faqData) {
           dados: linhaAtual[idxResposta],
           linha: i + 2,
           score: Number(linhaAtual[idxScore]) || 0,
+          // Adicionamos a pergunta original para usar como texto da sugestão
+          perguntaOriginal: linhaAtual[idxPergunta]
         });
       }
     }
 
     if (correspondencias.length > 0) {
       correspondencias.sort((a, b) => b.score - a.score);
-      return correspondencias[0];
+      
+      const bestMatch = correspondencias[0];
+      const suggestions = correspondencias.slice(1); // Pega todos, exceto o primeiro
+
+      return { bestMatch, suggestions }; // Retorna o melhor resultado E as sugestões
     }
   }
 
-  return null;
+  return null; // Nenhuma correspondência encontrada
 }
 
-// --- A FUNÇÃO PRINCIPAL DA API (HANDLER) ---
+// --- FUNÇÃO PRINCIPAL (HANDLER) ---
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-control-allow-headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -126,18 +120,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
 
-    // 1. Pega os dados da planilha
     const faqData = await getFaqData();
-    
-    // 2. Roda a lógica de busca
-    const melhorResultado = findBestMatch(pergunta, faqData);
+    const resultadoBusca = findBestMatch(pergunta, faqData);
 
-    // 3. Retorna o resultado
-    if (melhorResultado) {
+    if (resultadoBusca && resultadoBusca.bestMatch) {
       return res.status(200).json({
         status: "sucesso",
-        resposta: melhorResultado.dados,
-        sourceRow: melhorResultado.linha,
+        resposta: resultadoBusca.bestMatch.dados,
+        sourceRow: resultadoBusca.bestMatch.linha,
+        // Envia a lista de sugestões para o frontend
+        suggestions: resultadoBusca.suggestions.map(s => s.perguntaOriginal) 
       });
     } else {
       return res.status(200).json({

@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ================== VARIÁVEIS DE ESTADO ==================
     let ultimaPergunta = '';
+    // --- CORREÇÃO ---: A variável ultimaResposta foi declarada aqui.
+    let ultimaResposta = '';
     let ultimaLinhaDaFonte = null;
     let isTyping = false;
     let dadosAtendente = null;
@@ -104,26 +106,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // script.js (adicionar esta nova função)
-
-// Nova função para registrar a pergunta na planilha
-async function logQuestionOnSheet(question, email) {
-    if (!question || !email) return; // Não faz nada se não tiver os dados
-
-    try {
-        await fetch('/api/logQuestion', { // Chama a nova API
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                question: question,
-                email: email
-            })
-        });
-    } catch (error) {
-        // Apenas loga o erro no console para não interromper a experiência do usuário
-        console.error("Erro ao registrar a pergunta na planilha:", error);
+    // Nova função para registrar a pergunta na planilha
+    async function logQuestionOnSheet(question, email) {
+        if (!question || !email) return; // Não faz nada se não tiver os dados
+        try {
+            await fetch('/api/log', { // A API correta é /api/log
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'question', // Envia o tipo de log correto
+                    payload: {
+                        question: question,
+                        email: email
+                    }
+                })
+            });
+        } catch (error) {
+            console.error("Erro ao registrar a pergunta na planilha:", error);
+        }
     }
-}
+    
+    /**
+     * Formata um nome completo para uma assinatura. Ex: "Gabriel Araujo" se torna "Gabriel A."
+     */
+    function formatarAssinatura(nomeCompleto) {
+        if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
+            return '';
+        }
+        const nomes = nomeCompleto.trim().split(' ');
+        const primeiroNome = nomes[0];
+        let assinaturaFormatada = primeiroNome;
+        if (nomes.length > 1 && nomes[1]) {
+            const inicialDoSegundoNome = nomes[1].charAt(0).toUpperCase();
+            assinaturaFormatada += ` ${inicialDoSegundoNome}.`;
+        }
+        return assinaturaFormatada;
+    }
 
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
     function iniciarBot() {
@@ -144,30 +162,7 @@ async function logQuestionOnSheet(question, email) {
                 question.classList.toggle('hidden', !text.includes(searchTerm));
             });
         });
-/**
- * Formata um nome completo para uma assinatura com o primeiro nome e a inicial do segundo.
- * Ex: "Gabriel Araujo" se torna "Gabriel A."
- * @param {string} nomeCompleto O nome completo do atendente.
- * @returns {string} O nome formatado para a assinatura.
- */
-function formatarAssinatura(nomeCompleto) {
-    if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
-        return ''; // Retorna vazio se o nome for inválido
-    }
 
-    const nomes = nomeCompleto.trim().split(' ');
-    const primeiroNome = nomes[0];
-
-    let assinaturaFormatada = primeiroNome;
-
-    // Verifica se existe um segundo nome para pegar a inicial
-    if (nomes.length > 1 && nomes[1]) {
-        const inicialDoSegundoNome = nomes[1].charAt(0).toUpperCase();
-        assinaturaFormatada += ` ${inicialDoSegundoNome}.`;
-    }
-
-    return assinaturaFormatada;
-}
         function showTypingIndicator() {
             if (isTyping) return;
             isTyping = true;
@@ -185,61 +180,44 @@ function formatarAssinatura(nomeCompleto) {
             if (typingIndicator) typingIndicator.remove();
         }
 
- function addMessage(message, sender, options = {}) {
-    let mensagemFinal = message; // Começa com a mensagem original
+        function addMessage(message, sender, options = {}) {
+            let mensagemFinal = message;
+            if (sender === 'bot' && dadosAtendente && typeof mensagemFinal === 'string' && mensagemFinal.includes('{{ASSINATURA_ATENDENTE}}')) {
+                const assinatura = formatarAssinatura(dadosAtendente.nome);
+                mensagemFinal = mensagemFinal.replace(/{{ASSINATURA_ATENDENTE}}/g, assinatura);
+            }
 
-    // --- NOVA LÓGICA DE FORMATAÇÃO DE ASSINATURA ---
-    // Se a mensagem for do bot e contiver o placeholder, ele é substituído.
-    if (sender === 'bot' && dadosAtendente && typeof mensagemFinal === 'string' && mensagemFinal.includes('{{ASSINATURA_ATENDENTE}}')) {
-        // 1. Gera a assinatura personalizada com o nome do atendente logado
-        const assinatura = formatarAssinatura(dadosAtendente.nome);
-        
-        // 2. Substitui todas as ocorrências do placeholder pela assinatura gerada
-        mensagemFinal = mensagemFinal.replace(/{{ASSINATURA_ATENDENTE}}/g, assinatura);
-    }
-    // --- FIM DA NOVA LÓGICA ---
+            const { sourceRow = null } = options;
+            const messageContainer = document.createElement('div');
+            messageContainer.classList.add('message-container', sender);
+            const avatarDiv = `<div class="avatar ${sender === 'user' ? 'user' : 'bot'}">${sender === 'user' ? '👤' : '🤖'}</div>`;
+            const messageContentDiv = `<div class="message-content"><div class="message">${mensagemFinal.replace(/\n/g, '<br>')}</div></div>`;
+            messageContainer.innerHTML = sender === 'user' ? messageContentDiv + avatarDiv : avatarDiv + messageContentDiv;
+            chatBox.appendChild(messageContainer);
 
-    // O resto da sua função original continua abaixo, usando a "mensagemFinal"
-    const { sourceRow = null } = options;
-    const messageContainer = document.createElement('div');
-    messageContainer.classList.add('message-container', sender);
-    
-    const avatarDiv = `<div class="avatar ${sender === 'user' ? 'user' : 'bot'}">${sender === 'user' ? '👤' : '🤖'}</div>`;
-    
-    // Usa a mensagemFinal (que pode ter sido alterada) para criar o conteúdo
-    const messageContentDiv = `<div class="message-content"><div class="message">${mensagemFinal.replace(/\n/g, '<br>')}</div></div>`;
-    
-    messageContainer.innerHTML = sender === 'user' ? messageContentDiv + avatarDiv : avatarDiv + messageContentDiv;
-    chatBox.appendChild(messageContainer);
+            if (sender === 'bot' && sourceRow) {
+                ultimaResposta = messageContainer.querySelector('.message').textContent;
+                ultimaLinhaDaFonte = sourceRow;
 
-    if (sender === 'bot' && sourceRow) {
-        // Salva a última resposta e a linha da fonte para a lógica de feedback
-        ultimaResposta = messageContainer.querySelector('.message').textContent;
-        ultimaLinhaDaFonte = sourceRow;
-
-        const messageBox = messageContainer.querySelector('.message-content');
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.className = 'feedback-container';
-        
-        const positiveBtn = document.createElement('button');
-        positiveBtn.className = 'feedback-btn';
-        positiveBtn.innerHTML = '👍';
-        positiveBtn.title = 'Resposta útil';
-        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-
-        const negativeBtn = document.createElement('button');
-        negativeBtn.className = 'feedback-btn';
-        negativeBtn.innerHTML = '👎';
-        negativeBtn.title = 'Resposta incorreta ou incompleta';
-        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-        
-        feedbackContainer.appendChild(positiveBtn);
-        feedbackContainer.appendChild(negativeBtn);
-        messageBox.appendChild(feedbackContainer);
-    }
-    
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
+                const messageBox = messageContainer.querySelector('.message-content');
+                const feedbackContainer = document.createElement('div');
+                feedbackContainer.className = 'feedback-container';
+                const positiveBtn = document.createElement('button');
+                positiveBtn.className = 'feedback-btn';
+                positiveBtn.innerHTML = '👍';
+                positiveBtn.title = 'Resposta útil';
+                positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+                const negativeBtn = document.createElement('button');
+                negativeBtn.className = 'feedback-btn';
+                negativeBtn.innerHTML = '👎';
+                negativeBtn.title = 'Resposta incorreta ou incompleta';
+                negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+                feedbackContainer.appendChild(positiveBtn);
+                feedbackContainer.appendChild(negativeBtn);
+                messageBox.appendChild(feedbackContainer);
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
 
         async function enviarFeedback(action, container, sugestao = null) {
             if (!ultimaPergunta || !ultimaLinhaDaFonte) {
@@ -292,7 +270,11 @@ function formatarAssinatura(nomeCompleto) {
         function handleSendMessage(text) {
             const trimmedText = text.trim();
             if (!trimmedText) return;
+
             addMessage(trimmedText, 'user');
+            
+            // --- CORREÇÃO ---: As chamadas foram movidas para dentro de handleSendMessage
+            logQuestionOnSheet(trimmedText, dadosAtendente.email);
             buscarResposta(trimmedText);
             userInput.value = '';
         }
@@ -308,11 +290,18 @@ function formatarAssinatura(nomeCompleto) {
         document.querySelectorAll('#quick-questions-list li, #more-questions-list-financeiro li, #more-questions-list-tecnico li').forEach(item => {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
-
-        document.getElementById('expandable-faq-header').addEventListener('click', (e) => {
-            e.currentTarget.classList.toggle('expanded');
-            document.getElementById('more-questions').classList.toggle('hidden', !e.currentTarget.classList.contains('expanded'));
-        });
+        
+        // --- CORREÇÃO ---: O querySelector para 'expandable-faq-header' foi removido,
+        // pois o ID não existe no seu HTML mais recente. Se você o adicionar de volta, descomente esta seção.
+        /*
+        const expandableFaqHeader = document.getElementById('expandable-faq-header');
+        if(expandableFaqHeader) {
+            expandableFaqHeader.addEventListener('click', (e) => {
+                e.currentTarget.classList.toggle('expanded');
+                document.getElementById('more-questions').classList.toggle('hidden', !e.currentTarget.classList.contains('expanded'));
+            });
+        }
+        */
 
         themeSwitcher.addEventListener('click', () => {
             body.classList.toggle('dark-theme');
@@ -324,37 +313,31 @@ function formatarAssinatura(nomeCompleto) {
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        // CORREÇÃO APLICADA AQUI
-        const feedbackText = document.getElementById('feedback-comment');
+        // --- CORREÇÃO ---: Garanta que o ID no seu HTML seja 'feedback-text'
+        const feedbackText = document.getElementById('feedback-text'); 
         let activeFeedbackContainer = null;
-
-         logQuestionOnSheet(trimmedText, dadosAtendente.email);
-
-    buscarResposta(trimmedText);
-    userInput.value = '';
-
 
         function abrirModalFeedback(container) {
             activeFeedbackContainer = container;
             feedbackOverlay.classList.remove('hidden');
-            feedbackText.focus();
+            if(feedbackText) feedbackText.focus();
         }
 
         function fecharModalFeedback() {
             feedbackOverlay.classList.add('hidden');
-            feedbackText.value = '';
+            if(feedbackText) feedbackText.value = '';
             activeFeedbackContainer = null;
         }
 
-        feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
+        if(feedbackCancelBtn) feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
 
-        feedbackSendBtn.addEventListener('click', () => {
-            const sugestao = feedbackText.value.trim();
+        if(feedbackSendBtn) feedbackSendBtn.addEventListener('click', () => {
+            const sugestao = feedbackText ? feedbackText.value.trim() : '';
             if (activeFeedbackContainer) {
                 enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
                 fecharModalFeedback();
             } else {
-                console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado. O modal não foi aberto corretamente.");
+                console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
             }
         });
 
