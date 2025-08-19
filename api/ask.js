@@ -23,7 +23,7 @@ try {
 
 const auth = new google.auth.GoogleAuth({
   credentials,
-  scopes: ['https://www.googleapis.comcom/auth/spreadsheets.readonly'],
+  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'], // <-- Corrigido para ".com"
 });
 
 const sheets = google.sheets({ version: 'v4', auth });
