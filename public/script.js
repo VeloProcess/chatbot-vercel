@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function logQuestionOnSheet(question, email) {
         if (!question || !email) return; // Não faz nada se não tiver os dados
         try {
-            await fetch('/api/log', { // A API correta é /api/log
+            await fetch('/api/logQuestion', { // URL correta
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
