@@ -124,7 +124,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         status: "clarification_needed",
         resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles você gostaria de ver?`,
-        options: correspondencias.map(c => c.perguntaOriginal) // Envia a lista de perguntas como opções
+        options: correspondencias.slice(0, 5).map(c => c.perguntaOriginal)
       });
     }
   } catch (error) {

@@ -302,7 +302,7 @@ function addMessage(message, sender, options = {}) {
                 }
             } catch (error) {
                 hideTypingIndicator();
-                addMessage("Erro de conexão com o backend.", 'bot');
+                addMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot');
                 console.error("Detalhes do erro:", error);
             }
         }
