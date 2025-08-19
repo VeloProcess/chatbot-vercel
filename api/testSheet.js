@@ -3,7 +3,7 @@
 import { google } from 'googleapis';
 
 // --- CONFIGURAÇÃO ---
-const SPREADSHEET_ID = "1tyS89983odMbF04znYTmDLO6_6nZ9jFs0kz1fkEjnvY";
+const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const LOG_SHEET_NAME = "Log_Feedback"; // A aba onde o teste vai escrever
 
 // --- CLIENTE GOOGLE SHEETS OTIMIZADO ---

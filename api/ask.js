@@ -3,7 +3,7 @@
 import { google } from 'googleapis';
 
 // --- CONFIGURAÇÃO ---
-const SPREADSHEET_ID = "1tyS89983odMbF04znYTmDLO6_6nZ9jFs0kz1fkEjnvY";
+const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 // O range pode ser menor agora que não precisamos das colunas de URL e Imagem
 const FAQ_SHEET_NAME = "FAQ!A:D"; // Ajustado para as colunas essenciais
 const CACHE_DURATION_SECONDS = 300; // 5 minutos
