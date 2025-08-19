@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async function buscarResposta(textoDaPergunta) {
+         async function buscarResposta(textoDaPergunta) {
             ultimaPergunta = textoDaPergunta;
             ultimaLinhaDaFonte = null;
             if (!textoDaPergunta.trim()) return;
@@ -254,16 +254,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideTypingIndicator();
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
+                
                 if (data.status === 'sucesso') {
                     ultimaLinhaDaFonte = data.sourceRow;
-                    addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
+                    // Passa a resposta, a linha da fonte E as sugestões
+                    addMessage(data.resposta, 'bot', { 
+                        sourceRow: data.sourceRow, 
+                        suggestions: data.suggestions 
+                    });
                 } else {
-                    addMessage(data.resposta || "Ocorreu um erro ao processar sua pergunta.", 'bot');
+                    addMessage(data.resposta || "Ocorreu um erro.", 'bot');
                 }
             } catch (error) {
                 hideTypingIndicator();
-                addMessage("Erro de conexão com o backend. Verifique o console (F12) para mais detalhes.", 'bot');
-                console.error("Detalhes do erro de fetch:", error);
+                addMessage("Erro de conexão com o backend.", 'bot');
+                console.error("Detalhes do erro:", error);
             }
         }
 
