@@ -1,4 +1,4 @@
-// api/ask.js (Com Lógica de Esclarecimento/Disambiguation)
+// api/ask.js (Com Lógica de Relevância para Entender Perguntas Completas)
 
 import { google } from 'googleapis';
 
@@ -23,7 +23,7 @@ try {
 
 const auth = new google.auth.GoogleAuth({
   credentials,
-  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'], // <-- Corrigido para ".com"
+  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
 
 const sheets = google.sheets({ version: 'v4', auth });
@@ -50,7 +50,7 @@ function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-// --- NOVA LÓGICA DE BUSCA ---
+// --- NOVA LÓGICA DE BUSCA POR RELEVÂNCIA ---
 function findMatches(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
@@ -63,39 +63,50 @@ function findMatches(pergunta, faqData) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas na planilha.");
   }
 
-  const termoDeBusca = normalizarTexto(pergunta);
-  let correspondencias = [];
+  // 1. Quebra a pergunta do usuário em palavras-chave individuais e ignora palavras pequenas
+  const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
+  let todasAsCorrespondencias = [];
 
+  // 2. Itera por todas as linhas da planilha
   for (let i = 0; i < dados.length; i++) {
     const linhaAtual = dados[i];
     const textoPergunta = normalizarTexto(linhaAtual[idxPergunta] || '');
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
+    const textoCompletoDaLinha = textoPergunta + ' ' + textoPalavrasChave;
+    
+    let relevanceScore = 0;
+    // 3. Conta quantas palavras da busca do usuário existem nesta linha
+    palavrasDaBusca.forEach(palavra => {
+      if (textoCompletoDaLinha.includes(palavra)) {
+        relevanceScore++;
+      }
+    });
 
-    // Busca pela pergunta exata (quando o usuário clica no botão)
-    if (textoPergunta === termoDeBusca) {
-        // Se encontrou a pergunta exata, retorna apenas ela com prioridade máxima
-        return [{
-            resposta: linhaAtual[idxResposta],
-            perguntaOriginal: linhaAtual[idxPergunta],
-            sourceRow: i + 2,
-        }];
-    }
-
-    // Busca por palavra-chave
-    if (textoPalavrasChave.includes(termoDeBusca)) {
-      correspondencias.push({
+    // 4. Se houver pelo menos uma correspondência, adiciona à lista com sua pontuação
+    if (relevanceScore > 0) {
+      todasAsCorrespondencias.push({
         resposta: linhaAtual[idxResposta],
         perguntaOriginal: linhaAtual[idxPergunta],
         sourceRow: i + 2,
+        score: relevanceScore 
       });
     }
   }
-  return correspondencias;
+
+  // Se não encontrou nada, retorna uma lista vazia
+  if (todasAsCorrespondencias.length === 0) {
+    return [];
+  }
+
+  // 5. Ordena os resultados: o que tiver a maior pontuação de relevância fica no topo
+  todasAsCorrespondencias.sort((a, b) => b.score - a.score);
+
+  return todasAsCorrespondencias;
 }
 
 // --- FUNÇÃO PRINCIPAL (HANDLER) ---
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-control-allow-origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -110,20 +121,26 @@ export default async function handler(req, res) {
     const correspondencias = findMatches(pergunta, faqData);
 
     if (correspondencias.length === 0) {
-      // Nenhuma correspondência
       return res.status(200).json({ status: "nao_encontrado", resposta: `Não encontrei informações sobre "${pergunta}".` });
     } else if (correspondencias.length === 1) {
-      // Resposta única e direta
       return res.status(200).json({
         status: "sucesso",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
       });
     } else {
-      // Múltiplas correspondências, precisa de esclarecimento
+      // Se a melhor resposta (score mais alto) for muito melhor que a segunda, responde direto
+      if (correspondencias[0].score > correspondencias[1].score) {
+          return res.status(200).json({
+            status: "sucesso",
+            resposta: correspondencias[0].resposta,
+            sourceRow: correspondencias[0].sourceRow,
+          });
+      }
+      // Se houver empate ou resultados próximos, pede esclarecimento
       return res.status(200).json({
         status: "clarification_needed",
-        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles você gostaria de ver?`,
+        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
         options: correspondencias.slice(0, 5).map(c => c.perguntaOriginal)
       });
     }
