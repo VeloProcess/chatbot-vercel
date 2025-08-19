@@ -180,44 +180,78 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove();
         }
 
-        function addMessage(message, sender, options = {}) {
-            let mensagemFinal = message;
-            if (sender === 'bot' && dadosAtendente && typeof mensagemFinal === 'string' && mensagemFinal.includes('{{ASSINATURA_ATENDENTE}}')) {
-                const assinatura = formatarAssinatura(dadosAtendente.nome);
-                mensagemFinal = mensagemFinal.replace(/{{ASSINATURA_ATENDENTE}}/g, assinatura);
-            }
+    // Função para adicionar mensagens ao chat        
+function addMessage(message, sender, options = {}) {
+    // Agora 'options' pode conter 'sourceRow' para feedback ou 'options' para esclarecimento
+    const { sourceRow = null, options: clarificationOptions = [] } = options;
 
-            const { sourceRow = null } = options;
-            const messageContainer = document.createElement('div');
-            messageContainer.classList.add('message-container', sender);
-            const avatarDiv = `<div class="avatar ${sender === 'user' ? 'user' : 'bot'}">${sender === 'user' ? '👤' : '🤖'}</div>`;
-            const messageContentDiv = `<div class="message-content"><div class="message">${mensagemFinal.replace(/\n/g, '<br>')}</div></div>`;
-            messageContainer.innerHTML = sender === 'user' ? messageContentDiv + avatarDiv : avatarDiv + messageContentDiv;
-            chatBox.appendChild(messageContainer);
+    let mensagemFinal = message;
+    // Lógica da assinatura continua a mesma
+    if (sender === 'bot' && dadosAtendente && typeof mensagemFinal === 'string' && mensagemFinal.includes('{{ASSINATURA_ATENDENTE}}')) {
+        const assinatura = formatarAssinatura(dadosAtendente.nome);
+        mensagemFinal = mensagemFinal.replace(/{{ASSINATURA_ATENDENTE}}/g, assinatura);
+    }
 
-            if (sender === 'bot' && sourceRow) {
-                ultimaResposta = messageContainer.querySelector('.message').textContent;
-                ultimaLinhaDaFonte = sourceRow;
+    const messageContainer = document.createElement('div');
+    messageContainer.classList.add('message-container', sender);
 
-                const messageBox = messageContainer.querySelector('.message-content');
-                const feedbackContainer = document.createElement('div');
-                feedbackContainer.className = 'feedback-container';
-                const positiveBtn = document.createElement('button');
-                positiveBtn.className = 'feedback-btn';
-                positiveBtn.innerHTML = '👍';
-                positiveBtn.title = 'Resposta útil';
-                positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-                const negativeBtn = document.createElement('button');
-                negativeBtn.className = 'feedback-btn';
-                negativeBtn.innerHTML = '👎';
-                negativeBtn.title = 'Resposta incorreta ou incompleta';
-                negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-                feedbackContainer.appendChild(positiveBtn);
-                feedbackContainer.appendChild(negativeBtn);
-                messageBox.appendChild(feedbackContainer);
-            }
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
+    const avatarDiv = `<div class="avatar ${sender === 'user' ? 'user' : 'bot'}">${sender === 'user' ? '👤' : '🤖'}</div>`;
+    
+    // Usamos createElement para maior controle sobre os elementos
+    const messageContentDiv = document.createElement('div');
+    messageContentDiv.className = 'message-content';
+
+    // Cria o balão de mensagem principal
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
+    messageDiv.innerHTML = mensagemFinal.replace(/\n/g, '<br>');
+    messageContentDiv.appendChild(messageDiv);
+
+    messageContainer.innerHTML = avatarDiv; // Adiciona o avatar
+    messageContainer.appendChild(messageContentDiv); // Adiciona o conteúdo da mensagem
+
+    // Adiciona os botões de FEEDBACK (👍/👎) se for uma resposta final
+    if (sender === 'bot' && sourceRow) {
+        ultimaResposta = messageContainer.querySelector('.message').textContent;
+        ultimaLinhaDaFonte = sourceRow;
+
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.className = 'feedback-container';
+        const positiveBtn = document.createElement('button');
+        positiveBtn.className = 'feedback-btn';
+        positiveBtn.innerHTML = '👍';
+        positiveBtn.title = 'Resposta útil';
+        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+        const negativeBtn = document.createElement('button');
+        negativeBtn.className = 'feedback-btn';
+        negativeBtn.innerHTML = '👎';
+        negativeBtn.title = 'Resposta incorreta ou incompleta';
+        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+        feedbackContainer.appendChild(positiveBtn);
+        feedbackContainer.appendChild(negativeBtn);
+        messageContentDiv.appendChild(feedbackContainer); // Adiciona os botões ao conteúdo
+    }
+
+    // --- CORREÇÃO APLICADA AQUI ---
+    // Adiciona os botões de ESCLARECIMENTO se o backend os enviou
+    if (sender === 'bot' && clarificationOptions.length > 0) {
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'clarification-container';
+
+        clarificationOptions.forEach(optionText => {
+            const button = document.createElement('button');
+            button.className = 'clarification-item';
+            button.textContent = optionText;
+            // Ao clicar, a pergunta exata do botão é enviada de volta para o bot
+            button.onclick = () => handleSendMessage(optionText);
+            optionsContainer.appendChild(button);
+        });
+        messageContentDiv.appendChild(optionsContainer); // Adiciona os botões ao conteúdo
+    }
+
+    chatBox.appendChild(messageContainer);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
 
         async function enviarFeedback(action, container, sugestao = null) {
             if (!ultimaPergunta || !ultimaLinhaDaFonte) {
@@ -255,15 +289,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
                 
+                // NOVO: Lida com os 3 tipos de status
                 if (data.status === 'sucesso') {
-                    ultimaLinhaDaFonte = data.sourceRow;
-                    // Passa a resposta, a linha da fonte E as sugestões
-                    addMessage(data.resposta, 'bot', { 
-                        sourceRow: data.sourceRow, 
-                        suggestions: data.suggestions 
-                    });
+                    // Resposta final encontrada
+                    addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
+                } else if (data.status === 'clarification_needed') {
+                    // Precisa de esclarecimento, mostra opções
+                    addMessage(data.resposta, 'bot', { options: data.options });
                 } else {
-                    addMessage(data.resposta || "Ocorreu um erro.", 'bot');
+                    // Não encontrou nada
+                    addMessage(data.resposta, 'bot');
                 }
             } catch (error) {
                 hideTypingIndicator();

@@ -728,50 +728,40 @@ body.dark-theme #feedback-cancel {
 #feedback-send:hover {
     background-color: var(--cor-azul-escuro);
 }
-/* --- Estilos para as Sugestões --- */
-.suggestions-container {
+/* --- Estilos para os Botões de Esclarecimento --- */
+.clarification-container {
     margin-top: 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
-body.dark-theme .suggestions-container {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.suggestions-title {
-    font-size: 13px;
-    font-weight: bold;
-    color: var(--cor-texto-principal);
-    margin: 0 0 8px 0;
-    opacity: 0.8;
-}
-
-.suggestion-item {
+.clarification-item {
     background-color: var(--cor-container);
     border: 1px solid var(--cor-borda);
-    border-radius: 16px;
-    padding: 8px 12px;
-    margin-right: 8px;
+    border-radius: 8px;
+    padding: 10px 15px;
     margin-bottom: 8px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 14px;
+    width: 100%;
+    text-align: left;
     color: var(--cor-azul-medio);
     transition: all 0.2s ease;
 }
 
-.suggestion-item:hover {
+.clarification-item:hover {
     background-color: var(--cor-azul-medio);
     color: white;
     border-color: var(--cor-azul-medio);
-    transform: translateY(-1px);
+    transform: translateX(2px);
 }
 
-body.dark-theme .suggestion-item {
+body.dark-theme .clarification-item {
     color: var(--cor-azul-escuro);
 }
 
-body.dark-theme .suggestion-item:hover {
+body.dark-theme .clarification-item:hover {
     background-color: var(--cor-azul-escuro);
     color: var(--cor-container);
     border-color: var(--cor-azul-escuro);
