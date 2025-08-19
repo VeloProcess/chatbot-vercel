@@ -4,6 +4,7 @@ import { google } from 'googleapis';
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
+const DOCUMENT_ID = "1Mv81rBoeTmsoXYHFXyHSmkvPvnPi15w4h5CSojzFjCo"; // ID do documento Google Docs
 const FAQ_SHEET_NAME = "FAQ!A:D"; // Otimizado para ler apenas as colunas A, B, C e D
 const CACHE_DURATION_SECONDS = 300; // 5 minutos
 
@@ -16,9 +17,23 @@ let cache = {
 
 // --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
 // Criado fora do handler para ser reutilizado entre as chamadas (melhor performance)
+if (!process.env.GOOGLE_CREDENTIALS) {
+  throw new Error("A variável de ambiente GOOGLE_CREDENTIALS não está definida.");
+}
+
+let credentials;
+try {
+  credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+} catch (e) {
+  throw new Error("GOOGLE_CREDENTIALS não é um JSON válido.");
+}
+
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+  credentials,
+  scopes: [
+  'https://www.googleapis.com/auth/spreadsheets.readonly',
+  'https://www.googleapis.com/auth/documents.readonly' // Adicione esta linha
+],
 });
 
 const sheets = google.sheets({ version: 'v4', auth });
@@ -116,36 +131,51 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  try {
+    try {
     const { pergunta } = req.query;
     if (!pergunta) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
 
-    // 1. Pega os dados (do cache ou da planilha)
+    // --- ETAPA 1: BUSCAR NA PLANILHA (FAQ) ---
     const faqData = await getFaqData();
-    
-    // 2. Roda a sua lógica de busca
-    const melhorResultado = findBestMatch(pergunta, faqData);
+    const melhorResultadoFAQ = findBestMatch(pergunta, faqData);
 
-    // 3. Retorna o resultado
-    if (melhorResultado) {
+    // Se encontrou na planilha, retorna imediatamente.
+    if (melhorResultadoFAQ) {
+      console.log("Resposta encontrada na Planilha (FAQ).");
       return res.status(200).json({
         status: "sucesso",
-        resposta: melhorResultado.dados,
-        sourceRow: melhorResultado.linha,
-      });
-    } else {
-      // Se o funil inteiro não encontrou nada
-      return res.status(200).json({
-        status: "nao_encontrado",
-        resposta: `Não encontrei informações sobre "${pergunta}".`,
-        sourceRow: null,
+        resposta: melhorResultadoFAQ.dados,
+        sourceRow: melhorResultadoFAQ.linha,
+        source: "Planilha"
       });
     }
 
+    // --- ETAPA 2: SE NÃO ACHOU, BUSCAR NO GOOGLE DOCS ---
+    console.log("Não encontrou no FAQ. Tentando busca no Google Docs...");
+    const resultadoDocs = await searchGoogleDoc(pergunta);
+    
+    if (resultadoDocs) {
+      console.log("Resposta encontrada no Google Docs.");
+      return res.status(200).json({
+        status: "sucesso",
+        resposta: resultadoDocs,
+        sourceRow: null, // Não há linha de fonte para o Docs
+        source: "Documento"
+      });
+    }
+
+    // --- ETAPA 3: SE NÃO ENCONTROU EM NENHUM LUGAR ---
+    console.log("Não encontrou em nenhuma das fontes.");
+    return res.status(200).json({
+      status: "nao_encontrado",
+      resposta: `Não encontrei informações sobre "${pergunta}" em nossas bases de conhecimento.`,
+      sourceRow: null,
+    });
+
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
-    return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
+      return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
+    }
   }
-}
