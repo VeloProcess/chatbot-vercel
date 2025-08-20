@@ -5,7 +5,7 @@ const { google } = require('googleapis'); // ALTERADO para a sintaxe require
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 // --- CORREÇÃO APLICADA AQUI ---
-const LOG_SHEET_NAME = "Log-Feedback"; // Alterado de underscore (_) para hífen (-) para corresponder ao erro
+const LOG_SHEET_NAME = "Log_Feedback"; // Alterado de underscore (_) para hífen (-) para corresponder ao erro
 
 // --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
 const auth = new google.auth.GoogleAuth({
