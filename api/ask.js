@@ -1,4 +1,4 @@
-// api/ask.js (Com Lógica de Relevância e Sem Sugestões Repetidas - Versão 2)
+// api/ask.js (Com Lógica de Relevância e Sem Sugestões Repetidas - Versão 3 Final)
 
 const { google } = require('googleapis');
 
@@ -50,7 +50,7 @@ function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-// --- LÓGICA DE BUSCA POR RELEVÂNCIA (ATUALIZADA PARA SER ÚNICA) ---
+// --- LÓGICA DE BUSCA POR RELEVÂNCIA (CORRIGIDA PARA SER ÚNICA) ---
 function findMatches(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
@@ -68,9 +68,12 @@ function findMatches(pergunta, faqData) {
 
   for (let i = 0; i < dados.length; i++) {
     const linhaAtual = dados[i];
-    const textoPergunta = normalizarTexto(linhaAtual[idxPergunta] || '');
+    const textoPerguntaOriginal = linhaAtual[idxPergunta] || '';
+    if (!textoPerguntaOriginal) continue; // Pula linhas sem pergunta
+
+    const textoPerguntaNormalizado = normalizarTexto(textoPerguntaOriginal);
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
-    const textoCompletoDaLinha = textoPergunta + ' ' + textoPalavrasChave;
+    const textoCompletoDaLinha = textoPerguntaNormalizado + ' ' + textoPalavrasChave;
     
     let relevanceScore = 0;
     palavrasDaBusca.forEach(palavra => {
@@ -80,12 +83,11 @@ function findMatches(pergunta, faqData) {
     });
 
     if (relevanceScore > 0) {
-      const perguntaOriginal = linhaAtual[idxPergunta];
-      // Se ainda não vimos esta pergunta, ou se a nova correspondência tem uma pontuação maior
-      if (!matchesMap.has(perguntaOriginal) || relevanceScore > matchesMap.get(perguntaOriginal).score) {
-        matchesMap.set(perguntaOriginal, {
+      // Se ainda não vimos esta pergunta (versão normalizada), ou se a nova correspondência tem uma pontuação maior
+      if (!matchesMap.has(textoPerguntaNormalizado) || relevanceScore > matchesMap.get(textoPerguntaNormalizado).score) {
+        matchesMap.set(textoPerguntaNormalizado, { // A chave do mapa é a pergunta normalizada para evitar duplicados
           resposta: linhaAtual[idxResposta],
-          perguntaOriginal: perguntaOriginal,
+          perguntaOriginal: textoPerguntaOriginal, // Guardamos a pergunta original para exibição
           sourceRow: i + 2,
           score: relevanceScore 
         });
