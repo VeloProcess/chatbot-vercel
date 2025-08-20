@@ -4,7 +4,7 @@ const { google } = require('googleapis'); // ALTERADO para a sintaxe require
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const LOG_SHEET_NAME = "Log_Feedback";
+const LOG_SHEET_NAME = "Log-Feedback";
 
 // --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
 const auth = new google.auth.GoogleAuth({
