@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo 👎';
     
     const newRow = [
-      new Date().toISOString(), // Data em formato universal (melhor para planilhas)
+      timestamp , // Data em formato universal (melhor para planilhas)
       String(dados.email || 'nao_fornecido'),
       String(dados.question || 'N/A'),
       tipoFeedback,
