@@ -1,4 +1,4 @@
-// api/ask.js (Com Lógica de Relevância e Sem Sugestões Repetidas - Versão 3 Final)
+// api/ask.js (Com Lógica de Relevância e Sem Sugestões Repetidas - Versão 4 Final)
 
 const { google } = require('googleapis');
 
@@ -64,12 +64,12 @@ function findMatches(pergunta, faqData) {
   }
 
   const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
-  const matchesMap = new Map(); // Usamos um Map para garantir perguntas únicas
+  let todasAsCorrespondencias = [];
 
   for (let i = 0; i < dados.length; i++) {
     const linhaAtual = dados[i];
     const textoPerguntaOriginal = linhaAtual[idxPergunta] || '';
-    if (!textoPerguntaOriginal) continue; // Pula linhas sem pergunta
+    if (!textoPerguntaOriginal) continue;
 
     const textoPerguntaNormalizado = normalizarTexto(textoPerguntaOriginal);
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
@@ -83,27 +83,36 @@ function findMatches(pergunta, faqData) {
     });
 
     if (relevanceScore > 0) {
-      // Se ainda não vimos esta pergunta (versão normalizada), ou se a nova correspondência tem uma pontuação maior
-      if (!matchesMap.has(textoPerguntaNormalizado) || relevanceScore > matchesMap.get(textoPerguntaNormalizado).score) {
-        matchesMap.set(textoPerguntaNormalizado, { // A chave do mapa é a pergunta normalizada para evitar duplicados
-          resposta: linhaAtual[idxResposta],
-          perguntaOriginal: textoPerguntaOriginal, // Guardamos a pergunta original para exibição
-          sourceRow: i + 2,
-          score: relevanceScore 
-        });
-      }
+      todasAsCorrespondencias.push({
+        resposta: linhaAtual[idxResposta],
+        perguntaOriginal: textoPerguntaOriginal,
+        sourceRow: i + 2,
+        score: relevanceScore 
+      });
     }
   }
 
-  if (matchesMap.size === 0) {
+  if (todasAsCorrespondencias.length === 0) {
     return [];
   }
 
-  // Converte o mapa de volta para um array e ordena pela pontuação
-  const todasAsCorrespondencias = Array.from(matchesMap.values());
-  todasAsCorrespondencias.sort((a, b) => b.score - a.score);
+  // --- Nova Lógica de Deduplicação ---
+  const uniqueMatches = {};
+  todasAsCorrespondencias.forEach(match => {
+    const key = match.perguntaOriginal.trim(); // Usa a pergunta original como chave
+    // Se ainda não vimos esta pergunta, ou se a nova tem uma pontuação maior, guarda-a
+    if (!uniqueMatches[key] || match.score > uniqueMatches[key].score) {
+      uniqueMatches[key] = match;
+    }
+  });
 
-  return todasAsCorrespondencias;
+  // Converte o objeto de volta para um array
+  let correspondenciasUnicas = Object.values(uniqueMatches);
+  
+  // Ordena os resultados pela pontuação
+  correspondenciasUnicas.sort((a, b) => b.score - a.score);
+
+  return correspondenciasUnicas;
 }
 
 
