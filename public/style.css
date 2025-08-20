@@ -766,3 +766,27 @@ body.dark-theme .clarification-item:hover {
     color: var(--cor-container);
     border-color: var(--cor-azul-escuro);
 }
+
+.expandable-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    background-color: #f0f4f8;
+    border-radius: 8px;
+    margin-top: 16px;
+    font-weight: bold;
+}
+body.dark-theme .expandable-header {
+    background-color: #2a2a2a;
+}
+.expandable-header .arrow {
+    transition: transform 0.3s ease;
+}
+.expandable-header.expanded .arrow {
+    transform: rotate(180deg);
+}
+.hidden {
+    display: none !important;
+}
