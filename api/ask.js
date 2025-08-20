@@ -1,11 +1,11 @@
-// api/ask.js (Com Lógica de Relevância para Entender Perguntas Completas)
+// api/ask.js (Com Lógica de Relevância e Sem Sugestões Repetidas)
 
-import { google } from 'googleapis';
+const { google } = require('googleapis');
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const FAQ_SHEET_NAME = "FAQ!A:C"; // Colunas: Pergunta, Resposta, Palavras-chave
-const CACHE_DURATION_SECONDS = 0; // atualiza a cada requisição para garantir dados frescos
+const CACHE_DURATION_SECONDS = 0; // Atualização instantânea
 
 // --- CACHE ---
 let cache = { timestamp: null, data: null };
@@ -63,11 +63,9 @@ function findMatches(pergunta, faqData) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas na planilha.");
   }
 
-  // 1. Quebra a pergunta do usuário em palavras-chave individuais
   const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
   let todasAsCorrespondencias = [];
 
-  // 2. Itera por todas as linhas da planilha
   for (let i = 0; i < dados.length; i++) {
     const linhaAtual = dados[i];
     const textoPergunta = normalizarTexto(linhaAtual[idxPergunta] || '');
@@ -75,14 +73,12 @@ function findMatches(pergunta, faqData) {
     const textoCompletoDaLinha = textoPergunta + ' ' + textoPalavrasChave;
     
     let relevanceScore = 0;
-    // 3. Conta quantas palavras da busca do usuário existem nesta linha
     palavrasDaBusca.forEach(palavra => {
       if (textoCompletoDaLinha.includes(palavra)) {
         relevanceScore++;
       }
     });
 
-    // 4. Se houver pelo menos uma correspondência, adiciona à lista com sua pontuação
     if (relevanceScore > 0) {
       todasAsCorrespondencias.push({
         resposta: linhaAtual[idxResposta],
@@ -97,14 +93,14 @@ function findMatches(pergunta, faqData) {
     return [];
   }
 
-  // 5. Ordena os resultados pela pontuação de relevância
   todasAsCorrespondencias.sort((a, b) => b.score - a.score);
 
   return todasAsCorrespondencias;
 }
 
+
 // --- FUNÇÃO PRINCIPAL (HANDLER) ---
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -112,6 +108,7 @@ export default async function handler(req, res) {
 
   try {
     const { pergunta } = req.query;
+
     if (!pergunta) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
@@ -120,36 +117,36 @@ export default async function handler(req, res) {
     const correspondencias = findMatches(pergunta, faqData);
 
     if (correspondencias.length === 0) {
-      return res.status(200).json({ status: "nao_encontrado", resposta: `Não encontrei informações sobre "${pergunta}".` });
-    } else if (correspondencias.length === 1) {
-      return res.status(200).json({
-        status: "sucesso",
-        resposta: correspondencias[0].resposta,
-        sourceRow: correspondencias[0].sourceRow,
-      });
-    } else {
-      // Se a melhor resposta for claramente mais relevante que a segunda, responde direto
-      if (correspondencias[0].score > correspondencias[1].score) {
-          return res.status(200).json({
-            status: "sucesso",
-            resposta: correspondencias[0].resposta,
-            sourceRow: correspondencias[0].sourceRow,
-          });
-      }
-      // Se houver empate ou resultados próximos, pede esclarecimento
-        // 1. Mapeia todas as perguntas originais encontradas
-        const todasAsOpcoes = correspondencias.map(c => c.perguntaOriginal);
+        return res.status(200).json({ status: "nao_encontrado", resposta: `Não encontrei informações sobre "${pergunta}".` });
+      } else if (correspondencias.length === 1) {
+        return res.status(200).json({
+          status: "sucesso",
+          resposta: correspondencias[0].resposta,
+          sourceRow: correspondencias[0].sourceRow,
+        });
+      } else {
+        if (correspondencias[0].score > correspondencias[1].score) {
+            return res.status(200).json({
+              status: "sucesso",
+              resposta: correspondencias[0].resposta,
+              sourceRow: correspondencias[0].sourceRow,
+            });
+        }
         
-        // 2. Remove as duplicadas da lista
+        // --- CORREÇÃO APLICADA AQUI ---
+        // 1. Mapeia todas as perguntas originais
+        const todasAsOpcoes = correspondencias.map(c => c.perguntaOriginal);
+        // 2. Remove as duplicadas usando um Set
         const opcoesUnicas = [...new Set(todasAsOpcoes)];
         
         return res.status(200).json({
           status: "clarification_needed",
           resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
           // 3. Envia a lista de opções únicas, limitada a 8
-          options: opcoesUnicas.slice(0, 6)
+          options: opcoesUnicas.slice(0, 8)
         });
-    }
+      }
+
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
     return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
