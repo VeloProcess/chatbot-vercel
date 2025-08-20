@@ -147,7 +147,7 @@ export default async function handler(req, res) {
           status: "clarification_needed",
           resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
           // 3. Envia a lista de opções únicas, limitada a 8
-          options: opcoesUnicas.slice(0, 8)
+          options: opcoesUnicas.slice(0, 6)
         });
     }
   } catch (error) {
