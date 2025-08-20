@@ -5,7 +5,7 @@ import { google } from 'googleapis';
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const FAQ_SHEET_NAME = "FAQ!A:C"; // Colunas: Pergunta, Resposta, Palavras-chave
-const CACHE_DURATION_SECONDS = 300;
+const CACHE_DURATION_SECONDS = 0; // atualiza a cada requisição para garantir dados frescos
 
 // --- CACHE ---
 let cache = { timestamp: null, data: null };
