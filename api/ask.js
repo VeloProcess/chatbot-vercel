@@ -137,11 +137,18 @@ export default async function handler(req, res) {
           });
       }
       // Se houver empate ou resultados próximos, pede esclarecimento
-      return res.status(200).json({
-        status: "clarification_needed",
-        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
-        options: correspondencias.slice(0, 5).map(c => c.perguntaOriginal)
-      });
+        // 1. Mapeia todas as perguntas originais encontradas
+        const todasAsOpcoes = correspondencias.map(c => c.perguntaOriginal);
+        
+        // 2. Remove as duplicadas da lista
+        const opcoesUnicas = [...new Set(todasAsOpcoes)];
+        
+        return res.status(200).json({
+          status: "clarification_needed",
+          resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
+          // 3. Envia a lista de opções únicas, limitada a 8
+          options: opcoesUnicas.slice(0, 8)
+        });
     }
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
