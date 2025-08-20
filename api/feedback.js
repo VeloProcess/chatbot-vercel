@@ -1,6 +1,6 @@
-// api/feedback.js (Versão de Depuração com Logs Detalhados)
+// api/feedback.js (Versão Corrigida para o Servidor Vercel)
 
-import { google } from 'googleapis';
+const { google } = require('googleapis'); // ALTERADO para a sintaxe require
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
@@ -16,7 +16,7 @@ const sheets = google.sheets({ version: 'v4', auth });
 
 
 // --- A FUNÇÃO PRINCIPAL DA API (HANDLER) ---
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) { // ALTERADO para module.exports
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     });
     console.log("[DEBUG 4] Timestamp criado:", timestamp);
 
-    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo �';
+    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo 👎';
     
     const newRow = [
       timestamp,
@@ -84,4 +84,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Erro interno ao registar feedback.", details: error.message });
   }
 }
-�
