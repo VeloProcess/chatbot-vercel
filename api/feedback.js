@@ -31,23 +31,25 @@ export default async function handler(req, res) {
   
   try {
     // --- LOG DE DEPURACÃO 1: Ponto de Entrada ---
-    console.log("Endpoint de feedback atingido com sucesso.");
+    console.log("[DEBUG 1] Endpoint de feedback atingido.");
 
     const dados = req.body;
 
     // --- LOG DE DEPURACÃO 2: Dados Recebidos ---
-    console.log("Dados recebidos do frontend:", JSON.stringify(dados, null, 2));
+    console.log("[DEBUG 2] Dados recebidos do frontend:", JSON.stringify(dados, null, 2));
 
     if (!dados || Object.keys(dados).length === 0) {
-        console.error("Validação falhou: Corpo da requisição vazio.");
+        console.error("[DEBUG FALHA] Validação falhou: Corpo da requisição vazio.");
         return res.status(400).json({ error: 'Corpo da requisição vazio.' });
     }
 
+    console.log("[DEBUG 3] Criando timestamp...");
     const timestamp = new Date().toLocaleString('pt-BR', {
         timeZone: 'America/Sao_Paulo'
     });
+    console.log("[DEBUG 4] Timestamp criado:", timestamp);
 
-    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo 👎';
+    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo �';
     
     const newRow = [
       timestamp,
@@ -58,9 +60,10 @@ export default async function handler(req, res) {
       String(dados.sugestao || '')
     ];
 
-    // --- LOG DE DEPURACÃO 3: Linha a ser Escrita ---
-    console.log("Linha preparada para ser enviada para a folha de cálculo:", newRow);
+    // --- LOG DE DEPURACÃO 5: Linha a ser Escrita ---
+    console.log("[DEBUG 5] Linha preparada para ser enviada para a folha de cálculo:", newRow);
 
+    console.log("[DEBUG 6] A enviar dados para a API do Google Sheets...");
     // Envia os dados para a planilha
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -71,8 +74,8 @@ export default async function handler(req, res) {
       },
     });
 
-    // --- LOG DE DEPURACÃO 4: Sucesso ---
-    console.log("Sucesso! Os dados foram enviados para a API do Google Sheets.");
+    // --- LOG DE DEPURACÃO 7: Sucesso ---
+    console.log("[DEBUG 7] Sucesso! Os dados foram enviados para a API do Google Sheets.");
 
     return res.status(200).json({ status: 'sucesso', message: 'Feedback registado.' });
 
@@ -81,3 +84,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Erro interno ao registar feedback.", details: error.message });
   }
 }
+�
