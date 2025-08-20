@@ -1,4 +1,4 @@
-// api/ask.js (Com Lógica de Relevância e Sem Sugestões Repetidas)
+// api/ask.js (Com Lógica de Relevância e Sem Sugestões Repetidas - Versão 2)
 
 const { google } = require('googleapis');
 
@@ -50,7 +50,7 @@ function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-// --- LÓGICA DE BUSCA POR RELEVÂNCIA ---
+// --- LÓGICA DE BUSCA POR RELEVÂNCIA (ATUALIZADA PARA SER ÚNICA) ---
 function findMatches(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
@@ -64,7 +64,7 @@ function findMatches(pergunta, faqData) {
   }
 
   const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
-  let todasAsCorrespondencias = [];
+  const matchesMap = new Map(); // Usamos um Map para garantir perguntas únicas
 
   for (let i = 0; i < dados.length; i++) {
     const linhaAtual = dados[i];
@@ -80,19 +80,25 @@ function findMatches(pergunta, faqData) {
     });
 
     if (relevanceScore > 0) {
-      todasAsCorrespondencias.push({
-        resposta: linhaAtual[idxResposta],
-        perguntaOriginal: linhaAtual[idxPergunta],
-        sourceRow: i + 2,
-        score: relevanceScore 
-      });
+      const perguntaOriginal = linhaAtual[idxPergunta];
+      // Se ainda não vimos esta pergunta, ou se a nova correspondência tem uma pontuação maior
+      if (!matchesMap.has(perguntaOriginal) || relevanceScore > matchesMap.get(perguntaOriginal).score) {
+        matchesMap.set(perguntaOriginal, {
+          resposta: linhaAtual[idxResposta],
+          perguntaOriginal: perguntaOriginal,
+          sourceRow: i + 2,
+          score: relevanceScore 
+        });
+      }
     }
   }
 
-  if (todasAsCorrespondencias.length === 0) {
+  if (matchesMap.size === 0) {
     return [];
   }
 
+  // Converte o mapa de volta para um array e ordena pela pontuação
+  const todasAsCorrespondencias = Array.from(matchesMap.values());
   todasAsCorrespondencias.sort((a, b) => b.score - a.score);
 
   return todasAsCorrespondencias;
@@ -133,17 +139,11 @@ module.exports = async function handler(req, res) {
             });
         }
         
-        // --- CORREÇÃO APLICADA AQUI ---
-        // 1. Mapeia todas as perguntas originais
-        const todasAsOpcoes = correspondencias.map(c => c.perguntaOriginal);
-        // 2. Remove as duplicadas usando um Set
-        const opcoesUnicas = [...new Set(todasAsOpcoes)];
-        
         return res.status(200).json({
           status: "clarification_needed",
           resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
-          // 3. Envia a lista de opções únicas, limitada a 8
-          options: opcoesUnicas.slice(0, 8)
+          // O mapeamento agora é feito sobre uma lista que já é única
+          options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8)
         });
       }
 
