@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Painel Interno com ChatBot - Tema Clássico v2
+   Painel Interno com ChatBot - Tema Clássico v2 (Versão Limpa)
    ========================================================================== */
 
 /* --- 🙈 Utilitários --- */
@@ -129,21 +129,28 @@ body.dark-theme::before {
     box-shadow: 0 6px 24px var(--cor-sombra);
 }
 
-/* --- 🚪 TELA DE LOGIN 🚪 --- */
-#identificacao-overlay {
+/* --- 🚪 MODAIS E OVERLAYS (Login, Feedback) 🚪 --- */
+#identificacao-overlay, #feedback-overlay {
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background-color: rgba(0, 50, 100, 0.85);
+    background-color: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1000;
     backdrop-filter: blur(5px);
     animation: fadeIn var(--transicao-normal);
+    opacity: 1;
+    transition: opacity 0.3s ease;
 }
 
-#identificacao-box {
+#identificacao-overlay.hidden, #feedback-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#identificacao-box, #feedback-box {
     background: var(--cor-container);
     padding: var(--espaco-xl);
     border-radius: var(--borda-raio);
@@ -152,11 +159,78 @@ body.dark-theme::before {
     width: 90%;
     max-width: 450px;
     animation: slideUp var(--transicao-normal);
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-md);
+}
+
+#feedback-box {
+    text-align: left;
+}
+
+#feedback-box h2, #identificacao-box h2 {
+    margin-top: 0;
+    font-size: 20px;
+    color: var(--cor-texto-principal);
+}
+
+#feedback-box p, #identificacao-box p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+#feedback-box textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: var(--espaco-md);
+    border-radius: var(--borda-raio-sm);
+    border: 1px solid var(--cor-borda);
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto-principal);
+    font-family: inherit;
+    font-size: 1rem;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.feedback-form-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--espaco-sm);
+}
+
+.feedback-form-buttons button {
+    padding: 10px 20px;
+    border-radius: var(--borda-raio-sm);
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 15px;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.feedback-form-buttons button:hover {
+    transform: translateY(-1px);
+}
+
+#feedback-cancel {
+    background-color: #ddd;
+    color: #333;
+}
+body.dark-theme #feedback-cancel {
+    background-color: #444;
+    color: #eee;
+}
+
+#feedback-send {
+    background-color: var(--cor-sucesso);
+    color: white;
+}
+#feedback-send:hover {
+    background-color: #45a049;
 }
 
 /* --- 💬 PAINEL DO CHAT 💬 --- */
-
-/* CABEÇALHO NOVO */
 .chat-header {
     display: flex;
     flex-direction: column;
@@ -196,28 +270,27 @@ body.dark-theme::before {
     animation: pulse 2s infinite;
 }
 
-/* Posição do botão de tema no cabeçalho novo */
 #theme-switcher {
-    font-size: 28px; /* ou o tamanho que preferir */
+    position: absolute;
+    top: var(--espaco-md);
+    right: var(--espaco-md);
+    font-size: 28px;
     background: none;
     border: none;
     padding: 0;
     color: inherit;
     cursor: pointer;
-    border-radius: 0;
-    width: auto;
-    height: auto;
-    box-shadow: none;
-    display: inline;
+
     transition: transform 0.2s;
+
 }
 
 #theme-switcher:hover {
     transform: scale(1.1);
-    background: none;
+
 }
 
-/* CAIXA DE MENSAGENS */
+
 .chat-box {
     flex-grow: 1;
     overflow-y: auto;
@@ -227,7 +300,7 @@ body.dark-theme::before {
     flex-direction: column;
 }
 
-/* ÁREA DE DIGITAÇÃO */
+
 .input-area {
     display: flex;
     align-items: center;
@@ -241,7 +314,7 @@ body.dark-theme::before {
 
 #user-input {
     flex-grow: 1;
-    padding: var(--espaco-md);
+    padding: 12px 18px;
     border-radius: 24px;
     border: 1px solid var(--cor-borda);
     background-color: var(--cor-fundo);
@@ -249,8 +322,9 @@ body.dark-theme::before {
     font-size: 15px;
     outline: none;
     transition: var(--transicao-normal);
-    padding-right: 48px; /* Espaço para botões */
+
 }
+
 #user-input:focus {
     border-color: var(--cor-azul-medio);
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
@@ -281,7 +355,7 @@ body.dark-theme::before {
 }
 
 .gemini-button {
-    background-color: #FF6D00; /* Cor laranja Gemini */
+    background-color: #FF6D00;
     color: white;
     font-size: 18px;
     font-weight: bold;
@@ -291,7 +365,7 @@ body.dark-theme::before {
 }
 
 
-/* --- 🗨️ ESTILOS DAS MENSAGENS 🗨️ --- */
+/* --- 🗨️ ESTILOS DAS MENSAGENS E BOTÕES 🗨️ --- */
 .message-container {
     display: flex;
     margin-bottom: var(--espaco-md);
@@ -352,7 +426,7 @@ body.dark-theme::before {
     border-bottom-left-radius: 4px;
 }
 
-/* INDICADOR DE DIGITANDO */
+/* Indicador de Digitando */
 .typing-indicator .message {
     display: flex;
     align-items: center;
@@ -370,6 +444,45 @@ body.dark-theme::before {
 .typing-dot:nth-child(1) { animation-delay: 0s; }
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Botões de Esclarecimento */
+.clarification-container {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.clarification-item {
+    background-color: var(--cor-container);
+    border: 1px solid var(--cor-borda);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    width: 100%;
+    text-align: left;
+    color: var(--cor-azul-medio);
+    transition: all 0.2s ease;
+}
+
+.clarification-item:hover {
+    background-color: var(--cor-azul-medio);
+    color: white;
+    border-color: var(--cor-azul-medio);
+    transform: translateX(2px);
+}
+
+body.dark-theme .clarification-item {
+    color: var(--cor-azul-escuro);
+}
+
+body.dark-theme .clarification-item:hover {
+    background-color: var(--cor-azul-escuro);
+    color: var(--cor-container);
+    border-color: var(--cor-azul-escuro);
+}
 
 
 /* --- ❓ PAINEL DE PERGUNTAS (SIDEBAR) ❓ --- */
@@ -429,7 +542,7 @@ body.dark-theme::before {
 #more-questions-list-financeiro li,
 #more-questions-list-tecnico li {
     padding: var(--espaco-md);
-    border-radius: var(--borda-raio);
+    border-radius: var(--borda-raio-sm);
     margin-bottom: var(--espaco-sm);
     cursor: pointer;
     transition: all var(--transicao-rapida);
@@ -449,29 +562,28 @@ body.dark-theme::before {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 12px 16px;
     cursor: pointer;
-    padding: var(--espaco-sm) var(--espaco-md);
-    margin-top: var(--espaco-md);
-    border: 1px solid var(--cor-borda);
-    border-radius: var(--borda-raio);
     background-color: var(--cor-fundo);
+    border-radius: 8px;
+    margin-top: 16px;
     font-weight: bold;
+    border: 1px solid var(--cor-borda);
 }
 .expandable-header:hover {
-    background-color: rgba(0,0,0,0.03);
+    background-color: #e9ecef;
+}
+body.dark-theme .expandable-header {
+    background-color: #2a2a2a;
+}
+body.dark-theme .expandable-header:hover {
+    background-color: #3a3a3a;
 }
 .expandable-header .arrow {
     transition: transform var(--transicao-rapida);
 }
 .expandable-header.expanded .arrow {
-    transform: rotate(90deg);
-}
-
-.hidden-questions {
-    display: none;
-    padding-left: var(--espaco-md);
-    margin-top: var(--espaco-sm);
-    border-left: 2px solid var(--cor-azul-claro);
+    transform: rotate(180deg);
 }
 
 /* --- 🚨 PAINEL DE NOTÍCIAS 🚨 --- */
@@ -485,7 +597,7 @@ body.dark-theme::before {
     padding: var(--espaco-md);
     margin-bottom: var(--espaco-md);
     background: var(--cor-caixa-chat);
-    border-radius: var(--borda-raio);
+    border-radius: var(--borda-raio-sm);
     border-left: 4px solid var(--cor-azul-medio);
     transition: var(--transicao-rapida);
 }
@@ -507,11 +619,9 @@ body.dark-theme::before {
 }
 .news-item h2 {
     margin-top: 0;
-    color: var(--cor-azul-escuro);
     font-size: 16px;
 }
 .news-item small {
-    color: var(--cor-azul-medio);
     display: block;
     margin-bottom: var(--espaco-sm);
     font-size: 12px;
@@ -558,242 +668,4 @@ body.dark-theme::before {
     #sidebar {
         display: none;
     }
-}
-/* --- CORREÇÃO PARA ÍCONES DE EMOJI --- */
-.emoji-icon {
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    display: inline-block; /* Garante que o span se comporte bem */
-}
-
-/* Garante que o balão do bot seja a referência de posição */
-.bot-msg {
-    position: relative; 
-    padding-right: 40px; /* Cria um espaço para o botão não sobrepor o texto */
-}
-
-/* Estilo do botão de copiar */
-.copy-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 18px;
-    color: var(--cor-texto-principal);
-    opacity: 0; /* Começa invisível */
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-/* Efeito para o botão aparecer */
-.bot-msg:hover .copy-btn {
-    opacity: 0.6; /* Fica visível ao passar o mouse na mensagem */
-}
-
-/* Efeito de destaque no próprio botão */
-.copy-btn:hover {
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-/* --- ESTILOS PARA O MODAL DE FEEDBACK --- */
-#feedback-overlay {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-color: rgba(0, 50, 100, 0.85);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 1001; /* Z-index maior que o da identificação */
-    backdrop-filter: blur(5px);
-}
-#feedback-box {
-    background: var(--cor-container);
-    padding: 30px 40px; border-radius: 12px;
-    box-shadow: 0 5px 25px rgba(0,0,0,0.3);
-    width: 90%; max-width: 500px;
-}
-#feedback-box h2 { margin-top: 0; color: var(--cor-azul-escuro); }
-#feedback-box textarea {
-    width: 100%; height: 120px; margin-top: 10px; padding: 10px;
-    border-radius: 8px; border: 1px solid var(--cor-borda);
-    font-size: 16px; resize: vertical;
-    background-color: var(--cor-fundo); color: var(--cor-texto-principal);
-}
-.feedback-form-buttons {
-    display: flex; justify-content: flex-end;
-    gap: 10px; margin-top: 15px;
-}
-.feedback-form-buttons button { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
-#feedback-cancel { background-color: #ddd; color: #333; }
-#feedback-send { background-color: var(--cor-sucesso); color: white; }
-
-/* --- ESTILOS PARA O MODAL DE FEEDBACK --- */
-#feedback-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7); /* Fundo escuro semi-transparente */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1001; /* Garante que fique sobre todo o resto */
-    opacity: 1;
-    transition: opacity 0.3s ease;
-    backdrop-filter: blur(4px);
-}
-
-/* Classe para esconder/mostrar o modal */
-#feedback-overlay.hidden {
-    opacity: 0;
-    pointer-events: none; /* Impede cliques quando o modal está escondido */
-}
-
-#feedback-box {
-    background: var(--cor-container);
-    padding: var(--espaco-lg);
-    border-radius: var(--borda-raio);
-    box-shadow: 0 5px 25px rgba(0,0,0,0.3);
-    width: 90%;
-    max-width: 500px;
-    display: flex;
-    flex-direction: column;
-    gap: var(--espaco-md); /* Espaçamento entre os elementos internos */
-    animation: slideUp 0.3s;
-}
-
-#feedback-box h2 {
-    margin-top: 0;
-    font-size: 20px;
-    color: var(--cor-texto-principal);
-}
-
-#feedback-box p {
-    margin: 0;
-    line-height: 1.5;
-    color: var(--cor-texto-principal);
-}
-
-#feedback-text {
-    width: 100%;
-    min-height: 120px;
-    padding: var(--espaco-md);
-    border-radius: var(--borda-raio-sm);
-    border: 1px solid var(--cor-borda);
-    background-color: var(--cor-fundo);
-    color: var(--cor-texto-principal);
-    font-family: inherit;
-    font-size: 1rem;
-    resize: vertical;
-    box-sizing: border-box; /* Garante que o padding não aumente a largura */
-}
-
-.feedback-form-buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--espaco-sm);
-}
-
-.feedback-form-buttons button {
-    padding: 10px 20px;
-    border-radius: var(--borda-raio-sm);
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 15px;
-    transition: background-color 0.2s, transform 0.2s;
-}
-
-.feedback-form-buttons button:hover {
-    transform: translateY(-1px);
-}
-
-#feedback-cancel {
-    background-color: #ddd;
-    color: #333;
-}
-body.dark-theme #feedback-cancel {
-    background-color: #444;
-    color: #eee;
-}
-
-#feedback-send {
-    background-color: var(--cor-azul-medio);
-    color: white;
-}
-#feedback-send:hover {
-    background-color: var(--cor-azul-escuro);
-}
-/* --- Estilos para os Botões de Esclarecimento --- */
-.clarification-container {
-    margin-top: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.clarification-item {
-    background-color: var(--cor-container);
-    border: 1px solid var(--cor-borda);
-    border-radius: 8px;
-    padding: 10px 15px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    width: 100%;
-    text-align: left;
-    color: var(--cor-azul-medio);
-    transition: all 0.2s ease;
-}
-
-.clarification-item:hover {
-    background-color: var(--cor-azul-medio);
-    color: white;
-    border-color: var(--cor-azul-medio);
-    transform: translateX(2px);
-}
-
-body.dark-theme .clarification-item {
-    color: var(--cor-azul-escuro);
-}
-
-body.dark-theme .clarification-item:hover {
-    background-color: var(--cor-azul-escuro);
-    color: var(--cor-container);
-    border-color: var(--cor-azul-escuro);
-}
-
-.expandable-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    cursor: pointer;
-    background-color: #f0f4f8;
-    border-radius: 8px;
-    margin-top: 16px;
-    font-weight: bold;
-}
-body.dark-theme .expandable-header {
-    background-color: #2a2a2a;
-}
-
-.hidden {
-    display: none;
-}
-.expandable-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    cursor: pointer;
-    background-color: var(--cor-fundo); /* Ou outra cor de sua preferência */
-    border-radius: 8px;
-    margin-top: 16px;
-    font-weight: bold;
-    border: 1px solid var(--cor-borda);
 }
