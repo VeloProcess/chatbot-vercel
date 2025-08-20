@@ -42,6 +42,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Corpo da requisição vazio.' });
     }
 
+     // --- CORREÇÃO DE FUSO HORÁRIO APLICADA AQUI ---
+    const timestamp = new Date().toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo'
+    });
+
     // Prepara e limpa os dados para a nova linha
     const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo 👎';
     

@@ -46,8 +46,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Tipo de log ('type') inválido ou 'payload' ausente." });
     }
 
+    // --- CORREÇÃO DE FUSO HORÁRIO APLICADA AQUI ---
+    const timestamp = new Date().toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo'
+    });
+    
     const sheetName = SHEET_NAMES[type];
-    let newRow = [new Date().toISOString()]; // Coluna de Timestamp é padrão para todos
+    let newRow = [timestamp]; // Usa o timestamp formatado para o Brasil
 
     // Monta a linha com base no tipo de log
     switch (type) {
