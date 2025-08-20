@@ -1,9 +1,9 @@
-// api/ask.js (Com Lógica de Esclarecimento Corrigida para Evitar Loop)
+// api/ask.js (Com Lógica de Relevância para Entender Perguntas Completas)
 
 import { google } from 'googleapis';
 
 // --- CONFIGURAÇÃO ---
-const SPREADSHEET_ID = "1tyS89983odMbF04znYTmDLO6_6nZ9jFs0kz1fkEjnvY";
+const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const FAQ_SHEET_NAME = "FAQ!A:C"; // Colunas: Pergunta, Resposta, Palavras-chave
 const CACHE_DURATION_SECONDS = 300;
 
@@ -50,7 +50,7 @@ function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-// --- LÓGICA DE BUSCA CORRIGIDA PARA EVITAR LOOP ---
+// --- LÓGICA DE BUSCA POR RELEVÂNCIA ---
 function findMatches(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
@@ -63,36 +63,44 @@ function findMatches(pergunta, faqData) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas na planilha.");
   }
 
-  const termoDeBusca = normalizarTexto(pergunta);
-  let correspondenciasPorPalavraChave = [];
+  // 1. Quebra a pergunta do usuário em palavras-chave individuais
+  const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
+  let todasAsCorrespondencias = [];
 
+  // 2. Itera por todas as linhas da planilha
   for (let i = 0; i < dados.length; i++) {
     const linhaAtual = dados[i];
     const textoPergunta = normalizarTexto(linhaAtual[idxPergunta] || '');
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
+    const textoCompletoDaLinha = textoPergunta + ' ' + textoPalavrasChave;
+    
+    let relevanceScore = 0;
+    // 3. Conta quantas palavras da busca do usuário existem nesta linha
+    palavrasDaBusca.forEach(palavra => {
+      if (textoCompletoDaLinha.includes(palavra)) {
+        relevanceScore++;
+      }
+    });
 
-    // 1. Primeiro, busca pela pergunta EXATA. Se encontrar, retorna imediatamente.
-    // Isso acontece quando o usuário clica em um botão de tópico e resolve o loop.
-    if (textoPergunta === termoDeBusca) {
-        return [{
-            resposta: linhaAtual[idxResposta],
-            perguntaOriginal: linhaAtual[idxPergunta],
-            sourceRow: i + 2,
-        }];
-    }
-
-    // 2. Se não for uma pergunta exata, busca pela palavra-chave.
-    // Isso acontece na primeira busca do usuário.
-    if (textoPalavrasChave.includes(termoDeBusca)) {
-      correspondenciasPorPalavraChave.push({
+    // 4. Se houver pelo menos uma correspondência, adiciona à lista com sua pontuação
+    if (relevanceScore > 0) {
+      todasAsCorrespondencias.push({
         resposta: linhaAtual[idxResposta],
         perguntaOriginal: linhaAtual[idxPergunta],
         sourceRow: i + 2,
+        score: relevanceScore 
       });
     }
   }
-  // Retorna a lista de correspondências encontradas por palavra-chave.
-  return correspondenciasPorPalavraChave;
+
+  if (todasAsCorrespondencias.length === 0) {
+    return [];
+  }
+
+  // 5. Ordena os resultados pela pontuação de relevância
+  todasAsCorrespondencias.sort((a, b) => b.score - a.score);
+
+  return todasAsCorrespondencias;
 }
 
 // --- FUNÇÃO PRINCIPAL (HANDLER) ---
@@ -114,17 +122,24 @@ export default async function handler(req, res) {
     if (correspondencias.length === 0) {
       return res.status(200).json({ status: "nao_encontrado", resposta: `Não encontrei informações sobre "${pergunta}".` });
     } else if (correspondencias.length === 1) {
-      // Se encontrou uma resposta única (seja por pergunta exata ou palavra-chave única)
       return res.status(200).json({
         status: "sucesso",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
       });
     } else {
-      // Se encontrou múltiplas respostas por palavra-chave, pede esclarecimento
+      // Se a melhor resposta for claramente mais relevante que a segunda, responde direto
+      if (correspondencias[0].score > correspondencias[1].score) {
+          return res.status(200).json({
+            status: "sucesso",
+            resposta: correspondencias[0].resposta,
+            sourceRow: correspondencias[0].sourceRow,
+          });
+      }
+      // Se houver empate ou resultados próximos, pede esclarecimento
       return res.status(200).json({
         status: "clarification_needed",
-        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles você gostaria de ver?`,
+        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
         options: correspondencias.slice(0, 5).map(c => c.perguntaOriginal)
       });
     }
