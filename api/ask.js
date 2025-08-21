@@ -134,7 +134,7 @@ module.exports = async function handler(req, res) {
     const correspondencias = findMatches(pergunta, faqData);
 
     if (correspondencias.length === 0) {
-        return res.status(200).json({ status: "nao_encontrado", resposta: `Não encontrei informações sobre "${pergunta}".` });
+        return res.status(200).json({ status: "nao_encontrado", resposta: `Não encontrei informações sobre "${pergunta}". Tente reformular a sua pergunta com outras palavras-chave ou, se necessário, consulte com o Gabriel ou com o João sobre essa informação` });
       } else if (correspondencias.length === 1) {
         return res.status(200).json({
           status: "sucesso",
