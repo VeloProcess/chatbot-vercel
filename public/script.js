@@ -7,15 +7,82 @@ document.addEventListener('DOMContentLoaded', () => {
     const identificacaoOverlay = document.getElementById('identificacao-overlay');
     const appWrapper = document.querySelector('.app-wrapper');
     const errorMsg = document.getElementById('identificacao-error');
+    const userStatusContainer = document.getElementById('user-status-container'); // Novo elemento
 
     // ================== VARIÁVEIS DE ESTADO ==================
     let ultimaPergunta = '';
-    // --- CORREÇÃO ---: A variável ultimaResposta foi declarada aqui.
     let ultimaResposta = '';
     let ultimaLinhaDaFonte = null;
     let isTyping = false;
     let dadosAtendente = null;
     let tokenClient = null;
+    let sessionId = generateUUID();
+
+    // Função para gerar UUID
+    function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    // Função para registrar status de login/logout
+    async function logUserStatus(status) {
+        if (!dadosAtendente?.email) return;
+        try {
+            await fetch('/api/logQuestion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'access',
+                    payload: {
+                        email: dadosAtendente.email,
+                        status: status,
+                        sessionId: sessionId
+                    }
+                })
+            });
+        } catch (error) {
+            console.error(`Erro ao registrar status ${status}:`, error);
+        }
+    }
+
+    // Função para consultar e exibir status/histórico de um usuário
+    async function updateUserStatus(email) {
+        if (!userStatusContainer || !email) return;
+        try {
+            const response = await fetch(`/api/logQuestion?email=${encodeURIComponent(email)}`, { method: 'GET' });
+            const data = await response.json();
+            if (data.status === 'sucesso' && data.user) {
+                const { email, status, lastLogin, lastLogout, history } = data.user;
+                userStatusContainer.innerHTML = `
+                    <h3>Status do Usuário: ${email}</h3>
+                    <p><strong>Status Atual:</strong> ${status === 'online' ? 'Online 🟢' : 'Offline 🔴'}</p>
+                    <p><strong>Último Login:</strong> ${lastLogin}</p>
+                    <p><strong>Último Logout:</strong> ${lastLogout}</p>
+                    <h4>Histórico:</h4>
+                    <ul>
+                        ${history.length > 0 ? history.map(event => `
+                            <li>${event.timestamp}: ${event.status === 'online' ? 'Entrou' : 'Saiu'} (Sessão: ${event.sessionId})</li>
+                        `).join('') : '<li>Sem histórico recente</li>'}
+                    </ul>
+                `;
+            } else {
+                userStatusContainer.innerHTML = '<p>Erro ao carregar status do usuário</p>';
+            }
+        } catch (error) {
+            console.error("Erro ao buscar status do usuário:", error);
+            userStatusContainer.innerHTML = '<p>Erro ao carregar status do usuário</p>';
+        }
+    }
+
+    // Função para consultar status do usuário atual
+    function checkCurrentUserStatus() {
+        if (dadosAtendente?.email) {
+            updateUserStatus(dadosAtendente.email);
+            setInterval(() => updateUserStatus(dadosAtendente.email), 30000); // Atualiza a cada 30s
+        }
+    }
 
     // ================== FUNÇÕES DE CONTROLE DE UI ==================
     function showOverlay() {
@@ -49,21 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function initGoogleSignIn() {
-        waitForGoogleScript().then(accounts => {
-            tokenClient = accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: 'profile email',
-                callback: handleGoogleSignIn
-            });
-            document.getElementById('google-signin-button').addEventListener('click', () => tokenClient.requestAccessToken());
-            verificarIdentificacao();
-        }).catch(error => {
-            errorMsg.textContent = 'Erro ao carregar autenticação do Google. Verifique sua conexão ou tente novamente mais tarde.';
-            errorMsg.classList.remove('hidden');
-        });
-    }
-
     function handleGoogleSignIn(response) {
         fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
             headers: { Authorization: `Bearer ${response.access_token}` }
@@ -73,8 +125,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
                 dadosAtendente = { nome: user.name, email: user.email, timestamp: Date.now() };
                 localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
+                logUserStatus('online');
                 hideOverlay();
                 iniciarBot();
+                checkCurrentUserStatus(); // Inicia verificação de status
             } else {
                 errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
                 errorMsg.classList.remove('hidden');
@@ -98,23 +152,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
             dadosAtendente = dadosSalvos;
+            logUserStatus('online');
             hideOverlay();
             iniciarBot();
+            checkCurrentUserStatus();
         } else {
             localStorage.removeItem('dadosAtendenteChatbot');
             showOverlay();
         }
     }
 
-    // Nova função para registrar a pergunta na planilha
+    // Registrar logout ao fechar janela
+    window.addEventListener('beforeunload', () => {
+        logUserStatus('offline');
+    });
+
+    function initGoogleSignIn() {
+        waitForGoogleScript().then(accounts => {
+            tokenClient = accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: 'profile email',
+                callback: handleGoogleSignIn
+            });
+            document.getElementById('google-signin-button').addEventListener('click', () => tokenClient.requestAccessToken());
+            verificarIdentificacao();
+        }).catch(error => {
+            errorMsg.textContent = 'Erro ao carregar autenticação do Google. Verifique sua conexão ou tente novamente mais tarde.';
+            errorMsg.classList.remove('hidden');
+        });
+    }
+
+    // Função para registrar pergunta (mantida como referência)
     async function logQuestionOnSheet(question, email) {
-        if (!question || !email) return; // Não faz nada se não tiver os dados
+        if (!question || !email) return;
         try {
-            await fetch('/api/logQuestion', { // URL correta
+            await fetch('/api/logQuestion', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: 'question', // Envia o tipo de log correto
+                    type: 'question',
                     payload: {
                         question: question,
                         email: email
@@ -125,10 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Erro ao registrar a pergunta na planilha:", error);
         }
     }
-    
-    /**
-     * Formata um nome completo para uma assinatura. Ex: "Gabriel Araujo" se torna "Gabriel A."
-     */
+
+    // Função para formatar assinatura (mantida como referência)
     function formatarAssinatura(nomeCompleto) {
         if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
             return '';
@@ -143,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return assinaturaFormatada;
     }
 
-    // ================== FUNÇÃO PRINCIPAL DO BOT ==================
+    // Função principal do bot (mantida, com adição de checkCurrentUserStatus)
     function iniciarBot() {
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
@@ -180,109 +254,56 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove();
         }
 
-        // --- NOVA FUNÇÃO PARA FORMATAR LINKS ---
-        function formatarLinks(texto) {
-            if (!texto || typeof texto !== 'string') return '';
-            
-            // Expressão regular para encontrar URLs no texto
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            
-            // Substitui cada URL encontrada por uma tag <a> clicável
-            return texto.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="chat-link">$1</a>');
-        }
-
-    // Função para adicionar mensagens ao chat        
-function addMessage(message, sender, options = {}) {
-    // Agora 'options' pode conter 'sourceRow' para feedback ou 'options' para esclarecimento
-    const { sourceRow = null, options: clarificationOptions = [] } = options;
-
-    let mensagemFinal = message;
-    // Lógica da assinatura continua a mesma
-    if (sender === 'bot' && dadosAtendente && typeof mensagemFinal === 'string' && mensagemFinal.includes('{{ASSINATURA_ATENDENTE}}')) {
-        const assinatura = formatarAssinatura(dadosAtendente.nome);
-        mensagemFinal = mensagemFinal.replace(/{{ASSINATURA_ATENDENTE}}/g, assinatura);
-    }
-
-    const messageContainer = document.createElement('div');
-    messageContainer.classList.add('message-container', sender);
-
-    const avatarDiv = `<div class="avatar ${sender === 'user' ? 'user' : 'bot'}">${sender === 'user' ? '👤' : '🤖'}</div>`;
-    
-    // Usamos createElement para maior controle sobre os elementos
-    const messageContentDiv = document.createElement('div');
-    messageContentDiv.className = 'message-content';
-
-    // Cria o balão de mensagem principal
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message';
-    messageDiv.innerHTML = mensagemFinal.replace(/\n/g, '<br>');
-    messageContentDiv.appendChild(messageDiv);
-
-    messageContainer.innerHTML = avatarDiv; // Adiciona o avatar
-    messageContainer.appendChild(messageContentDiv); // Adiciona o conteúdo da mensagem
-
-     // --- A MUDANÇA ESTÁ AQUI ---
-            // Formata a mensagem para incluir links antes de exibi-la
-            const mensagemComLinks = formatarLinks(message);
-            messageDiv.innerHTML = mensagemComLinks.replace(/\n/g, '<br>');
-            
+        function addMessage(text, sender, { sourceRow = null, options = [] } = {}) {
+            const messageContainer = document.createElement('div');
+            messageContainer.className = `message-container ${sender}`;
+            const avatar = document.createElement('div');
+            avatar.className = `avatar ${sender}`;
+            avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
+            const messageContentDiv = document.createElement('div');
+            messageContentDiv.className = 'message-content';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.textContent = text;
             messageContentDiv.appendChild(messageDiv);
+            messageContainer.appendChild(avatar);
+            messageContainer.appendChild(messageContentDiv);
 
-            if (sender === 'bot' && clarificationOptions.length > 0) {
+            if (sender === 'bot' && sourceRow) {
+                ultimaLinhaDaFonte = sourceRow;
+                const feedbackContainer = document.createElement('div');
+                feedbackContainer.className = 'feedback-container';
+                const positiveBtn = document.createElement('button');
+                positiveBtn.className = 'feedback-btn';
+                positiveBtn.innerHTML = '👍';
+                positiveBtn.title = 'Resposta útil';
+                positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+                const negativeBtn = document.createElement('button');
+                negativeBtn.className = 'feedback-btn';
+                negativeBtn.innerHTML = '👎';
+                negativeBtn.title = 'Resposta incorreta ou incompleta';
+                negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+                feedbackContainer.appendChild(positiveBtn);
+                feedbackContainer.appendChild(negativeBtn);
+                messageContentDiv.appendChild(feedbackContainer);
+            }
+
+            if (sender === 'bot' && options.length > 0) {
                 const optionsContainer = document.createElement('div');
                 optionsContainer.className = 'clarification-container';
-                clarificationOptions.forEach(optionText => {
+                options.forEach(optionText => {
                     const button = document.createElement('button');
                     button.className = 'clarification-item';
                     button.textContent = optionText;
-                    button.onclick = () => handleSendMessage(optionText); 
+                    button.onclick = () => handleSendMessage(optionText);
                     optionsContainer.appendChild(button);
                 });
                 messageContentDiv.appendChild(optionsContainer);
             }
 
-    // Adiciona os botões de FEEDBACK (👍/👎) se for uma resposta final
-    if (sender === 'bot' && sourceRow) {
-        ultimaResposta = messageContainer.querySelector('.message').textContent;
-        ultimaLinhaDaFonte = sourceRow;
-
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.className = 'feedback-container';
-        const positiveBtn = document.createElement('button');
-        positiveBtn.className = 'feedback-btn';
-        positiveBtn.innerHTML = '👍';
-        positiveBtn.title = 'Resposta útil';
-        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-        const negativeBtn = document.createElement('button');
-        negativeBtn.className = 'feedback-btn';
-        negativeBtn.innerHTML = '👎';
-        negativeBtn.title = 'Resposta incorreta ou incompleta';
-        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-        feedbackContainer.appendChild(positiveBtn);
-        feedbackContainer.appendChild(negativeBtn);
-        messageContentDiv.appendChild(feedbackContainer); // Adiciona os botões ao conteúdo
-    }
-
-    // --- CORREÇÃO APLICADA AQUI ---
-    // Adiciona os botões de ESCLARECIMENTO se o backend os enviou
-    if (sender === 'bot' && clarificationOptions.length > 0) {
-        const optionsContainer = document.createElement('div');
-        optionsContainer.className = 'clarification-container';
-
-        clarificationOptions.forEach(optionText => {
-            const button = document.createElement('button');
-            button.className = 'clarification-item';
-            button.textContent = optionText;
-            // Ao clicar, a pergunta exata do botão é enviada de volta para o bot
-            button.onclick = () => handleSendMessage(optionText);
-            optionsContainer.appendChild(button);
-        });
-        messageContentDiv.appendChild(optionsContainer); // Adiciona os botões ao conteúdo
-    }
-
-    chatBox.appendChild(messageContainer);
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
+            chatBox.appendChild(messageContainer);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
 
         async function enviarFeedback(action, container, sugestao = null) {
             if (!ultimaPergunta || !ultimaLinhaDaFonte) {
@@ -308,7 +329,7 @@ function addMessage(message, sender, options = {}) {
             }
         }
 
-         async function buscarResposta(textoDaPergunta) {
+        async function buscarResposta(textoDaPergunta) {
             ultimaPergunta = textoDaPergunta;
             ultimaLinhaDaFonte = null;
             if (!textoDaPergunta.trim()) return;
@@ -319,16 +340,11 @@ function addMessage(message, sender, options = {}) {
                 hideTypingIndicator();
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
-                
-                // NOVO: Lida com os 3 tipos de status
                 if (data.status === 'sucesso') {
-                    // Resposta final encontrada
                     addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
                 } else if (data.status === 'clarification_needed') {
-                    // Precisa de esclarecimento, mostra opções
                     addMessage(data.resposta, 'bot', { options: data.options });
                 } else {
-                    // Não encontrou nada
                     addMessage(data.resposta, 'bot');
                 }
             } catch (error) {
@@ -341,10 +357,7 @@ function addMessage(message, sender, options = {}) {
         function handleSendMessage(text) {
             const trimmedText = text.trim();
             if (!trimmedText) return;
-
             addMessage(trimmedText, 'user');
-            
-            // --- CORREÇÃO ---: As chamadas foram movidas para dentro de handleSendMessage
             logQuestionOnSheet(trimmedText, dadosAtendente.email);
             buscarResposta(trimmedText);
             userInput.value = '';
@@ -361,18 +374,6 @@ function addMessage(message, sender, options = {}) {
         document.querySelectorAll('#quick-questions-list li, #more-questions-list-financeiro li, #more-questions-list-tecnico li').forEach(item => {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
-        
-        // --- CORREÇÃO ---: O querySelector para 'expandable-faq-header' foi removido,
-        // pois o ID não existe no seu HTML mais recente. Se você o adicionar de volta, descomente esta seção.
-        /*
-        const expandableFaqHeader = document.getElementById('expandable-faq-header');
-        if(expandableFaqHeader) {
-            expandableFaqHeader.addEventListener('click', (e) => {
-                e.currentTarget.classList.toggle('expanded');
-                document.getElementById('more-questions').classList.toggle('hidden', !e.currentTarget.classList.contains('expanded'));
-            });
-        }
-        */
 
         themeSwitcher.addEventListener('click', () => {
             body.classList.toggle('dark-theme');
@@ -384,25 +385,24 @@ function addMessage(message, sender, options = {}) {
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        // --- CORREÇÃO ---: Garanta que o ID no seu HTML seja 'feedback-text'
-        const feedbackText = document.getElementById('feedback-text'); 
+        const feedbackText = document.getElementById('feedback-text');
         let activeFeedbackContainer = null;
 
         function abrirModalFeedback(container) {
             activeFeedbackContainer = container;
             feedbackOverlay.classList.remove('hidden');
-            if(feedbackText) feedbackText.focus();
+            if (feedbackText) feedbackText.focus();
         }
 
         function fecharModalFeedback() {
             feedbackOverlay.classList.add('hidden');
-            if(feedbackText) feedbackText.value = '';
+            if (feedbackText) feedbackText.value = '';
             activeFeedbackContainer = null;
         }
 
-        if(feedbackCancelBtn) feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
+        if (feedbackCancelBtn) feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
 
-        if(feedbackSendBtn) feedbackSendBtn.addEventListener('click', () => {
+        if (feedbackSendBtn) feedbackSendBtn.addEventListener('click', () => {
             const sugestao = feedbackText ? feedbackText.value.trim() : '';
             if (activeFeedbackContainer) {
                 enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
