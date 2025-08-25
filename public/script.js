@@ -403,15 +403,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (feedbackCancelBtn) feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
 
         if (feedbackSendBtn) feedbackSendBtn.addEventListener('click', () => {
-    const sugestao = feedbackText ? feedbackText.value.trim() : 'N/A';
-    console.log("Botão de feedback clicado, sugestao capturada:", sugestao);
-    if (activeFeedbackContainer) {
-        enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao);
-        fecharModalFeedback();
-    } else {
-        console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
-    }
-});
+            const sugestao = feedbackText ? feedbackText.value.trim() : '';
+            if (activeFeedbackContainer) {
+                enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
+                fecharModalFeedback();
+            } else {
+                console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
+            }
+        });
 
         function setInitialTheme() {
             const savedTheme = localStorage.getItem('theme');
