@@ -53,13 +53,13 @@ module.exports = async function handler(req, res) { // ALTERADO para module.expo
     const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo �';
     
     const newRow = [
-      timestamp,
-      String(dados.email || 'nao_fornecido'),
-      String(dados.question || 'N/A'),
-      tipoFeedback,
-      String(dados.sourceRow !== null && dados.sourceRow !== undefined ? dados.sourceRow : 'N/A'),
-      String(dados.sugestao || '')
-    ];
+    timestamp,
+    String(dados.email || 'nao_fornecido'),
+    String(dados.question || 'N/A'),
+    tipoFeedback,
+    dados.action === 'logFeedbackNegativo' ? String(dados.sugestao || 'N/A') : 'N/A'
+];
+console.log("DEBUG: Linha a ser gravada na planilha:", newRow);
 
     // --- LOG DE DEPURACÃO 5: Linha a ser Escrita ---
     console.log("[DEBUG 5] Linha preparada para ser enviada para a folha de cálculo:", newRow);
