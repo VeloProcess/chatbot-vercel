@@ -2,117 +2,151 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Painel Interno - Velotax</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               img-src 'self' https://github.com https://raw.githubusercontent.com https://www.google.com;
+               script-src 'self' https://accounts.google.com https://www.gstatic.com;
+               frame-src https://accounts.google.com;
+               style-src 'self' 'unsafe-inline';
+               connect-src 'self' https://www.googleapis.com https://script.google.com;">
+    <title>Painel Interno com ChatBot - Tema Clássico</title>
+    <link rel="icon" type="image/png" href="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true">
     <link rel="stylesheet" href="style.css">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-    <div id="identificacao-overlay">
+    <div id="identificacao-overlay" class="hidden">
         <div id="identificacao-box">
             <h2>Bem-vindo(a) ao Painel</h2>
             <p>Por favor, faça login com sua conta Google corporativa (@velotax.com.br).</p>
-            <div id="google-signin-button">Entrar com Google</div>
-            <p id="identificacao-error" class="hidden">Acesso permitido apenas para e-mails corporativos</p>
+            <div id="google-signin-button" class="google-signin-btn">
+                <img src="https://www.google.com/favicon.ico" alt="Google Icon">
+                Entrar com Google
+            </div>
+            <p id="identificacao-error" class="identificacao-error hidden">Acesso permitido apenas para e-mails corporativos</p>
         </div>
     </div>
 
-    <div class="app-wrapper">
+    <div class="app-wrapper hidden">
         <div id="sidebar" class="panel">
-            <div class="panel-header"><h2>Perguntas Frequentes</h2></div>
+            <div class="panel-header">
+                <h2>Perguntas Frequentes</h2>
+            </div>
             <div class="sidebar-content">
                 <div class="search-container">
                     <span class="search-icon">🔍</span>
-                    <input type="text" id="question-search" placeholder="Pesquisar perguntas...">
+                    <input type="text" id="question-search" placeholder="Buscar perguntas...">
                 </div>
-                <div class="question-category">Mais Comuns</div>
+                <div class="question-category">Mais Comuns!!!</div>
                 <ul id="quick-questions-list">
                     <li data-question="Cenário 1: Valor creditado na conta Velobank e empréstimo liquidado">Cenário 1: Valor creditado na conta Velobank e empréstimo liquidado</li>
                     <li data-question="Cenário 2: Valor creditado pela Receita, mas não processado na conta Velobank">Cenário 2: Valor creditado pela Receita, mas não processado na conta Velobank</li>
                     <li data-question="Problema no login do app">Problema no login do app</li>
                     <li data-question="Informação sobre os valores da restituição">Informação sobre os valores da restituição</li>
                 </ul>
-                <div id="expandable-faq-header" class="expandable-header">
-                    <span>Outras Perguntas</span>
-                    <span class="arrow">▶</span>
+
+                <div id="expandable-faq-container">
+                    <div id="expandable-faq-header" class="expandable-header">
+                        <span>Outras Perguntas em breve!</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <div id="more-questions" class="hidden">
+                        <div class="question-category">Financeiro</div>
+                        <ul id="more-questions-list-financeiro">
+                            <li data-question="Retenção da chave pix">Retenção da chave pix</li>
+                            <li data-question="Juros">Juros</li>
+                            <li data-question="Desconto proporcional">Desconto proporcional</li>
+                            <li data-question="Qual o prazo para a restituição?">Qual o prazo para a restituição?</li>
+                            <li data-question="Como fazer estorno?">Como fazer estorno?</li>
+                        </ul>
+                        <div class="question-category">Técnico</div>
+                        <ul id="more-questions-list-tecnico">
+                            <li data-question="Portabilidade">Portabilidade</li>
+                            <li data-question="O que fazer se caí na malha fina?">O que fazer se caí na malha fina?</li>
+                            <li data-question="Como declarar investimentos?">Como declarar investimentos?</li>
+                        </ul>
+                    </div>
                 </div>
-                <div id="more-questions" class="hidden">
-                    <div class="question-category">Financeiro</div>
-                    <ul id="more-questions-list-financeiro">
-                        <li data-question="Retenção da chave pix">Retenção da chave pix</li>
-                        <li data-question="Juros">Juros</li>
-                        <li data-question="Desconto proporcional">Desconto proporcional</li>
-                        <li data-question="Qual o prazo para a restituição?">Qual o prazo para a restituição?</li>
-                        <li data-question="Como fazer estorno?">Como fazer estorno?</li>
-                    </ul>
-                    <div class="question-category">Técnico</div>
-                    <ul id="more-questions-list-tecnico">
-                        <li data-question="Portabilidade">Portabilidade</li>
-                        <li data-question="O que fazer se caí na malha fina?">O que fazer se caí na malha fina?</li>
-                        <li data-question="Como declarar investimentos?">Como declarar investimentos?</li>
-                    </ul>
+                
+                <div class="sidebar-footer">
+                    <h2><p class="sidebar-note">Atendimento Velotax - Simplifique seus impostos</p></h2>
+                    <p class="sidebar-warning"><strong>Observação: As informações aqui são de uso interno.</strong></p><br>
+                    <p class="sidebar-warning">Criado por Gabriel Araujo.</p><br>
+                    <p>Coparticipação : João Pedro</p>
+                    <p class="sidebar-warning">Versão 3.0</p>
                 </div>
             </div>
         </div>
+        
+        <div id="curadoria-overlay" class="hidden">
+            <div id="curadoria-box">
+                <h2>Sugerir Correção</h2>
+                <p>A resposta do bot não foi útil. Por favor, descreva qual seria o procedimento ou a informação correta.</p>
+                <form id="curadoria-form">
+                    <textarea id="curadoria-comentario" placeholder="Ex: O link correto é outro, o prazo mudou para 5 dias úteis, o documento necessário é o RG..." required></textarea>
+                    <div class="feedback-form-buttons">
+                        <button type="button" id="curadoria-cancel">Cancelar</button>
+                        <button type="submit" id="curadoria-send">Enviar Sugestão</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
-        <div id="chat-panel" class="panel">
+        <div id="feedback-overlay" class="hidden">
+            <div id="feedback-box">
+                <h2>Melhorar esta Resposta</h2>
+                <p>Obrigado pelo seu feedback! Por favor, nos diga o que estava errado ou o que estava faltando na resposta.</p>
+                <form id="feedback-form">
+                    <textarea id="feedback-comment" placeholder="Ex: A resposta está desatualizada, o link está quebrado, a informação correta é..." required></textarea>
+                    <div class="feedback-form-buttons">
+                        <button type="button" id="feedback-cancel">Cancelar</button>
+                        <button type="submit" id="feedback-send">Enviar Feedback</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="chat-container panel">
             <div class="chat-header">
-                <h2>Assistente Virtual</h2>
-                <p>Seu assistente para processos internos</p>
-                <button id="theme-switcher">☀️</button>
+                <img src="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true" alt="Logo" class="chat-logo">
+                <h2 class="chat-title">Assistente Virtual <span class="status-indicator"></span></h2>
+                <p class="chat-subtitle">Seu assistente para processos internos</p> 
+                <button id="theme-switcher" title="Alterar tema">☀️</button>
             </div>
-            <div id="chat-box"></div>
-            <div class="input-container">
-                <input type="text" id="user-input" placeholder="Digite sua pergunta...">
-                <button id="send-button">✦</button>
+            <div class="chat-box" id="chat-box"></div>
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Digite sua mensagem..." autocomplete="off">
+                <button id="send-button" class="action-button" title="Enviar mensagem">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z"></path></svg>
+                </button>
+                <button class="gemini-button" id="gemini-button" title="Obter ajuda do Gemini AI">✦</button>
             </div>
         </div>
-
         <div id="news-panel" class="panel">
-            <div class="panel-header"><h2>Notícias e Alertas</h2></div>
-            <div class="news-list">
-                <div class="news-item">
+            <div class="panel-header">
+                <h2>Notícias e Alertas</h2>
+            </div>
+            <div id="news-list" class="news-list">
+                <div class="news-item critical-alert">
                     <h2>Novos tickets</h2>
                     <small>Publicado em: 21/08/2025</small>
                     <p>Sejam todos bem-vindos, qualquer dúvida podem nos perguntar, estamos a disposição para ajudar todos!!</p>
                 </div>
                 <div class="news-item warning-alert">
-                    <h2>Avaliação do App</h2>
-                    <small>Publicado em: 21/08/2025</small>
+                    <h2>Publicado em: 21/08/2025</h2>
+                    <small></small>
                     <p>🚨 Todos já avaliaram nosso App na loja virtual? Caso ainda não tenham feito, peço a gentileza de acessar o Google Play e a App Store para deixar um comentário positivo e as estrelinhas. É rapidinho e faz muita diferença para a nossa marca! 🚀</p>
                 </div>
-                <div class="news-item">
+                <div class="news-item info-alert">
                     <h2>Ainda sem novidades!</h2>
-                    <p>Em breve...</p>
-                </div>
-                <div id="user-status-container" class="news-item">
-                    <h2>Status do Usuário</h2>
-                    <p>Carregando...</p>
+                    <small></small>
+                    <p></p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="feedback-overlay" class="hidden">
-        <div id="feedback-box">
-            <h2>Melhorar esta Resposta</h2>
-            <p>Obrigado pelo seu feedback! Por favor, nos diga o que estava errado ou o que estava faltando na resposta.</p>
-            <textarea id="feedback-text" placeholder="Descreva aqui..."></textarea>
-            <div class="feedback-form-buttons">
-                <button id="feedback-cancel">Cancelar</button>
-                <button id="feedback-send">Enviar Feedback</button>
-            </div>
-        </div>
-    </div>
-
-    <footer>
-        <p>Atendimento Velotax - Simplifique seus impostos</p>
-        <p><strong>Observação:</strong> As informações aqui são de uso interno.</p>
-        <p>Criado por Gabriel Araujo.</p>
-        <p>Coparticipação: João Pedro</p>
-        <p>Versão 3.0</p>
-    </footer>
-
-    <script src="script.js"></script>
+    <script src="/script.js"></script>
 </body>
 </html>
