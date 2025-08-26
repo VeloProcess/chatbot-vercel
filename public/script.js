@@ -7,11 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const identificacaoOverlay = document.getElementById('identificacao-overlay');
     const appWrapper = document.querySelector('.app-wrapper');
     const errorMsg = document.getElementById('identificacao-error');
-    const userStatusContainer = document.getElementById('user-status-container'); // Novo elemento
+    const userStatusContainer = document.getElementById('user-status-container');
 
     // ================== VARIÁVEIS DE ESTADO ==================
     let ultimaPergunta = '';
-    let ultimaResposta = '';
     let ultimaLinhaDaFonte = null;
     let isTyping = false;
     let dadosAtendente = null;
@@ -26,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Função para registrar status de login/logout
+    // Função para registrar status de login/logout no backend
     async function logUserStatus(status) {
         if (!dadosAtendente?.email) return;
         try {
@@ -80,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkCurrentUserStatus() {
         if (dadosAtendente?.email) {
             updateUserStatus(dadosAtendente.email);
-            setInterval(() => updateUserStatus(dadosAtendente.email), 30000); // Atualiza a cada 30s
+            setInterval(() => updateUserStatus(dadosAtendente.email), 30000);
         }
     }
 
@@ -116,53 +115,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function handleGoogleSignIn(response) {
-    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: `Bearer ${response.access_token}` }
-    })
-    .then(res => res.json())
-    .then(async user => { // Adicionado 'async' aqui
-        if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
+    async function handleGoogleSignIn(response) {
+        try {
+            const googleResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${response.access_token}` }
+            });
+            const user = await googleResponse.json();
 
-            // --- NOVA LÓGICA AQUI ---
-            try {
-                // Busca a função (role) do usuário no nosso backend
+            if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
+                // Busca a função (Gestor/Atendente) do usuário no backend
                 const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
-                if (!profileResponse.ok) throw new Error('Falha ao buscar perfil.');
-
+                if (!profileResponse.ok) throw new Error('Falha ao buscar perfil do usuário.');
+                
                 const userProfile = await profileResponse.json();
 
                 // Combina os dados e salva no localStorage
-                dadosAtendente = { 
-                    nome: user.name, 
-                    email: user.email, 
+                dadosAtendente = {
+                    nome: user.name,
+                    email: user.email,
                     timestamp: Date.now(),
-                    funcao: userProfile.funcao // Salva a função!
+                    funcao: userProfile.funcao // Salva a função (ex: "Gestor")
                 };
 
                 localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
-
-                logUserStatus('online');
+                
+                await logUserStatus('online');
                 hideOverlay();
                 iniciarBot();
                 checkCurrentUserStatus();
 
-            } catch (error) {
-                console.error("Erro no fluxo de login com perfil:", error);
-                errorMsg.textContent = 'Não foi possível verificar suas permissões. Tente novamente.';
+            } else {
+                errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
                 errorMsg.classList.remove('hidden');
             }
-            // --- FIM DA NOVA LÓGICA ---
-
-        } else {
-            errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
+        } catch (error) {
+            console.error("Erro no fluxo de login:", error);
+            errorMsg.textContent = 'Erro ao verificar login ou permissões. Tente novamente.';
             errorMsg.classList.remove('hidden');
         }
-    })
-    .catch(() => {
-            errorMsg.textContent = 'Erro ao verificar login. Tente novamente.';
-            errorMsg.classList.remove('hidden');
-        });
     }
 
     function verificarIdentificacao() {
@@ -187,9 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Registrar logout ao fechar janela
+    // Registrar logout ao fechar janela (fallback)
     window.addEventListener('beforeunload', () => {
-        logUserStatus('offline');
+        if (dadosAtendente) {
+            logUserStatus('offline');
+        }
     });
 
     function initGoogleSignIn() {
@@ -202,12 +194,13 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('google-signin-button').addEventListener('click', () => tokenClient.requestAccessToken());
             verificarIdentificacao();
         }).catch(error => {
+            console.error("Erro na inicialização do Google Sign-In:", error);
             errorMsg.textContent = 'Erro ao carregar autenticação do Google. Verifique sua conexão ou tente novamente mais tarde.';
             errorMsg.classList.remove('hidden');
         });
     }
 
-    // Função para registrar pergunta (mantida como referência)
+    // Função para registrar pergunta na planilha
     async function logQuestionOnSheet(question, email) {
         if (!question || !email) return;
         try {
@@ -227,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Função para formatar assinatura (mantida como referência)
+    // Função para formatar assinatura
     function formatarAssinatura(nomeCompleto) {
         if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
             return '';
@@ -242,22 +235,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return assinaturaFormatada;
     }
 
-    // Função principal do bot (mantida, com adição de checkCurrentUserStatus)
+    // ================== FUNÇÃO PRINCIPAL DO BOT ==================
     function iniciarBot() {
-
-        document.addEventListener('visibilitychange', () => {
-        // Se a aba se tornar visível, o usuário está "online"
-        if (document.visibilityState === 'visible') {
-            console.log("Aba visível: Marcando como ONLINE");
-            logUserStatus('online');
-        } 
-        // Se a aba ficar oculta (trocou de aba, minimizou), o usuário está "offline"
-        else if (document.visibilityState === 'hidden') {
-            console.log("Aba oculta: Marcando como OFFLINE");
-            logUserStatus('offline');
-        }
-    });
-    
+        // Elementos do DOM específicos do bot
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
@@ -265,6 +245,60 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.body;
         const questionSearch = document.getElementById('question-search');
         const logoutButton = document.getElementById('logout-button');
+
+        // LÓGICA DE STATUS ONLINE/OFFLINE AUTOMÁTICO
+        document.addEventListener('visibilitychange', () => {
+            if (!dadosAtendente) return; // Não faz nada se não estiver logado
+            if (document.visibilityState === 'visible') {
+                logUserStatus('online');
+            } else if (document.visibilityState === 'hidden') {
+                logUserStatus('offline');
+            }
+        });
+
+        // LÓGICA DE EXIBIÇÃO PARA GESTOR
+        if (dadosAtendente.funcao === 'Gestor') {
+            const managerButton = document.getElementById('manager-panel-button');
+            const managerDashboard = document.getElementById('manager-dashboard');
+            const onlineUsersList = document.getElementById('online-users-list');
+
+            if (managerButton && managerDashboard && onlineUsersList) {
+                managerButton.classList.remove('hidden');
+
+                const fetchAndDisplayUsers = async () => {
+                    managerDashboard.classList.toggle('hidden');
+                    if (managerDashboard.classList.contains('hidden')) {
+                        return; // Se escondeu o painel, não busca os dados
+                    }
+                    onlineUsersList.innerHTML = '<li>Carregando...</li>';
+
+                    try {
+                        const response = await fetch('/api/getOnlineUsers');
+                        if (!response.ok) throw new Error('Falha na resposta da rede');
+                        
+                        const data = await response.json();
+                        onlineUsersList.innerHTML = '';
+
+                        if (data.users && data.users.length > 0) {
+                            data.users.sort((a, b) => a.status.localeCompare(b.status));
+
+                            data.users.forEach(user => {
+                                const listItem = document.createElement('li');
+                                listItem.className = `user-status-${user.status.toLowerCase()}`;
+                                listItem.innerHTML = `<span class="status-dot"></span> ${user.email}`;
+                                onlineUsersList.appendChild(listItem);
+                            });
+                        } else {
+                            onlineUsersList.innerHTML = '<li>Nenhum usuário encontrado.</li>';
+                        }
+                    } catch (error) {
+                        console.error('Erro ao buscar usuários:', error);
+                        onlineUsersList.innerHTML = '<li>Erro ao carregar a lista.</li>';
+                    }
+                };
+                managerButton.addEventListener('click', fetchAndDisplayUsers);
+            }
+        }
 
         document.getElementById('gemini-button').addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
 
@@ -294,12 +328,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove();
         }
 
-        function addMessage(text, sender, { sourceRow = null, options = [] } = {}) {
+        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha' } = {}) {
             const messageContainer = document.createElement('div');
             messageContainer.className = `message-container ${sender}`;
             const avatar = document.createElement('div');
             avatar.className = `avatar ${sender}`;
-            avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
+
+            // LÓGICA PARA MUDAR O ÍCONE (IA vs Bot Padrão)
+            if (sender === 'bot' && source === 'IA') {
+                avatar.textContent = '✦'; // Ícone para respostas da IA
+                avatar.title = 'Resposta gerada por IA';
+            } else {
+                avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
+            }
+            
             const messageContentDiv = document.createElement('div');
             messageContentDiv.className = 'message-content';
             const messageDiv = document.createElement('div');
@@ -380,12 +422,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideTypingIndicator();
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
-                if (data.status === 'sucesso') {
-                    addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow });
+
+                // Passa o parâmetro 'source' que veio da API
+                if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
+                    addMessage(data.resposta, 'bot', { sourceRow: data.sourceRow, source: data.source });
                 } else if (data.status === 'clarification_needed') {
-                    addMessage(data.resposta, 'bot', { options: data.options });
+                    addMessage(data.resposta, 'bot', { options: data.options, source: data.source });
                 } else {
-                    addMessage(data.resposta, 'bot');
+                    addMessage(data.resposta, 'bot'); // Respostas de erro, etc.
                 }
             } catch (error) {
                 hideTypingIndicator();
@@ -425,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        const feedbackText = document.getElementById('feedback-comment');
+        const feedbackText = document.getElementById('feedback-text'); // Alterado de feedback-comment
         let activeFeedbackContainer = null;
 
         function abrirModalFeedback(container) {
@@ -467,8 +511,8 @@ document.addEventListener('DOMContentLoaded', () => {
             await logUserStatus('offline');
             localStorage.removeItem('dadosAtendenteChatbot');
             dadosAtendente = null;
-             location.reload();
-}
+            location.reload();
+        }
 
         logoutButton.addEventListener('click', handleLogout);
 
@@ -477,5 +521,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setInitialTheme();
     }
 
+    // Inicia todo o processo de autenticação
     initGoogleSignIn();
 });

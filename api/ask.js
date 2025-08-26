@@ -1,34 +1,29 @@
-// api/ask.js (Com Lógica de Relevância e Sem Sugestões Repetidas - Versão 4 Final)
+// api/ask.js (Versão Final com IA Híbrida e Busca Otimizada)
 
 const { google } = require('googleapis');
+// Importa a biblioteca da IA do Google
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:C"; // Colunas: Pergunta, Resposta, Palavras-chave
-const CACHE_DURATION_SECONDS = 0; // Atualização instantânea
+const FAQ_SHEET_NAME = "FAQ!A:C";
+const CACHE_DURATION_SECONDS = 0; // Cache desativado para atualizações instantâneas
 
-// --- CACHE ---
-let cache = { timestamp: null, data: null };
+// --- CONFIGURAÇÃO DA IA ---
+// Pega a chave de API das variáveis de ambiente do seu provedor de hospedagem (ex: Vercel)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"}); // Modelo rápido e eficiente
 
-// --- CLIENTE GOOGLE ---
-if (!process.env.GOOGLE_CREDENTIALS) {
-  throw new Error("A variável de ambiente GOOGLE_CREDENTIALS não está definida.");
-}
-let credentials;
-try {
-  credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-} catch (e) {
-  throw new Error("GOOGLE_CREDENTIALS não é um JSON válido.");
-}
-
+// --- CLIENTE GOOGLE SHEETS ---
 const auth = new google.auth.GoogleAuth({
-  credentials,
+  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
-
 const sheets = google.sheets({ version: 'v4', auth });
+let cache = { timestamp: null, data: null };
 
 // --- FUNÇÕES DE APOIO ---
+
 async function getFaqData() {
   const now = new Date();
   if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
@@ -50,7 +45,7 @@ function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-// --- LÓGICA DE BUSCA POR RELEVÂNCIA (CORRIGIDA PARA SER ÚNICA) ---
+// Lógica de busca atualizada para usar APENAS a coluna de palavras-chave
 function findMatches(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
@@ -60,7 +55,7 @@ function findMatches(pergunta, faqData) {
   const idxResposta = cabecalho.indexOf("Resposta");
 
   if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
-    throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas na planilha.");
+    throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
   }
 
   const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
@@ -71,13 +66,12 @@ function findMatches(pergunta, faqData) {
     const textoPerguntaOriginal = linhaAtual[idxPergunta] || '';
     if (!textoPerguntaOriginal) continue;
 
-    const textoPerguntaNormalizado = normalizarTexto(textoPerguntaOriginal);
+    // A busca agora ocorre apenas no texto das palavras-chave
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
-    const textoCompletoDaLinha = textoPalavrasChave;
     
     let relevanceScore = 0;
     palavrasDaBusca.forEach(palavra => {
-      if (textoCompletoDaLinha.includes(palavra)) {
+      if (textoPalavrasChave.includes(palavra)) {
         relevanceScore++;
       }
     });
@@ -91,33 +85,46 @@ function findMatches(pergunta, faqData) {
       });
     }
   }
-
-  if (todasAsCorrespondencias.length === 0) {
-    return [];
-  }
-
-  // --- Nova Lógica de Deduplicação ---
+  
+  // Lógica de desduplicação e ordenação
   const uniqueMatches = {};
   todasAsCorrespondencias.forEach(match => {
-    const key = match.perguntaOriginal.trim(); // Usa a pergunta original como chave
-    // Se ainda não vimos esta pergunta, ou se a nova tem uma pontuação maior, guarda-a
+    const key = match.perguntaOriginal.trim();
     if (!uniqueMatches[key] || match.score > uniqueMatches[key].score) {
       uniqueMatches[key] = match;
     }
   });
-
-  // Converte o objeto de volta para um array
   let correspondenciasUnicas = Object.values(uniqueMatches);
-  
-  // Ordena os resultados pela pontuação
   correspondenciasUnicas.sort((a, b) => b.score - a.score);
 
   return correspondenciasUnicas;
 }
 
+// Função para consultar a IA
+async function askGemini(pergunta) {
+  try {
+    const prompt = `
+      Você é um assistente virtual de suporte interno da empresa Velotax.
+      Responda à seguinte pergunta de um atendente de forma clara, profissional e concisa.
+      Se não souber a resposta ou a pergunta for inadequada, diga educadamente que não possui essa informação.
+      
+      Pergunta: "${pergunta}"
+    `;
 
-// --- FUNÇÃO PRINCIPAL (HANDLER) ---
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+
+  } catch (error) {
+    console.error("ERRO AO CHAMAR A API DO GEMINI:", error);
+    return "Desculpe, não consegui processar sua pergunta com a IA neste momento. Tente novamente mais tarde.";
+  }
+}
+
+
+// --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 module.exports = async function handler(req, res) {
+  // Configuração do CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -125,7 +132,6 @@ module.exports = async function handler(req, res) {
 
   try {
     const { pergunta } = req.query;
-
     if (!pergunta) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
@@ -133,31 +139,35 @@ module.exports = async function handler(req, res) {
     const faqData = await getFaqData();
     const correspondencias = findMatches(pergunta, faqData);
 
+    // --- LÓGICA HÍBRIDA ---
+    // Se não encontrar correspondências na planilha, consulta a IA.
     if (correspondencias.length === 0) {
-        return res.status(200).json({ status: "nao_encontrado", resposta: `Não encontrei informações sobre "${pergunta}". Tente reformular a sua pergunta com outras palavras-chave ou, se necessário, consulte com o Gabriel ou com o João sobre essa informação` });
-      } else if (correspondencias.length === 1) {
-        return res.status(200).json({
-          status: "sucesso",
-          resposta: correspondencias[0].resposta,
-          sourceRow: correspondencias[0].sourceRow,
-        });
-      } else {
-        if (correspondencias[0].score > correspondencias[1].score) {
-            return res.status(200).json({
-              status: "sucesso",
-              resposta: correspondencias[0].resposta,
-              sourceRow: correspondencias[0].sourceRow,
-            });
-        }
-        
-        return res.status(200).json({
-          status: "clarification_needed",
-          resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
-          // O mapeamento agora é feito sobre uma lista que já é única
-          options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8)
-        });
-      }
+      console.log(`Sem correspondência na planilha para "${pergunta}". Consultando a IA...`);
+      const respostaDaIA = await askGemini(pergunta);
+      
+      return res.status(200).json({
+          status: "sucesso_ia",
+          resposta: respostaDaIA,
+          source: "IA" // Informa ao frontend que a resposta veio da IA
+      });
+    }
 
+    // Se encontrar, usa a lógica de decisão original.
+    if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1].score) {
+      return res.status(200).json({
+        status: "sucesso",
+        resposta: correspondencias[0].resposta,
+        sourceRow: correspondencias[0].sourceRow,
+        source: "Planilha"
+      });
+    } else {
+      return res.status(200).json({
+        status: "clarification_needed",
+        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
+        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8),
+        source: "Planilha"
+      });
+    }
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
     return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
