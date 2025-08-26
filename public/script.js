@@ -244,6 +244,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função principal do bot (mantida, com adição de checkCurrentUserStatus)
     function iniciarBot() {
+
+        document.addEventListener('visibilitychange', () => {
+        // Se a aba se tornar visível, o usuário está "online"
+        if (document.visibilityState === 'visible') {
+            console.log("Aba visível: Marcando como ONLINE");
+            logUserStatus('online');
+        } 
+        // Se a aba ficar oculta (trocou de aba, minimizou), o usuário está "offline"
+        else if (document.visibilityState === 'hidden') {
+            console.log("Aba oculta: Marcando como OFFLINE");
+            logUserStatus('offline');
+        }
+    });
+    
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
