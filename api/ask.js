@@ -73,7 +73,7 @@ function findMatches(pergunta, faqData) {
 
     const textoPerguntaNormalizado = normalizarTexto(textoPerguntaOriginal);
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
-    const textoCompletoDaLinha = textoPerguntaNormalizado + ' ' + textoPalavrasChave;
+    const textoCompletoDaLinha = textoPalavrasChave;
     
     let relevanceScore = 0;
     palavrasDaBusca.forEach(palavra => {
