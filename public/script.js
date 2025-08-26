@@ -117,24 +117,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleGoogleSignIn(response) {
-        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${response.access_token}` }
-        })
-        .then(res => res.json())
-        .then(user => {
-            if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
-                dadosAtendente = { nome: user.name, email: user.email, timestamp: Date.now() };
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${response.access_token}` }
+    })
+    .then(res => res.json())
+    .then(async user => { // Adicionado 'async' aqui
+        if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
+
+            // --- NOVA LÓGICA AQUI ---
+            try {
+                // Busca a função (role) do usuário no nosso backend
+                const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
+                if (!profileResponse.ok) throw new Error('Falha ao buscar perfil.');
+
+                const userProfile = await profileResponse.json();
+
+                // Combina os dados e salva no localStorage
+                dadosAtendente = { 
+                    nome: user.name, 
+                    email: user.email, 
+                    timestamp: Date.now(),
+                    funcao: userProfile.funcao // Salva a função!
+                };
+
                 localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
+
                 logUserStatus('online');
                 hideOverlay();
                 iniciarBot();
-                checkCurrentUserStatus(); // Inicia verificação de status
-            } else {
-                errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
+                checkCurrentUserStatus();
+
+            } catch (error) {
+                console.error("Erro no fluxo de login com perfil:", error);
+                errorMsg.textContent = 'Não foi possível verificar suas permissões. Tente novamente.';
                 errorMsg.classList.remove('hidden');
             }
-        })
-        .catch(() => {
+            // --- FIM DA NOVA LÓGICA ---
+
+        } else {
+            errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
+            errorMsg.classList.remove('hidden');
+        }
+    })
+    .catch(() => {
             errorMsg.textContent = 'Erro ao verificar login. Tente novamente.';
             errorMsg.classList.remove('hidden');
         });
@@ -219,6 +244,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função principal do bot (mantida, com adição de checkCurrentUserStatus)
     function iniciarBot() {
+
+        if (dadosAtendente.funcao === 'Gestor') {
+        const managerButton = document.getElementById('manager-panel-button');
+        const managerDashboard = document.getElementById('manager-dashboard');
+        
+        if (managerButton) {
+            managerButton.classList.remove('hidden');
+            // Ação para o botão: mostrar/esconder o painel do gestor
+            managerButton.addEventListener('click', () => {
+                managerDashboard.classList.toggle('hidden');
+                // Opcional: esconder outros painéis se quiser
+                document.getElementById('news-panel').classList.toggle('hidden');
+            });
+        }
+    }
+    
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
