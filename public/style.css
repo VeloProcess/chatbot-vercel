@@ -669,3 +669,22 @@ body.dark-theme .expandable-header:hover {
         display: none;
     }
 }
+
+#logout-button {
+    position: absolute;
+    top: var(--espaco-md);
+    left: var(--espaco-md);
+    font-size: 24px;
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+#logout-button:hover {
+    transform: scale(1.1);
+    opacity: 1;
+}

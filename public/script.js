@@ -225,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const themeSwitcher = document.getElementById('theme-switcher');
         const body = document.body;
         const questionSearch = document.getElementById('question-search');
+        const logoutButton = document.getElementById('logout-button');
 
         document.getElementById('gemini-button').addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
 
@@ -422,6 +423,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 themeSwitcher.innerHTML = '☀️';
             }
         }
+
+        async function handleLogout() {
+            await logUserStatus('offline');
+            localStorage.removeItem('dadosAtendenteChatbot');
+            dadosAtendente = null;
+             location.reload();
+}
+
+        logoutButton.addEventListener('click', handleLogout);
 
         const primeiroNome = dadosAtendente.nome.split(' ')[0];
         addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot');
