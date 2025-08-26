@@ -691,7 +691,7 @@ body.dark-theme .expandable-header:hover {
 
 #logout-button:hover {
     transform: scale(1.1);
-    background-color: #c62828; /* Um vermelho mais escuro no hover */
+    background-color: #f7f7f700; /* Um vermelho mais escuro no hover */
 }
 
 /* Estilo para o ícone dentro do botão */
