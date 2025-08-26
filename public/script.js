@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        const feedbackText = document.getElementById('feedback-text');
+        const feedbackText = document.getElementById('feedback-comment');
         let activeFeedbackContainer = null;
 
         function abrirModalFeedback(container) {
