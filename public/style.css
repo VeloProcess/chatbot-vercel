@@ -672,35 +672,19 @@ body.dark-theme .expandable-header:hover {
 
 #logout-button {
     position: absolute;
-    top: 50%; /* Centraliza verticalmente */
-    left: var(--espaco-md); /* Mantém na esquerda */
-    transform: translateY(-50%); /* Ajuste fino para centralização vertical */
-
-    /* Estilo para tornar mais visível */
-    background-color: var(--cor-secundaria); /* Um fundo que contraste */
-    color: var(--cor-texto-claro); /* Cor do ícone para contrastar com o fundo */
+    top: var(--espaco-md);
+    left: var(--espaco-md);
+    font-size: 24px;
+    background: none;
     border: none;
-    border-radius: 5px; /* Bordas arredondadas */
-    padding: 8px 12px; /* Aumenta o padding para ser mais clicável */
-    font-size: 1.1em; /* Um pouco maior */
+    padding: 0;
+    color: inherit;
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Sombra para dar profundidade */
-    transition: background-color 0.2s, transform 0.2s, opacity 0.2s;
-    display: flex; /* Para alinhar o SVG se for texto */
-    align-items: center; /* Alinha o ícone no centro */
-    gap: 5px; /* Espaço entre texto e ícone se for adicionar texto */
+    opacity: 0.7;
+    transition: transform 0.2s, opacity 0.2s;
 }
 
 #logout-button:hover {
-    background-color: var(--cor-foco); /* Cor diferente ao passar o mouse */
-    transform: translateY(-50%) scale(1.05); /* Pequeno aumento no hover */
-    opacity: 0.9;
-}
-
-/* Opcional: Ajustar o ícone SVG dentro do botão */
-#logout-button svg {
-    width: 18px; /* Tamanho do ícone um pouco menor que o padding */
-    height: 18px;
-    vertical-align: middle; /* Alinha o ícone com o texto se houver */
-    stroke: var(--cor-texto-claro); /* Garante que o ícone tenha a cor correta */
+    transform: scale(1.1);
+    opacity: 1;
 }
