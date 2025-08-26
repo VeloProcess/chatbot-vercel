@@ -244,22 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função principal do bot (mantida, com adição de checkCurrentUserStatus)
     function iniciarBot() {
-
-        if (dadosAtendente.funcao === 'Gestor') {
-        const managerButton = document.getElementById('manager-panel-button');
-        const managerDashboard = document.getElementById('manager-dashboard');
-        
-        if (managerButton) {
-            managerButton.classList.remove('hidden');
-            // Ação para o botão: mostrar/esconder o painel do gestor
-            managerButton.addEventListener('click', () => {
-                managerDashboard.classList.toggle('hidden');
-                // Opcional: esconder outros painéis se quiser
-                document.getElementById('news-panel').classList.toggle('hidden');
-            });
-        }
-    }
-    
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');

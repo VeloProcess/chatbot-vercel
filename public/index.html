@@ -46,6 +46,30 @@
                     <li data-question="Problema no login do app">Problema no login do app</li>
                     <li data-question="Informação sobre os valores da restituição">Informação sobre os valores da restituição</li>
                 </ul>
+
+                <div id="expandable-faq-container">
+                    <div id="expandable-faq-header" class="expandable-header">
+                        <span>Outras Perguntas em breve!</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <div id="more-questions" class="hidden">
+                        <div class="question-category">Financeiro</div>
+                        <ul id="more-questions-list-financeiro">
+                            <li data-question="Retenção da chave pix">Retenção da chave pix</li>
+                            <li data-question="Juros">Juros</li>
+                            <li data-question="Desconto proporcional">Desconto proporcional</li>
+                            <li data-question="Qual o prazo para a restituição?">Qual o prazo para a restituição?</li>
+                            <li data-question="Como fazer estorno?">Como fazer estorno?</li>
+                        </ul>
+                        <div class="question-category">Técnico</div>
+                        <ul id="more-questions-list-tecnico">
+                            <li data-question="Portabilidade">Portabilidade</li>
+                            <li data-question="O que fazer se caí na malha fina?">O que fazer se caí na malha fina?</li>
+                            <li data-question="Como declarar investimentos?">Como declarar investimentos?</li>
+                        </ul>
+                    </div>
+                </div>
+                
                 <div class="sidebar-footer">
                     <h2><p class="sidebar-note">Atendimento Velotax - Simplifique seus impostos</p></h2>
                     <p class="sidebar-warning"><strong>Observação: As informações aqui são de uso interno.</strong></p><br>
@@ -53,15 +77,6 @@
                     <p>Coparticipação : João Pedro</p>
                     <p class="sidebar-warning">Versão 3.0</p>
                 </div>
-
-                      <button id="manager-panel-button" class="hidden">Painel do Gestor</button>
-                 <div id="manager-dashboard" class="panel hidden">
-                 <div class="panel-header"><h2>Painel do Gestor</h2></div>
-                      <div class="panel-content">
-                         <h3>Usuários Online:</h3>
-                         <ul id="online-users-list"></ul>
-                     </div>
-                 </div>
             </div>
         </div>
         
@@ -87,7 +102,7 @@
                     <textarea id="feedback-comment" placeholder="Ex: A resposta está desatualizada, o link está quebrado, a informação correta é..." required></textarea>
                     <div class="feedback-form-buttons">
                     <button type="button" id="feedback-cancel">Cancelar</button>
-                    <button type="button" id="feedback-send">Enviar Feedback</button>
+                     <button type="button" id="feedback-send">Enviar Feedback</button>
                     </div>
                 </form>
             </div>

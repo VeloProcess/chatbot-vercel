@@ -689,38 +689,3 @@ body.dark-theme .expandable-header:hover {
     opacity: 1;
 }
 
-/* Estilos para a lista de usuários no painel do gestor */
-#online-users-list {
-    list-style: none;
-    padding: 0;
-    margin-top: 10px;
-}
-
-#online-users-list li {
-    padding: 8px;
-    border-bottom: 1px solid var(--cor-borda);
-    display: flex;
-    align-items: center;
-}
-
-#online-users-list li:last-child {
-    border-bottom: none;
-}
-
-.status-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 10px;
-    flex-shrink: 0;
-}
-
-/* Cor para status online */
-.user-status-online .status-dot {
-    background-color: var(--cor-sucesso); /* Verde */
-}
-
-/* Cor para status offline */
-.user-status-off .status-dot { /* Usando 'off' para corresponder ao que está na sua planilha */
-    background-color: #9e9e9e; /* Cinza */
-}
