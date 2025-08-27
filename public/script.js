@@ -500,10 +500,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('theme'); //
             if (savedTheme === 'dark') { //
                 body.classList.add('dark-theme'); //
-                themeSwitcher.innerHTML = '🌙'; //
+                themeSwitcher.innerHTML = ' ⏾ '; //
             } else {
                 body.classList.remove('dark-theme'); //
-                themeSwitcher.innerHTML = '☀️'; //
+                themeSwitcher.innerHTML = ' ☀︎ '; //
             }
         }
 
