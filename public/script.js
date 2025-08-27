@@ -417,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!textoDaPergunta.trim()) return;
             showTypingIndicator();
             try {
-                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}`;
+                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
                 const response = await fetch(url);
                 hideTypingIndicator();
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);

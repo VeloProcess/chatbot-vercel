@@ -17,7 +17,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"}); // Modelo 
 // --- CLIENTE GOOGLE SHEETS ---
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
 let cache = { timestamp: null, data: null };
@@ -43,6 +43,29 @@ async function getFaqData() {
 function normalizarTexto(texto) {
   if (!texto || typeof texto !== 'string') return '';
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
+}
+
+async function logIaUsage(email, pergunta) {
+  try {
+    const timestamp = new Date().toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo'
+    });
+    
+    const newRow = [timestamp, email, pergunta];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Log_IA_Usage', // O nome da nova aba
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [newRow],
+      },
+    });
+    console.log("Uso da IA registrado com sucesso.");
+  } catch (error) {
+    // É importante que um erro no log não quebre a resposta para o usuário.
+    console.error("ERRO AO REGISTRAR USO DA IA:", error);
+  }
 }
 
 // Lógica de busca atualizada para usar APENAS a coluna de palavras-chave
@@ -131,7 +154,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { pergunta } = req.query;
+    const { pergunta, email } = req.query; // Adicione 'email' aqui
     if (!pergunta) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
@@ -143,6 +166,7 @@ module.exports = async function handler(req, res) {
     // Se não encontrar correspondências na planilha, consulta a IA.
     if (correspondencias.length === 0) {
       console.log(`Sem correspondência na planilha para "${pergunta}". Consultando a IA...`);
+      await logIaUsage(email, pergunta); // Registra que a IA foi acionada
       const respostaDaIA = await askGemini(pergunta);
       
       return res.status(200).json({
