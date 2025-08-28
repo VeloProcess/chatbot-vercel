@@ -463,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body.classList.toggle('dark-theme'); //
             const isDark = body.classList.contains('dark-theme'); //
             localStorage.setItem('theme', isDark ? 'dark' : 'light'); //
-            themeSwitcher.innerHTML = isDark ? '🌙' : '☀️'; //
+            themeSwitcher.innerHTML = isDark ? '☾' : '☀︎'; //
         });
 
         const feedbackOverlay = document.getElementById('feedback-overlay'); //
@@ -500,7 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('theme'); //
             if (savedTheme === 'dark') { //
                 body.classList.add('dark-theme'); //
-                themeSwitcher.innerHTML = ' ⏾ '; //
+                themeSwitcher.innerHTML = ' ☾ '; //
             } else {
                 body.classList.remove('dark-theme'); //
                 themeSwitcher.innerHTML = ' ☀︎ '; //
