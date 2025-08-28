@@ -245,7 +245,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.body; //
         const questionSearch = document.getElementById('question-search'); //
         const logoutButton = document.getElementById('logout-button'); //
+        const expandableHeader = document.getElementById('expandable-faq-header');
+        const moreQuestions = document.getElementById('more-questions');
 
+            if (expandableHeader && moreQuestions) {
+                expandableHeader.addEventListener('click', () => {
+                                     // Alterna a visibilidade do conteúdo das perguntas
+                moreQuestions.classList.toggle('hidden');
+                                     // Adiciona ou remove a classe 'expanded' no cabeçalho para girar a seta
+                expandableHeader.classList.toggle('expanded');
+            });
+        }
         // LÓGICA DE STATUS ONLINE/OFFLINE AUTOMÁTICO
         document.addEventListener('visibilitychange', () => { //
             if (!dadosAtendente) return; //
