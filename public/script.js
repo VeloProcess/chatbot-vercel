@@ -338,33 +338,33 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove(); //
         }
 
-        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha' } = {}) { //
-            const messageContainer = document.createElement('div'); //
-            messageContainer.className = `message-container ${sender}`; //
-            const avatar = document.createElement('div'); //
-            avatar.className = `avatar ${sender}`; //
+        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha' } = {}) {
+                const messageContainer = document.createElement('div');
+                messageContainer.className = `message-container ${sender}`;
+                    const avatar = document.createElement('div');
+                    avatar.className = `avatar ${sender}`;
 
-            // LÓGICA PARA MUDAR O ÍCONE (IA vs Bot Padrão)
-            if (sender === 'bot' && source === 'IA') { //
-                avatar.textContent = '✦'; // Ícone para respostas da IA //
-                avatar.title = 'Resposta gerada por IA'; //
-            } else {
-                avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖'; //
-            }
-            
-            const messageContentDiv = document.createElement('div'); //
-            messageContentDiv.className = 'message-content'; //
-            const messageDiv = document.createElement('div'); //
-            messageDiv.className = 'message'; //
-            messageDiv.innerHTML = marked.parse(text); // Esta linha converte Markdown para HTML e exibe
+                                    // LÓGICA PARA MUDAR O ÍCONE (IA vs Bot Padrão)
+                    if (sender === 'bot' && source === 'IA') {
+                        avatar.textContent = '✦'; // Ícone para respostas da IA
+                        avatar.title = 'Resposta gerada por IA';
+                    } else {
+                        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
+                    }
+    
+                    const messageContentDiv = document.createElement('div');
+                    messageContentDiv.className = 'message-content';
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message';
 
-            let isAccordion = false;
-                     // Verifica se a resposta é do bot e se parece com o formato JSON que definimos
-                if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
-                    try {
-                    const items = JSON.parse(text);
-                     // Confirma se é um array de objetos com 'title' e 'content'
-                    if (Array.isArray(items) && items.length > 0 && items.every(item => item.title && item.content)) {
+                                    // --- LÓGICA INTELIGENTE PARA RESPOSTAS EXPANSÍVEIS ---
+                    let isAccordion = false;
+                    // Verifica se a resposta é do bot e se parece com o formato JSON
+                    if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
+                        try {
+            const items = JSON.parse(text);
+            // Confirma se é um array de objetos com 'title' e 'content'
+            if (Array.isArray(items) && items.length > 0 && items.every(item => item.title && item.content)) {
                 isAccordion = true;
                 
                 const accordionContainer = document.createElement('div');
@@ -381,8 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const contentDiv = document.createElement('div');
                     contentDiv.className = 'accordion-content';
-                    // IMPORTANTE: Permite Markdown dentro do conteúdo expansível
-                    contentDiv.innerHTML = marked.parse(item.content);
+                    contentDiv.innerHTML = marked.parse(item.content); // Permite Markdown dentro do conteúdo
 
                     // Adiciona a funcionalidade de clique para expandir/recolher
                     titleDiv.addEventListener('click', () => {
@@ -395,10 +394,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     accordionContainer.appendChild(accordionItem);
                 });
 
+                // Limpa o messageDiv antes de adicionar o accordion para evitar duplicatas
+                messageDiv.innerHTML = ''; 
                 messageDiv.appendChild(accordionContainer);
             }
         } catch (e) {
-            // Se der erro no JSON.parse, o texto não era um JSON válido.
+            // Se der erro no JSON.parse, não era um JSON válido.
             isAccordion = false;
         }
     }
