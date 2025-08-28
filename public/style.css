@@ -538,24 +538,25 @@ body.dark-theme .clarification-item:hover {
     letter-spacing: 0.5px;
 }
 
-#quick-questions-list li,
-#more-questions-list-financeiro li,
-#more-questions-list-tecnico li {
-    padding: var(--espaco-md);
+/* --- ESTILO APRIMORADO PARA ITENS DE PERGUNTA CLICÁVEIS --- */
+#sidebar li[data-question] { /* Seletor universal para todas as perguntas clicáveis */
+    padding: 14px 16px;
     border-radius: var(--borda-raio-sm);
     margin-bottom: var(--espaco-sm);
     cursor: pointer;
     transition: all var(--transicao-rapida);
     font-size: 14px;
     border: 1px solid var(--cor-borda);
+    background-color: var(--cor-fundo-card); /* Fundo sutil padrão */
+    color: var(--cor-texto-principal);
 }
-#quick-questions-list li:hover,
-#more-questions-list-financeiro li:hover,
-#more-questions-list-tecnico li:hover {
-    background-color: var(--cor-azul-medio);
-    color: white;
-    transform: translateX(2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+#sidebar li[data-question]:hover {
+    background-color: var(--cor-destaque-claro); /* Cor de fundo ao passar o mouse */
+    color: var(--cor-destaque-forte); /* Cor do texto ao passar o mouse */
+    border-color: var(--cor-destaque);
+    transform: translateX(3px) scale(1.02); /* Efeito de destaque mais pronunciado */
+    box-shadow: 0 4px 10px var(--cor-sombra); /* Sombra mais visível */
 }
 
 .expandable-header {
