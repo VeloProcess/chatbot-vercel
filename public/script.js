@@ -357,6 +357,57 @@ document.addEventListener('DOMContentLoaded', () => {
             const messageDiv = document.createElement('div'); //
             messageDiv.className = 'message'; //
             messageDiv.innerHTML = marked.parse(text); // Esta linha converte Markdown para HTML e exibe
+
+            let isAccordion = false;
+                     // Verifica se a resposta é do bot e se parece com o formato JSON que definimos
+                if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
+                    try {
+                    const items = JSON.parse(text);
+                     // Confirma se é um array de objetos com 'title' e 'content'
+                    if (Array.isArray(items) && items.length > 0 && items.every(item => item.title && item.content)) {
+                isAccordion = true;
+                
+                const accordionContainer = document.createElement('div');
+                accordionContainer.className = 'accordion-container';
+
+                // Cria cada item expansível
+                items.forEach(item => {
+                    const accordionItem = document.createElement('div');
+                    accordionItem.className = 'accordion-item';
+
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'accordion-title';
+                    titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'accordion-content';
+                    // IMPORTANTE: Permite Markdown dentro do conteúdo expansível
+                    contentDiv.innerHTML = marked.parse(item.content);
+
+                    // Adiciona a funcionalidade de clique para expandir/recolher
+                    titleDiv.addEventListener('click', () => {
+                        titleDiv.classList.toggle('active');
+                        contentDiv.classList.toggle('visible');
+                    });
+
+                    accordionItem.appendChild(titleDiv);
+                    accordionItem.appendChild(contentDiv);
+                    accordionContainer.appendChild(accordionItem);
+                });
+
+                messageDiv.appendChild(accordionContainer);
+            }
+        } catch (e) {
+            // Se der erro no JSON.parse, o texto não era um JSON válido.
+            isAccordion = false;
+        }
+    }
+
+    // Se a resposta NÃO for um accordion, usa a formatação Markdown padrão
+    if (!isAccordion) {
+        messageDiv.innerHTML = marked.parse(text);
+    }
+
             messageContentDiv.appendChild(messageDiv); //
             messageContainer.appendChild(avatar); //
             messageContainer.appendChild(messageContentDiv); //

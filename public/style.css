@@ -689,3 +689,50 @@ body.dark-theme .expandable-header:hover {
     opacity: 1;
 }
 
+/* --- ESTILOS PARA RESPOSTAS EXPANSÍVEIS (ACCORDION) --- */
+.accordion-container {
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--borda-raio-sm);
+    overflow: hidden;
+}
+
+.accordion-item:not(:last-child) {
+    border-bottom: 1px solid var(--cor-borda);
+}
+
+.accordion-title {
+    padding: 12px 16px;
+    background-color: var(--cor-fundo);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+    transition: background-color var(--transicao-rapida);
+}
+
+.accordion-title:hover {
+    background-color: var(--cor-caixa-chat);
+}
+
+.accordion-title .arrow {
+    transition: transform var(--transicao-rapida);
+    font-size: 14px;
+}
+
+.accordion-title.active .arrow {
+    transform: rotate(90deg);
+}
+
+.accordion-content {
+    padding: 0 16px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+}
+
+.accordion-content.visible {
+    padding: 16px;
+    max-height: 500px; /* Altura máxima que um item pode ter */
+    transition: max-height 0.4s ease-in, padding 0.4s ease-in;
+}
