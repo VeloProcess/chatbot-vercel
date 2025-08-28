@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
             messageContentDiv.className = 'message-content'; //
             const messageDiv = document.createElement('div'); //
             messageDiv.className = 'message'; //
-            messageDiv.textContent = text; //
+            messageDiv.innerHTML = marked.parse(text); // Esta linha converte Markdown para HTML e exibe
             messageContentDiv.appendChild(messageDiv); //
             messageContainer.appendChild(avatar); //
             messageContainer.appendChild(messageContentDiv); //
