@@ -689,50 +689,84 @@ body.dark-theme .expandable-header:hover {
     opacity: 1;
 }
 
-/* --- ESTILOS PARA RESPOSTAS EXPANSÍVEIS (ACCORDION) --- */
+/* --- ESTILOS PARA RESPOSTAS EXPANSÍVEIS (ACCORDION) - REVISADO E MELHORADO --- */
 .accordion-container {
+    background-color: var(--cor-fundo); /* Fundo sutil para o contêiner do accordion */
     border: 1px solid var(--cor-borda);
-    border-radius: var(--borda-raio-sm);
-    overflow: hidden;
+    border-radius: var(--borda-raio-md); /* Mais arredondado */
+    overflow: hidden; /* Garante que os cantos arredondados sejam respeitados */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Sombra suave para profundidade */
+    margin-top: 8px; /* Pequena margem para separar da mensagem anterior */
 }
 
 .accordion-item:not(:last-child) {
-    border-bottom: 1px solid var(--cor-borda);
+    border-bottom: 1px solid var(--cor-borda-clara); /* Borda mais clara para divisões internas */
 }
 
 .accordion-title {
-    padding: 12px 16px;
-    background-color: var(--cor-fundo);
+    padding: 14px 18px; /* Mais padding para um toque maior */
+    background-color: var(--cor-fundo-card); /* Cor de fundo para o título */
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: 500;
-    transition: background-color var(--transicao-rapida);
+    font-weight: 600; /* Um pouco mais encorpado */
+    color: var(--cor-texto-principal); /* Cor do texto do título */
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .accordion-title:hover {
-    background-color: var(--cor-caixa-chat);
+    background-color: var(--cor-fundo-hover); /* Fundo mais suave ao passar o mouse */
+    color: var(--cor-destaque); /* Realça o texto ao passar o mouse */
 }
 
 .accordion-title .arrow {
-    transition: transform var(--transicao-rapida);
-    font-size: 14px;
+    font-size: 16px; /* Seta um pouco maior */
+    color: var(--cor-icone); /* Cor da seta */
+    transition: transform 0.2s ease;
+}
+
+.accordion-title.active {
+    background-color: var(--cor-destaque-claro); /* Fundo quando o item está ativo/aberto */
+    color: var(--cor-destaque-forte); /* Cor do texto quando ativo */
 }
 
 .accordion-title.active .arrow {
     transform: rotate(90deg);
+    color: var(--cor-destaque-forte); /* Cor da seta quando ativo */
 }
 
 .accordion-content {
-    padding: 0 16px;
+    padding: 0 18px; /* Padding ajustado */
     max-height: 0;
     overflow: hidden;
+    background-color: var(--cor-fundo-claro); /* Fundo para o conteúdo expandido */
+    color: var(--cor-texto-secundario); /* Cor do texto do conteúdo */
+    font-size: 14px; /* Tamanho de fonte para o conteúdo */
+    line-height: 1.6; /* Espaçamento entre linhas para melhor leitura */
     transition: max-height 0.3s ease-out, padding 0.3s ease-out;
 }
 
 .accordion-content.visible {
-    padding: 16px;
-    max-height: 500px; /* Altura máxima que um item pode ter */
+    padding: 18px; /* Padding completo quando visível */
+    max-height: 800px; /* Aumentado para acomodar mais conteúdo */
     transition: max-height 0.4s ease-in, padding 0.4s ease-in;
+}
+
+/* Estilos para o Markdown dentro do conteúdo do accordion */
+.accordion-content p {
+    margin-bottom: 8px; /* Espaço entre parágrafos no conteúdo */
+}
+
+.accordion-content ul, .accordion-content ol {
+    margin-left: 20px; /* Indentação para listas */
+    margin-bottom: 8px;
+}
+
+.accordion-content li {
+    margin-bottom: 4px; /* Espaço entre itens de lista */
+}
+
+.accordion-content strong {
+    color: var(--cor-texto-principal); /* Garante que o negrito se destaque */
 }
