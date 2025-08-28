@@ -465,8 +465,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         sendButton.addEventListener('click', () => handleSendMessage(userInput.value)); //
 
-        document.querySelectorAll('#quick-questions-list li, #more-questions-list-financeiro li, #more-questions-list-tecnico li').forEach(item => { //
-            item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question'))); //
+        document.querySelectorAll('#sidebar li[data-question]').forEach(item => {
+            item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
 
         themeSwitcher.addEventListener('click', () => { //
