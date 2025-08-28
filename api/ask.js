@@ -152,12 +152,28 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-
+  
+    
   try {
-    const { pergunta, email } = req.query; // Adicione 'email' aqui
+    const { pergunta, email } = req.query;
     if (!pergunta) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
+
+    // --- NOVO BLOCO PARA O MENU 'CRÉDITO' ---
+    // Normalizamos a pergunta para uma verificação limpa.
+    const perguntaNormalizada = normalizarTexto(pergunta); 
+    
+    // Se a pergunta for EXATAMENTE "crédito", retorna as opções imediatamente.
+    if (perguntaNormalizada === 'credito') {
+        return res.status(200).json({
+          status: "clarification_needed",
+          resposta: "Você quer qual informação sobre crédito?",
+          options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal"],
+          source: "Planilha" // A fonte é a planilha, pois as opções levarão a respostas de lá.
+        });
+    }
+    // --- FIM DO NOVO BLOCO ---
 
     const faqData = await getFaqData();
     const correspondencias = findMatches(pergunta, faqData);
