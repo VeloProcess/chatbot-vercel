@@ -738,26 +738,33 @@ body.dark-theme .expandable-header:hover {
     transition: max-height 0.4s ease-in, padding 0.4s ease-in;
 }
 
-/* --- ESTILO PARA BOTÕES DENTRO DAS FRASES - MAIS VISÍVEL --- */
+/* --- ESTILO PARA BOTÕES DENTRO DAS FRASES - AGORA COM BORDA E MAIS DESTAQUE --- */
 .inline-chat-button {
     display: inline-block;
-    padding: 6px 12px; /* Aumentei o padding para um botão maior */
-    margin: 0 6px; /* Aumentei a margem para separar melhor do texto */
-    border-radius: var(--borda-raio-md); /* Mais arredondado */
-    background-color: var(--cor-destaque); /* Cor de destaque mais forte para o fundo */
-    color: var(--cor-texto-claro); /* Texto branco para alto contraste */
-    border: 1px solid var(--cor-destaque-forte); /* Borda mais definida */
-    font-weight: 600; /* Texto mais encorpado */
+    padding: 7px 14px; /* Aumentei um pouco mais o padding */
+    margin: 0 7px; /* Aumentei um pouco mais a margem */
+    border-radius: var(--borda-raio-md); /* Mantém o arredondamento */
+    
+    /* Cores de Fundo e Texto de ALTO CONTRASTE */
+    background-color: var(--cor-destaque); /* Fundo principal de destaque */
+    color: var(--cor-texto-claro); /* Texto claro para contraste */
+    
+    /* BORDA: A CHAVE PARA MAIOR VISIBILIDADE */
+    border: 2px solid var(--cor-destaque-forte); /* Borda mais grossa e com cor de destaque */
+    
+    font-weight: 700; /* Texto ainda mais encorpado (bold) */
     cursor: pointer;
     transition: all var(--transicao-rapida);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15); /* Sombra para dar profundidade */
-    font-size: 14px; /* Garante que o tamanho da fonte seja bom */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2); /* Sombra mais visível no estado padrão */
+    font-size: 15px; /* Tamanho da fonte ligeiramente maior */
+    line-height: 1; /* Garante que o texto fique centralizado verticalmente */
+    text-decoration: none; /* Remove sublinhado se houver */
 }
 
 .inline-chat-button:hover {
     background-color: var(--cor-azul-escuro); /* Variação mais escura do destaque no hover */
     color: var(--cor-texto-claro);
-    border-color: var(--cor-azul-escuro);
-    transform: translateY(-2px); /* Efeito "flutuante" mais pronunciado */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra mais intensa no hover */
+    border-color: var(--cor-azul-escuro); /* Borda acompanha a cor de hover */
+    transform: translateY(-3px) scale(1.03); /* Efeito "flutuante" e crescimento mais pronunciado */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Sombra mais intensa no hover */
 }
