@@ -737,3 +737,25 @@ body.dark-theme .expandable-header:hover {
     max-height: 500px; /* Altura máxima que um item pode ter */
     transition: max-height 0.4s ease-in, padding 0.4s ease-in;
 }
+
+/* --- ESTILO PARA BOTÕES DENTRO DAS FRASES --- */
+.inline-chat-button {
+    display: inline-block;
+    padding: 4px 10px;
+    margin: 0 4px;
+    border-radius: var(--borda-raio-sm);
+    background-color: var(--cor-destaque-claro);
+    color: var(--cor-destaque-forte);
+    border: 1px solid var(--cor-borda);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transicao-rapida);
+}
+
+.inline-chat-button:hover {
+    background-color: var(--cor-destaque);
+    color: var(--cor-texto-claro);
+    border-color: var(--cor-destaque);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px var(--cor-sombra);
+}

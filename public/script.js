@@ -342,39 +342,38 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove(); //
         }
 
-        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha' } = {}) {
-                const messageContainer = document.createElement('div');
-                messageContainer.className = `message-container ${sender}`;
-                    const avatar = document.createElement('div');
-                    avatar.className = `avatar ${sender}`;
+function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha' } = {}) {
+    const messageContainer = document.createElement('div');
+    messageContainer.className = `message-container ${sender}`;
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${sender}`;
 
-                                    // LÓGICA PARA MUDAR O ÍCONE (IA vs Bot Padrão)
-                    if (sender === 'bot' && source === 'IA') {
-                        avatar.textContent = '✦'; // Ícone para respostas da IA
-                        avatar.title = 'Resposta gerada por IA';
-                    } else {
-                        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
-                    }
-    
-                    const messageContentDiv = document.createElement('div');
-                    messageContentDiv.className = 'message-content';
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'message';
+    // LÓGICA PARA MUDAR O ÍCONE (IA vs Bot Padrão)
+    if (sender === 'bot' && source === 'IA') {
+        avatar.textContent = '✦'; // Ícone para respostas da IA
+        avatar.title = 'Resposta gerada por IA';
+    } else {
+        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
+    }
 
-                                    // --- LÓGICA INTELIGENTE PARA RESPOSTAS EXPANSÍVEIS ---
-                    let isAccordion = false;
-                    // Verifica se a resposta é do bot e se parece com o formato JSON
-                    if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
-                        try {
+    const messageContentDiv = document.createElement('div');
+    messageContentDiv.className = 'message-content';
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
+
+    // --- LÓGICA INTELIGENTE PARA RESPOSTAS COMPLEXAS ---
+    let isComplexResponse = false;
+
+    // 1. Tenta interpretar o texto como um MENU EXPANSÍVEL (JSON)
+    if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
+        try {
             const items = JSON.parse(text);
-            // Confirma se é um array de objetos com 'title' e 'content'
             if (Array.isArray(items) && items.length > 0 && items.every(item => item.title && item.content)) {
-                isAccordion = true;
-                
+                isComplexResponse = true;
+
                 const accordionContainer = document.createElement('div');
                 accordionContainer.className = 'accordion-container';
 
-                // Cria cada item expansível
                 items.forEach(item => {
                     const accordionItem = document.createElement('div');
                     accordionItem.className = 'accordion-item';
@@ -387,7 +386,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     contentDiv.className = 'accordion-content';
                     contentDiv.innerHTML = marked.parse(item.content); // Permite Markdown dentro do conteúdo
 
-                    // Adiciona a funcionalidade de clique para expandir/recolher
                     titleDiv.addEventListener('click', () => {
                         titleDiv.classList.toggle('active');
                         contentDiv.classList.toggle('visible');
@@ -398,60 +396,82 @@ document.addEventListener('DOMContentLoaded', () => {
                     accordionContainer.appendChild(accordionItem);
                 });
 
-                // Limpa o messageDiv antes de adicionar o accordion para evitar duplicatas
-                messageDiv.innerHTML = ''; 
+                messageDiv.innerHTML = '';
                 messageDiv.appendChild(accordionContainer);
             }
         } catch (e) {
-            // Se der erro no JSON.parse, não era um JSON válido.
-            isAccordion = false;
+            isComplexResponse = false; // Falhou, então não é um JSON válido.
         }
     }
 
-    // Se a resposta NÃO for um accordion, usa a formatação Markdown padrão
-    if (!isAccordion) {
-        messageDiv.innerHTML = marked.parse(text);
+    // 2. Se não for um menu, processa como texto normal (Markdown + BOTÕES)
+    if (!isComplexResponse) {
+        // Função interna para transformar a sintaxe [button:...] em HTML
+        const parseInlineButtons = (rawText) => {
+            if (typeof rawText !== 'string') return '';
+            const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
+            return rawText.replace(buttonRegex, (match, text, value) => {
+                // Escapa as aspas no atributo data-value para evitar quebra do HTML
+                const escapedValue = value.trim().replace(/"/g, '&quot;');
+                return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
+            });
+        };
+
+        const textWithButtons = parseInlineButtons(text);
+        messageDiv.innerHTML = marked.parse(textWithButtons);
+    }
+    // --- FIM DA LÓGICA INTELIGENTE ---
+
+    messageContentDiv.appendChild(messageDiv);
+    messageContainer.appendChild(avatar);
+    messageContainer.appendChild(messageContentDiv);
+
+    // 3. Adiciona a funcionalidade de clique aos BOTÕES recém-criados
+    messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const value = button.getAttribute('data-value');
+            if (value) {
+                handleSendMessage(value);
+            }
+        });
+    });
+
+    // O código abaixo para feedback e opções continua o mesmo
+    if (sender === 'bot' && sourceRow) {
+        ultimaLinhaDaFonte = sourceRow;
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.className = 'feedback-container';
+        const positiveBtn = document.createElement('button');
+        positiveBtn.className = 'feedback-btn';
+        positiveBtn.innerHTML = '👍';
+        positiveBtn.title = 'Resposta útil';
+        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+        const negativeBtn = document.createElement('button');
+        negativeBtn.className = 'feedback-btn';
+        negativeBtn.innerHTML = '👎';
+        negativeBtn.title = 'Resposta incorreta ou incompleta';
+        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+        feedbackContainer.appendChild(positiveBtn);
+        feedbackContainer.appendChild(negativeBtn);
+        messageContentDiv.appendChild(feedbackContainer);
     }
 
-            messageContentDiv.appendChild(messageDiv); //
-            messageContainer.appendChild(avatar); //
-            messageContainer.appendChild(messageContentDiv); //
+    if (sender === 'bot' && options.length > 0) {
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'clarification-container';
+        options.forEach(optionText => {
+            const button = document.createElement('button');
+            button.className = 'clarification-item';
+            button.textContent = optionText;
+            button.onclick = () => handleSendMessage(optionText);
+            optionsContainer.appendChild(button);
+        });
+        messageContentDiv.appendChild(optionsContainer);
+    }
 
-            if (sender === 'bot' && sourceRow) { //
-                ultimaLinhaDaFonte = sourceRow; //
-                const feedbackContainer = document.createElement('div'); //
-                feedbackContainer.className = 'feedback-container'; //
-                const positiveBtn = document.createElement('button'); //
-                positiveBtn.className = 'feedback-btn'; //
-                positiveBtn.innerHTML = '👍'; //
-                positiveBtn.title = 'Resposta útil'; //
-                positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer); //
-                const negativeBtn = document.createElement('button'); //
-                negativeBtn.className = 'feedback-btn'; //
-                negativeBtn.innerHTML = '👎'; //
-                negativeBtn.title = 'Resposta incorreta ou incompleta'; //
-                negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer); //
-                feedbackContainer.appendChild(positiveBtn); //
-                feedbackContainer.appendChild(negativeBtn); //
-                messageContentDiv.appendChild(feedbackContainer); //
-            }
-
-            if (sender === 'bot' && options.length > 0) { //
-                const optionsContainer = document.createElement('div'); //
-                optionsContainer.className = 'clarification-container'; //
-                options.forEach(optionText => { //
-                    const button = document.createElement('button'); //
-                    button.className = 'clarification-item'; //
-                    button.textContent = optionText; //
-                    button.onclick = () => handleSendMessage(optionText); //
-                    optionsContainer.appendChild(button); //
-                });
-                messageContentDiv.appendChild(optionsContainer); //
-            }
-
-            chatBox.appendChild(messageContainer); //
-            chatBox.scrollTop = chatBox.scrollHeight; //
-        }
+    chatBox.appendChild(messageContainer);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
 
         async function enviarFeedback(action, container, sugestao = null) { //
             if (!ultimaPergunta || !ultimaLinhaDaFonte) { //
