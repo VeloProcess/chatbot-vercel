@@ -270,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-<<<<<<< HEAD
         async function carregarNoticias() {
     const newsListContainer = document.getElementById('news-list');
 
@@ -311,9 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
         newsListContainer.innerHTML = '<p>Não foi possível carregar as notícias. Verifique a conexão.</p>';
     }
 }
-
-=======
->>>>>>> 28e7d43d1b03223dfc2fd044e55698d96c1adaf1
         // LÓGICA DE EXIBIÇÃO PARA GESTOR
         if (dadosAtendente.funcao === 'Gestor') { //
             const managerButton = document.getElementById('manager-panel-button');
