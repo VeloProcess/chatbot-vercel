@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                img-src 'self' https://github.com https://raw.githubusercontent.com https://www.google.com;
+                script-src 'self' https://accounts.google.com https://www.gstatic.com https://cdn.jsdelivr.net;
+                frame-src https://accounts.google.com;
+                style-src 'self' 'unsafe-inline';
+                connect-src 'self' https://www.googleapis.com https://script.google.com;">
+    <title>Painel Interno com ChatBot - Tema Clássico</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="icon" type="image/png" href="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <div id="identificacao-overlay" class="hidden">
+        <div id="identificacao-box">
+            <h2>Bem-vindo(a) ao Painel</h2>
+            <p>Por favor, faça login com sua conta Google corporativa (@velotax.com.br).</p>
+            <div id="google-signin-button" class="google-signin-btn">
+                <img src="https://www.google.com/favicon.ico" alt="Google Icon">
+                Entrar com Google
+            </div>
+            <p id="identificacao-error" class="identificacao-error hidden">Acesso permitido apenas para e-mails corporativos</p>
+        </div>
+    </div>
+
+    <div class="app-wrapper hidden">
+        <div id="sidebar" class="panel">
+            <div class="panel-header">
+                <h2>Perguntas Frequentes</h2>
+            </div>
+            <div class="sidebar-content">
+                <div class="search-container">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="question-search" placeholder="Buscar perguntas...">
+                </div>
+                <div class="question-category">Mais Comuns!!!</div>
+                <ul id="quick-questions-list">
+                    <li data-question="Crédito ">Sobre Crédito </li>
+                    <li data-question="Antecipação">Sobre Antecipação</li>
+                    <li data-question="Pix">Portabilidade/Pix</li>
+                    <li data-question="Crédito pessoal">Crédito pessoal</li>
+                </ul>
+
+                <div id="expandable-faq-container">
+                    <div id="expandable-faq-header" class="expandable-header">
+                        <span>Outras Perguntas</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <div id="more-questions" class="hidden">
+                        <div class="question-category">Frequentes</div>
+                        <ul id="more-questions-list-frequentes">
+                            <li data-question="31/10/2025">31/10/2025</li>
+                            <li data-question="Escalar para N2">Escalar para N2</li>
+                            <li data-question="Desconto proporcional">Desconto proporcional</li>
+                            <li data-question="Qual o prazo para a restituição?">Qual o prazo para a restituição?</li>
+                            <li data-question="Velobank ">Velobank</li>
+                    </div>
+                </div>
+                
+                <div class="sidebar-footer">
+                    <h2><p class="sidebar-note">Atendimento Velotax - Simplifique seus impostos</p></h2><br><br><br>
+                    <p class="sidebar-warning"><strong>Observação: As informações aqui são de uso interno.</strong></p>
+                    <p class="sidebar-warning">Criado por Gabriel Araujo.</p>
+                    <p>Coparticipação : João Pedro</p>
+                    <p class="sidebar-warning">Versão 3.0</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="curadoria-overlay" class="hidden">
+            <div id="curadoria-box">
+                <h2>Sugerir Correção</h2>
+                <p>A resposta do bot não foi útil. Por favor, descreva qual seria o procedimento ou a informação correta.</p>
+                <form id="curadoria-form">
+                    <textarea id="curadoria-comentario" placeholder="Ex: O link correto é outro, o prazo mudou para 5 dias úteis, o documento necessário é o RG..." required></textarea>
+                    <div class="feedback-form-buttons">
+                        <button type="button" id="curadoria-cancel">Cancelar</button>
+                        <button type="submit" id="curadoria-send">Enviar Sugestão</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="feedback-overlay" class="hidden">
+            <div id="feedback-box">
+                <h2>Melhorar esta Resposta</h2>
+                <p>Obrigado pelo seu feedback! Por favor, nos diga o que estava errado ou o que estava faltando na resposta.</p>
+                <form id="feedback-form">
+                    <textarea id="feedback-comment" placeholder="Ex: A resposta está desatualizada, o link está quebrado, a informação correta é..." required></textarea>
+                    <div class="feedback-form-buttons">
+                    <button type="button" id="feedback-cancel">Cancelar</button>
+                    <button type="button" id="feedback-send">Enviar Feedback</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="chat-container panel">
+            <div class="chat-header">
+                <button id="logout-button" title="Sair do sistema">
+                <i class='bx  bx-caret-left-square'  ></i> Deslogar
+                </button>
+                <img src="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true" alt="Logo" class="chat-logo">
+                <h2 class="chat-title">Assistente Virtual <span class="status-indicator"></span></h2>
+                <p class="chat-subtitle">Seu assistente para processos internos</p> 
+                <button id="theme-switcher" title="Alterar tema">☀︎</button>
+            </div>
+            <div class="chat-box" id="chat-box"></div>
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Digite sua mensagem..." autocomplete="off">
+                <button id="send-button" class="action-button" title="Enviar mensagem">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z"></path></svg>
+                </button>
+                <button class="gemini-button" id="gemini-button" title="Obter ajuda do Gemini AI">✦</button>
+            </div>
+        </div>
+        <div id="news-panel" class="panel">
+            <div class="panel-header">
+                <h2>Notícias e Alertas</h2>
+            </div>
+            <div id="news-list" class="news-list">
+                    <p>Carregando notícias...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
