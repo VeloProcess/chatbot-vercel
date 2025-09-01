@@ -270,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+<<<<<<< HEAD
         async function carregarNoticias() {
     const newsListContainer = document.getElementById('news-list');
 
@@ -311,6 +312,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 }
 
+=======
+>>>>>>> 28e7d43d1b03223dfc2fd044e55698d96c1adaf1
         // LÓGICA DE EXIBIÇÃO PARA GESTOR
         if (dadosAtendente.funcao === 'Gestor') { //
             const managerButton = document.getElementById('manager-panel-button');
@@ -646,7 +649,10 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
         const primeiroNome = dadosAtendente.nome.split(' ')[0]; //
         addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot'); //
         setInitialTheme(); //
+<<<<<<< HEAD
         carregarNoticias(); // <-- ADICIONE ESTA LINHA
+=======
+>>>>>>> 28e7d43d1b03223dfc2fd044e55698d96c1adaf1
     }
 
     // Inicia todo o processo de autenticação
