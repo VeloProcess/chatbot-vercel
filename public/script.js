@@ -271,11 +271,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         async function carregarNoticias() {
-    const newsListContainer = document.getElementById('news-list');
+            const newsListContainer = document.getElementById('news-list');
 
-    try {
-        const response = await fetch('/api/getNews');
-        if (!response.ok) {
+                try {
+            const response = await fetch('/api/getNews');
+            if (!response.ok) {
             throw new Error('Falha ao buscar notícias da API.');
         }
 
@@ -291,7 +291,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Para cada notícia recebida, cria o elemento HTML
         data.news.forEach(item => {
-            const newsItemDiv = document.createElement('div');
+        console.log(item); // <--- ADICIONE ESTA LINHA
+
+        const newsItemDiv = document.createElement('div');
 
             // A mágica acontece aqui: a classe é definida pelo "Tipo" da planilha
             newsItemDiv.className = `news-item ${item.tipo}-alert`;
