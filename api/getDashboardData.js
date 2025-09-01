@@ -57,7 +57,7 @@ module.exports = async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*'); // Restrinja em produção
 
-  try {
+    try {
     const ranges = [
       'Log_Acessos!A:C',   //
       'Log_Perguntas!A:C', //
@@ -67,8 +67,8 @@ module.exports = async function handler(req, res) {
 
     // Busca todos os dados da planilha em paralelo para mais eficiência
     const response = await sheets.spreadsheets.values.batchGet({
-      spreadsheetId: SPREADSHEET_ID,
-      ranges: ranges,
+        spreadsheetId: SPREADSHEET_ID,
+        ranges: ranges,
     });
 
     const [accessLog, questionsLog, feedbackLog, iaLog] = response.data.valueRanges.map(range => range.values);
@@ -77,8 +77,8 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json(processedData);
 
-  } catch (error) {
+    } catch (error) {
     console.error("ERRO AO BUSCAR DADOS DO DASHBOARD:", error);
     return res.status(500).json({ error: "Erro interno ao buscar dados.", details: error.message });
-  }
+    }
 };
