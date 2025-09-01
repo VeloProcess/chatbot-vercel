@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard do Gestor - Chatbot</title>
+    <link rel="stylesheet" href="style.css"> <style>
+        /* Estilos específicos do Dashboard */
+        body { padding: 20px; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .dashboard-card { background: var(--cor-container); border: 1px solid var(--cor-borda); border-radius: var(--borda-raio); padding: 20px; box-shadow: 0 4px 12px var(--cor-sombra); }
+        .dashboard-card h2 { margin-top: 0; border-bottom: 2px solid var(--cor-azul-medio); padding-bottom: 10px; }
+        .dashboard-card ul { padding-left: 20px; }
+        .dashboard-card li { margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <a href="/index.html" style="margin-bottom: 20px; display: inline-block;">&larr; Voltar para o Chatbot</a>
+    <h1>Dashboard do Gestor</h1>
+    <div class="dashboard-grid">
+        <div class="dashboard-card" id="activity-card">
+            <h2>Atividade dos Usuários</h2>
+            <div id="user-activity-list">Carregando...</div>
+        </div>
+        <div class="dashboard-card" id="faq-card">
+            <h2>Top 5 Perguntas Frequentes</h2>
+            <ul id="frequent-questions-list"><li>Carregando...</li></ul>
+        </div>
+        <div class="dashboard-card" id="feedback-card">
+            <h2>Resumo do Feedback</h2>
+            <div id="feedback-summary">Carregando...</div>
+        </div>
+        
+        <div class="dashboard-card" id="ia-card">
+            <h2>Últimas Perguntas para a IA (Não encontradas na base)</h2>
+            <ul id="ia-questions-list"><li>Carregando...</li></ul>
+        </div>
+    </div>
+    <script src="dashboard.js"></script>
+</body>
+</html>

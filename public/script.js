@@ -313,13 +313,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 }
         // LÓGICA DE EXIBIÇÃO PARA GESTOR
-        if (dadosAtendente.funcao === 'Gestor') { //
-            const managerButton = document.getElementById('manager-panel-button');
-            const managerDashboard = document.getElementById('manager-dashboard');
-            const onlineUsersList = document.getElementById('online-users-list');
-
-            if (managerButton && managerDashboard && onlineUsersList) { //
-                managerButton.classList.remove('hidden'); //
+        if (dadosAtendente && dadosAtendente.funcao === 'Gestor') {
+        const dashboardLink = document.getElementById('manager-dashboard-link');
+        if (dashboardLink) {
+            dashboardLink.classList.remove('hidden');
 
                 const fetchAndDisplayUsers = async () => { //
                     managerDashboard.classList.toggle('hidden'); //
