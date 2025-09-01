@@ -639,18 +639,12 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
             dadosAtendente = null; //
             location.reload(); //
         }
-
         logoutButton.addEventListener('click', handleLogout); //
-
         const primeiroNome = dadosAtendente.nome.split(' ')[0]; //
         addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot'); //
         setInitialTheme(); //
-<<<<<<< HEAD
         carregarNoticias(); // <-- ADICIONE ESTA LINHA
-=======
->>>>>>> 28e7d43d1b03223dfc2fd044e55698d96c1adaf1
     }
-
     // Inicia todo o processo de autenticação
     initGoogleSignIn(); //
 });
