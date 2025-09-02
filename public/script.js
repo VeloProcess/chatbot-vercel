@@ -404,30 +404,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
             if (sender === 'bot' && tabulacoes) {
-                const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
-                if (sugestoes.length > 0) {
-                    const tabulacoesContainer = document.createElement('div');
-                    tabulacoesContainer.className = 'clarification-container hidden';
-                    sugestoes.forEach(sugestao => {
-                        const button = document.createElement('button');
-                        button.className = 'clarification-item';
-                        const sugestaoLimpa = sugestao.trim();
-                        button.textContent = sugestaoLimpa;
-                        button.onclick = () => handleSendMessage(sugestaoLimpa);
-                        tabulacoesContainer.appendChild(button);
-                    });
-                    const triggerButton = document.createElement('div');
-                    triggerButton.className = 'tabulacao-trigger-text';
-                    triggerButton.textContent = 'Veja as tabulações';
-                    triggerButton.style.marginTop = '10px';
-                    triggerButton.onclick = () => {
-                        triggerButton.classList.add('hidden');
-                        tabulacoesContainer.classList.remove('hidden');
-                    };
-                    messageContentDiv.appendChild(triggerButton);
-                    messageContentDiv.appendChild(tabulacoesContainer);
-                }
-            }
+        const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
+
+        if (sugestoes.length > 0) {
+            const tabulacoesContainer = document.createElement('div');
+            tabulacoesContainer.className = 'clarification-container hidden';
+
+            sugestoes.forEach(sugestao => {
+                const button = document.createElement('button');
+                button.className = 'clarification-item';
+                const sugestaoLimpa = sugestao.trim();
+                button.textContent = sugestaoLimpa;
+                button.onclick = () => handleSendMessage(sugestaoLimpa);
+                tabulacoesContainer.appendChild(button);
+            });
+
+            const triggerButton = document.createElement('div');
+            triggerButton.className = 'tabulacao-trigger-text';
+            triggerButton.textContent = 'Veja as tabulações';
+            
+            triggerButton.onclick = () => {
+                triggerButton.classList.add('hidden');
+                tabulacoesContainer.classList.remove('hidden');
+            };
+
+            messageContentDiv.appendChild(triggerButton);
+            messageContentDiv.appendChild(tabulacoesContainer);
+        }
+    }
+
             if (sender === 'bot' && sourceRow) {
                 ultimaLinhaDaFonte = sourceRow;
                 const feedbackContainer = document.createElement('div');
@@ -487,33 +492,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function buscarResposta(textoDaPergunta) {
-            ultimaPergunta = textoDaPergunta;
-            ultimaLinhaDaFonte = null;
-            if (!textoDaPergunta.trim()) return;
-            showTypingIndicator();
-            try {
-                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
-                const response = await fetch(url);
-                hideTypingIndicator();
-                if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
-                const data = await response.json();
-                if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
-                    addMessage(data.resposta, 'bot', { 
-                        sourceRow: data.sourceRow, 
-                        source: data.source, 
-                        tabulacoes: data.tabulacoes
-                    });
-                } else if (data.status === 'clarification_needed') {
-                    addMessage(data.resposta, 'bot', { options: data.options, source: data.source });
-                } else {
-                    addMessage(data.resposta, 'bot');
-                }
-            } catch (error) {
-                hideTypingIndicator();
-                addMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot');
-                console.error("Detalhes do erro:", error);
-            }
-        }
+    ultimaPergunta = textoDaPergunta;
+    ultimaLinhaDaFonte = null;
+    if (!textoDaPergunta.trim()) return;
+    showTypingIndicator();
+    try {
+        const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
+        const response = await fetch(url);
+        hideTypingIndicator();
+        if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
+        const data = await response.json();
+
+        if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
+            // ALTERAÇÃO CRÍTICA AQUI:
+            addMessage(data.resposta, 'bot', { 
+                sourceRow: data.sourceRow, 
+                source: data.source, 
+                tabulacoes: data.tabulacoes // Passa a informação de tabulações
+            });
+        } else if (data.status === 'clarification_needed') {
+            addMessage(data.resposta, 'bot', { options: data.options, source: data.source });
+        } else {
+            addMessage(data.resposta, 'bot');
+}
+    } catch (error) {
+        hideTypingIndicator();
+        addMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot');
+        console.error("Detalhes do erro:", error);
+    }
+}
 
         function handleSendMessage(text) {
             const trimmedText = text.trim();

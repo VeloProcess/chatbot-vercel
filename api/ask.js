@@ -212,9 +212,11 @@ module.exports = async function handler(req, res) {
         status: "sucesso",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
+        tabulacoes: correspondencias[0].tabulacoes, // <-- ALTERAÇÃO AQUI
         source: "Planilha"
       });
-    } else {
+    }
+      else {
       return res.status(200).json({
         status: "clarification_needed",
         resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
