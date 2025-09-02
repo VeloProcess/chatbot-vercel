@@ -782,3 +782,37 @@ body.dark-theme .expandable-header:hover {
 .tabulacao-info-text strong {
     color: var(--cor-azul-medio); /* Destaca o título */
 }
+
+/* --- ESTILOS PARA STATUS DE PRODUTOS --- */
+#product-status-container {
+    position: absolute;
+    top: 50px; /* Alinha abaixo do botão de deslogar */
+    left: var(--espaco-md);
+    width: auto;
+    display: flex;
+    flex-direction: column; /* Organiza os itens em coluna */
+    gap: 4px; /* Espaço entre os itens */
+    text-align: left;
+}
+
+.product-status-item {
+    font-size: 13px;
+    color: #fff;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: var(--borda-raio-sm);
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.product-status-item .status {
+    font-weight: 700;
+}
+
+/* Cores do status */
+.status-disponivel {
+    color: #C8E6C9; /* Verde claro */
+}
+
+.status-indisponivel {
+    color: #FFCDD2; /* Vermelho claro */
+}

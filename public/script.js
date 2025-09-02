@@ -287,6 +287,41 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        async function carregarStatusProdutos() {
+    const container = document.getElementById('product-status-container');
+    try {
+        const response = await fetch('/api/getProductStatus');
+        if (!response.ok) throw new Error('API falhou');
+
+        const data = await response.json();
+        container.innerHTML = ''; // Limpa o "Carregando..."
+
+        data.products.forEach(p => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'product-status-item';
+
+            const statusSpan = document.createElement('span');
+            statusSpan.className = 'status';
+            statusSpan.textContent = p.status;
+
+            // Adiciona a classe de cor com base no status
+            if (p.status === 'Disponível') {
+                statusSpan.classList.add('status-disponivel');
+            } else {
+                statusSpan.classList.add('status-indisponivel');
+            }
+
+            itemDiv.textContent = `${p.produto}: `;
+            itemDiv.appendChild(statusSpan);
+            container.appendChild(itemDiv);
+        });
+
+    } catch (error) {
+        container.textContent = 'Erro ao carregar status.';
+        console.error("Erro ao carregar status dos produtos:", error);
+    }
+}
+
         if (dadosAtendente && dadosAtendente.funcao === 'Gestor') {
             const dashboardLink = document.getElementById('manager-dashboard-link');
             if (dashboardLink) {
@@ -586,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot');
         setInitialTheme();
         carregarNoticias();
+        carregarStatusProdutos(); // <<< ADICIONE ESTA LINHA
     }
 
     // Inicia todo o processo de autenticação
