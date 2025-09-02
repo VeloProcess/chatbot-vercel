@@ -832,3 +832,40 @@ body.dark-theme .expandable-header:hover {
     color: white;
     background-color: var(--cor-erro);
 }
+
+/* --- ESTILOS PARA SKELETON LOADERS --- */
+.skeleton {
+    background-color: var(--cor-borda);
+    border-radius: 4px;
+    animation: pulse 1.5s infinite ease-in-out; /* Reutiliza sua animação 'pulse' */
+}
+
+body.dark-theme .skeleton {
+    background-color: var(--cor-borda); /* No dark theme, a borda é escura */
+}
+
+.news-item-skeleton {
+    padding: var(--espaco-md);
+    margin-bottom: var(--espaco-md);
+    background: var(--cor-caixa-chat);
+    border-radius: var(--borda-raio-sm);
+    border-left: 4px solid var(--cor-borda);
+}
+
+.skeleton-title {
+    width: 60%;
+    height: 20px;
+    margin-bottom: var(--espaco-sm);
+}
+
+.skeleton-text-small {
+    width: 30%;
+    height: 12px;
+    margin-bottom: 12px;
+}
+
+.skeleton-text {
+    width: 100%;
+    height: 16px;
+    margin-bottom: var(--espaco-sm);
+}
