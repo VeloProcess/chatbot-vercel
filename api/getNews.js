@@ -54,22 +54,8 @@ module.exports = async function handler(req, res) {
 
       const reversedNews = newsData.reverse();
 
-    // Agora, define a ordem de prioridade
-    const priorityOrder = {
-      'critico': 1,
-      'alerta': 2,
-      'info': 3
-    };
-
-    // Ordena a lista com base na prioridade
-    reversedNews.sort((a, b) => {
-      const priorityA = priorityOrder[a.tipo] || 4; // Se o tipo não existir, fica por último
-      const priorityB = priorityOrder[b.tipo] || 4;
-      return priorityA - priorityB;
-    });
-
-    // Envia os dados agora ordenados por prioridade
-    return res.status(200).json({ news: reversedNews });
+    return res.status(200).json({ news: newsData.reverse() });
+    
     } catch (error) {
     console.error("ERRO AO BUSCAR NOTÍCIAS:", error);
     return res.status(500).json({ 
