@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
                 const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
                 if (!profileResponse.ok) throw new Error('Falha ao buscar perfil do usuário.');
-                
+
                 const userProfile = await profileResponse.json();
 
                 dadosAtendente = {
@@ -489,7 +489,14 @@ document.addEventListener('DOMContentLoaded', () => {
         async function buscarResposta(textoDaPergunta) {
             ultimaPergunta = textoDaPergunta;
             ultimaLinhaDaFonte = null;
-            if (!textoDaPergunta.trim()) return;
+            if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
+                    addMessage(data.resposta, 'bot', { 
+                        sourceRow: data.sourceRow, 
+                        source: data.source, 
+                        tabulacoes: data.tabulacoes // <--- CORREÇÃO APLICADA AQUI
+                    });
+                }
+                
             showTypingIndicator();
             try {
                 const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
