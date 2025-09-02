@@ -290,36 +290,41 @@ document.addEventListener('DOMContentLoaded', () => {
         async function carregarStatusProdutos() {
     const container = document.getElementById('product-status-container');
     try {
-        const response = await fetch('/api/getProductStatus');
-        if (!response.ok) throw new Error('API falhou');
+            const response = await fetch('/api/getProductStatus');
+            if (!response.ok) throw new Error('API falhou');
+            
+            const data = await response.json();
+            
+            const productList = document.createElement('ul'); // Cria uma lista
+            productList.style.padding = '0';
 
-        const data = await response.json();
-        container.innerHTML = ''; // Limpa o "Carregando..."
+            data.products.forEach(p => {
+                const listItem = document.createElement('li'); // Cria um item de lista
+                listItem.className = 'product-status-item';
 
-        data.products.forEach(p => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'product-status-item';
+                const statusSpan = document.createElement('span');
+                statusSpan.className = 'status';
+                statusSpan.textContent = p.status;
+                
+                if (p.status === 'Disponível') {
+                    statusSpan.classList.add('status-disponivel');
+                } else {
+                    statusSpan.classList.add('status-indisponivel');
+                }
+                
+                // Adiciona o nome do produto e o status no item
+                listItem.textContent = `${p.produto} `;
+                listItem.appendChild(statusSpan);
+                productList.appendChild(listItem);
+            });
 
-            const statusSpan = document.createElement('span');
-            statusSpan.className = 'status';
-            statusSpan.textContent = p.status;
+            container.innerHTML = ''; // Limpa o "Carregando..."
+            container.appendChild(productList); // Adiciona a lista completa
 
-            // Adiciona a classe de cor com base no status
-            if (p.status === 'Disponível') {
-                statusSpan.classList.add('status-disponivel');
-            } else {
-                statusSpan.classList.add('status-indisponivel');
-            }
-
-            itemDiv.textContent = `${p.produto}: `;
-            itemDiv.appendChild(statusSpan);
-            container.appendChild(itemDiv);
-        });
-
-    } catch (error) {
-        container.textContent = 'Erro ao carregar status.';
-        console.error("Erro ao carregar status dos produtos:", error);
-    }
+        } catch (error) {
+            container.textContent = 'Erro ao carregar status.';
+            console.error("Erro ao carregar status dos produtos:", error);
+        }
 }
 
         if (dadosAtendente && dadosAtendente.funcao === 'Gestor') {
