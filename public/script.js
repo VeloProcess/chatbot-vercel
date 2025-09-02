@@ -411,8 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         button.onclick = () => handleSendMessage(sugestaoLimpa);
                         tabulacoesContainer.appendChild(button);
                     });
-                    const triggerButton = document.createElement('button');
-                    triggerButton.className = 'clarification-item';
+                    const triggerButton = document.createElement('div'); // Alterado de 'button' para 'div'
+                    triggerButton.className = 'tabulacao-trigger-text';
                     triggerButton.textContent = 'Veja as tabulações';
                     triggerButton.style.marginTop = '10px';
                     triggerButton.onclick = () => {
