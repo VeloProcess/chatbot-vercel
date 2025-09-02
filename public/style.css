@@ -768,3 +768,17 @@ body.dark-theme .expandable-header:hover {
     transform: translateY(-3px) scale(1.03); /* Efeito "flutuante" e crescimento mais pronunciado */
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Sombra mais intensa no hover */
 }
+/* --- ESTILO PARA O TEXTO INFORMATIVO DE TABULAÇÃO --- */
+.tabulacao-info-text {
+    font-size: 14px;
+    padding: 10px;
+    margin-top: 12px;
+    border-top: 1px solid var(--cor-borda); /* Uma linha sutil para separar */
+    color: var(--cor-texto-principal);
+    opacity: 0.8; /* Deixa o texto um pouco mais suave */
+    line-height: 1.5; /* Melhora a legibilidade */
+}
+
+.tabulacao-info-text strong {
+    color: var(--cor-azul-medio); /* Destaca o título */
+}

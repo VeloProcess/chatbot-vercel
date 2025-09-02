@@ -399,30 +399,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (sender === 'bot' && tabulacoes) {
-                const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
-                if (sugestoes.length > 0) {
-                    const tabulacoesContainer = document.createElement('div');
-                    tabulacoesContainer.className = 'clarification-container hidden';
-                    sugestoes.forEach(sugestao => {
-                        const button = document.createElement('button');
-                        button.className = 'clarification-item';
-                        const sugestaoLimpa = sugestao.trim();
-                        button.textContent = sugestaoLimpa;
-                        button.onclick = () => handleSendMessage(sugestaoLimpa);
-                        tabulacoesContainer.appendChild(button);
-                    });
-                    const triggerButton = document.createElement('div'); // Alterado de 'button' para 'div'
-                    triggerButton.className = 'tabulacao-trigger-text';
-                    triggerButton.textContent = 'Veja as tabulações';
-                    triggerButton.style.marginTop = '10px';
-                    triggerButton.onclick = () => {
-                        triggerButton.classList.add('hidden');
-                        tabulacoesContainer.classList.remove('hidden');
-                    };
-                    messageContentDiv.appendChild(triggerButton);
-                    messageContentDiv.appendChild(tabulacoesContainer);
-                }
-            }
+        // Cria um container para o texto de tabulação
+        const tabulacaoTextContainer = document.createElement('div');
+        tabulacaoTextContainer.className = 'tabulacao-info-text';
+
+        // Substitui os ';' por quebras de linha para uma melhor formatação
+        const textoFormatado = tabulacoes.replace(/;/g, '<br>');
+
+        // Adiciona um título e o texto formatado
+        tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${textoFormatado}`;
+        
+        // Adiciona o container de texto à mensagem do bot
+        messageContentDiv.appendChild(tabulacaoTextContainer);
+    }
 
             if (sender === 'bot' && sourceRow) {
                 ultimaLinhaDaFonte = sourceRow;
