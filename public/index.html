@@ -11,7 +11,7 @@
                 style-src 'self' 'unsafe-inline' https://unpkg.com;
                 font-src 'self' https://unpkg.com;
                 connect-src 'self' https://www.googleapis.com https://script.google.com;">
-    <title>Veloprocess</title>
+    <title>Assistente Virtual - Veloprocess</title>
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="icon" type="image/png" href="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true">
     <link rel="stylesheet" href="style.css">
@@ -65,11 +65,9 @@
                     </div>
                 </div>
                 
-                <div class="sidebar-footer">
-                    <h2><p class="sidebar-note">Atendimento Velotax</p></h2><br><br><br>
-                    <p class="sidebar-warning"><strong>Observação: As informações aqui são de uso interno.</strong></p>
-                    <p class="sidebar-warning">Versão 3.0</p>
-                </div>
+                    <div id="product-status-container">
+                                Carregando status...
+                    </div>
             </div>
         </div>
         
@@ -100,11 +98,12 @@
                 </form>
             </div>
         </div>
+
         <div class="chat-container panel">
             <div class="chat-header">
-                    <div id="product-status-container">
-                                Carregando status...
-                    </div>
+                <button id="logout-button" title="Sair do sistema">
+                <i class='bx  bx-caret-left-square'  ></i> Deslogar
+                </button>  
                 <img src="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true" alt="Logo" class="chat-logo">
                 <h2 class="chat-title">Assistente Virtual <span class="status-indicator"></span></h2>
                 <p class="chat-subtitle">Seu assistente para processos internos</p> 
