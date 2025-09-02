@@ -45,6 +45,12 @@
     --transicao-rapida: 0.2s ease;
     --transicao-normal: 0.3s ease;
     --transicao-lenta: 0.5s ease;
+
+    --cor-destaque: var(--cor-azul-medio);
+    --cor-destaque-forte: var(--cor-azul-escuro);
+    --cor-destaque-claro: #eaf2ff; /* Mesma cor da caixa de chat */
+    --cor-texto-claro: #ffffff;
+    --cor-fundo-card: #f8f9fa;
 }
 
 body.dark-theme {
