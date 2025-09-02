@@ -164,6 +164,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=240');
   if (req.method === 'OPTIONS') return res.status(200).end();
   
     
@@ -211,7 +212,6 @@ module.exports = async function handler(req, res) {
         status: "sucesso",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
-        tabulacoes: correspondencias[0].tabulacoes, // Envia as tabulações para o frontend
         source: "Planilha"
       });
     } else {
