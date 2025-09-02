@@ -1,4 +1,28 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // >>> INÍCIO DA CORREÇÃO <<<
+    // Função autônoma para definir o tema inicial
+    function setInitialTheme() {
+        const body = document.body;
+        const themeSwitcher = document.getElementById('theme-switcher');
+        const savedTheme = localStorage.getItem('theme');
+
+        if (savedTheme === 'dark') {
+            body.classList.add('dark-theme');
+            if (themeSwitcher) { // Verifica se o botão existe na página atual
+                themeSwitcher.innerHTML = ' ☾ ';
+            }
+        } else {
+            body.classList.remove('dark-theme');
+            if (themeSwitcher) { // Verifica se o botão existe na página atual
+                themeSwitcher.innerHTML = ' ☀︎ ';
+            }
+        }
+    }
+
+    // Aplica o tema imediatamente ao carregar a página
+    setInitialTheme();
+    // >>> FIM DA CORREÇÃO <<<
+
     // ================== CONFIGURAÇÕES GLOBAIS ==================
     const DOMINIO_PERMITIDO = "@velotax.com.br";
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
