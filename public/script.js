@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Função para registrar status de login/logout no backend (versão corrigida)
+    // Função para registrar status de login/logout no backend
     function logUserStatus(status) {
         if (!dadosAtendente?.email) return;
         
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // (O restante das suas funções de setup, como updateUserStatus, checkCurrentUserStatus, etc., permanecem aqui)
+    // Função para consultar e exibir status/histórico de um usuário
     async function updateUserStatus(email) {
         if (!userStatusContainer || !email) return;
         try {
@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Função para consultar status do usuário atual
     function checkCurrentUserStatus() {
         if (dadosAtendente?.email) {
             updateUserStatus(dadosAtendente.email);
@@ -90,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ================== FUNÇÕES DE CONTROLE DE UI ==================
     function showOverlay() {
         identificacaoOverlay.classList.remove('hidden');
         appWrapper.classList.add('hidden');
@@ -100,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         appWrapper.classList.remove('hidden');
     }
 
+    // ================== LÓGICA DE AUTENTICAÇÃO ==================
     function waitForGoogleScript() {
         return new Promise((resolve, reject) => {
             const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
@@ -139,11 +142,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     timestamp: Date.now(),
                     funcao: userProfile.funcao
                 };
+
                 localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
+                
                 await logUserStatus('online');
                 hideOverlay();
                 iniciarBot();
                 checkCurrentUserStatus();
+
             } else {
                 errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
                 errorMsg.classList.remove('hidden');
@@ -164,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             localStorage.removeItem('dadosAtendenteChatbot');
         }
+
         if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
             dadosAtendente = dadosSalvos;
             logUserStatus('online');
@@ -403,35 +410,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (value) { handleSendMessage(value); }
                 });
             });
+
             if (sender === 'bot' && tabulacoes) {
-        const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
-
-        if (sugestoes.length > 0) {
-            const tabulacoesContainer = document.createElement('div');
-            tabulacoesContainer.className = 'clarification-container hidden';
-
-            sugestoes.forEach(sugestao => {
-                const button = document.createElement('button');
-                button.className = 'clarification-item';
-                const sugestaoLimpa = sugestao.trim();
-                button.textContent = sugestaoLimpa;
-                button.onclick = () => handleSendMessage(sugestaoLimpa);
-                tabulacoesContainer.appendChild(button);
-            });
-
-            const triggerButton = document.createElement('div');
-            triggerButton.className = 'tabulacao-trigger-text';
-            triggerButton.textContent = 'Veja as tabulações';
-            
-            triggerButton.onclick = () => {
-                triggerButton.classList.add('hidden');
-                tabulacoesContainer.classList.remove('hidden');
-            };
-
-            messageContentDiv.appendChild(triggerButton);
-            messageContentDiv.appendChild(tabulacoesContainer);
-        }
-    }
+                const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
+                if (sugestoes.length > 0) {
+                    const tabulacaoTextContainer = document.createElement('div');
+                    tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
+                    const textoFormatado = tabulacoes.replace(/;/g, '<br>');
+                    tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${textoFormatado}`;
+                    const triggerButton = document.createElement('button');
+                    triggerButton.className = 'clarification-item';
+                    triggerButton.textContent = 'Veja as tabulações';
+                    triggerButton.style.marginTop = '10px';
+                    triggerButton.onclick = () => {
+                        triggerButton.classList.add('hidden');
+                        tabulacaoTextContainer.classList.remove('hidden');
+                    };
+                    messageContentDiv.appendChild(triggerButton);
+                    messageContentDiv.appendChild(tabulacaoTextContainer);
+                }
+            }
 
             if (sender === 'bot' && sourceRow) {
                 ultimaLinhaDaFonte = sourceRow;
@@ -469,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function enviarFeedback(action, container, sugestao = null) {
             if (!ultimaPergunta || !ultimaLinhaDaFonte) {
-                console.error("FALHA: Feedback não enviado. 'ultimaPergunta' ou 'ultimaLinhaDaFonte' está vazio ou nulo.");
+                console.error("FALHA: Feedback não enviado.");
                 return;
             }
             container.textContent = 'Obrigado pelo feedback!';
@@ -492,35 +490,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function buscarResposta(textoDaPergunta) {
-    ultimaPergunta = textoDaPergunta;
-    ultimaLinhaDaFonte = null;
-    if (!textoDaPergunta.trim()) return;
-    showTypingIndicator();
-    try {
-        const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
-        const response = await fetch(url);
-        hideTypingIndicator();
-        if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
-        const data = await response.json();
-
-        if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
-            // ALTERAÇÃO CRÍTICA AQUI:
-            addMessage(data.resposta, 'bot', { 
-                sourceRow: data.sourceRow, 
-                source: data.source, 
-                tabulacoes: data.tabulacoes // Passa a informação de tabulações
-            });
-        } else if (data.status === 'clarification_needed') {
-            addMessage(data.resposta, 'bot', { options: data.options, source: data.source });
-        } else {
-            addMessage(data.resposta, 'bot');
-}
-    } catch (error) {
-        hideTypingIndicator();
-        addMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot');
-        console.error("Detalhes do erro:", error);
-    }
-}
+            ultimaPergunta = textoDaPergunta;
+            ultimaLinhaDaFonte = null;
+            if (!textoDaPergunta.trim()) return;
+            showTypingIndicator();
+            try {
+                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
+                const response = await fetch(url);
+                hideTypingIndicator();
+                if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
+                const data = await response.json();
+                if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
+                    addMessage(data.resposta, 'bot', { 
+                        sourceRow: data.sourceRow, 
+                        source: data.source, 
+                        tabulacoes: data.tabulacoes
+                    });
+                } else if (data.status === 'clarification_needed') {
+                    addMessage(data.resposta, 'bot', { options: data.options, source: data.source });
+                } else {
+                    addMessage(data.resposta, 'bot');
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage("Erro de conexão com o backend. Aguarde.", 'bot');
+                console.error("Detalhes do erro:", error);
+            }
+        }
 
         function handleSendMessage(text) {
             const trimmedText = text.trim();
@@ -597,6 +593,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (logoutButton) {
             logoutButton.addEventListener('click', handleLogout);
+        }
+
+        const geminiButton = document.getElementById('gemini-button');
+        if (geminiButton) {
+            geminiButton.addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
         }
 
         if (themeSwitcher) {
