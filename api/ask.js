@@ -6,7 +6,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:C";
+const FAQ_SHEET_NAME = "FAQ!A:D";
 const CACHE_DURATION_SECONDS = 0; // Cache desativado para atualizações instantâneas
 
 // --- CONFIGURAÇÃO DA IA ---
@@ -100,12 +100,13 @@ function findMatches(pergunta, faqData) {
     });
 
     if (relevanceScore > 0) {
-      todasAsCorrespondencias.push({
-        resposta: linhaAtual[idxResposta],
-        perguntaOriginal: textoPerguntaOriginal,
-        sourceRow: i + 2,
-        score: relevanceScore 
-      });
+    todasAsCorrespondencias.push({
+      resposta: linhaAtual[idxResposta],
+      perguntaOriginal: textoPerguntaOriginal,
+      sourceRow: i + 2,
+      score: relevanceScore,
+      tabulacoes: linhaAtual[3] || null // Adiciona o conteúdo da coluna D
+    });
     }
   }
   
@@ -210,6 +211,7 @@ module.exports = async function handler(req, res) {
         status: "sucesso",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
+        tabulacoes: correspondencias[0].tabulacoes, // Envia as tabulações para o frontend
         source: "Planilha"
       });
     } else {
