@@ -1,67 +1,61 @@
-// api/getNews.js
+// api/getNews.js (Versão com Cache)
 
 const { google } = require('googleapis');
 
-// --- CONFIGURAÇÃO ---
-// Recomendo usar Variáveis de Ambiente para isso, como em seus outros arquivos.
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const NEWS_SHEET_NAME = "Noticias!A:D"; // O intervalo exato que queremos ler
+const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
+const NEWS_SHEET_NAME = "Noticias!A:D";
+const CACHE_DURATION_SECONDS = 180; // Cache de 3 minutos
 
-// --- CLIENTE GOOGLE SHEETS ---
 const auth = new google.auth.GoogleAuth({
-        credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'], // Apenas leitura é necessário
+  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
+  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
-
 const sheets = google.sheets({ version: 'v4', auth });
 
-// --- A FUNÇÃO PRINCIPAL DA API (HANDLER) ---
+let cache = { timestamp: null, data: null };
+
 module.exports = async function handler(req, res) {
-  // --- CONFIGURAÇÃO CORS ---
-  // IMPORTANTE: Em produção, restrinja para a URL do seu site.
-            res.setHeader('Access-Control-Allow-Origin', '*'); 
-            res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
-    if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-    }
+  const now = new Date();
+  
+  // Verifica se o cache é válido
+  if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
+    console.log("Servindo notícias do cache.");
+    return res.status(200).json(cache.data);
+  }
 
-    try {
+  try {
+    console.log("Buscando notícias da Planilha Google.");
     const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: NEWS_SHEET_NAME,
+      spreadsheetId: SPREADSHEET_ID,
+      range: NEWS_SHEET_NAME,
     });
 
     const rows = response.data.values || [];
+    let newsData = [];
 
-    if (rows.length < 2) {
-      // Se não houver dados (só o cabeçalho ou vazio)
-        return res.status(200).json({ news: [] });
-    }
-
-    // Transforma o array de arrays em um array de objetos (muito melhor para o frontend)
-    const header = rows[0];
-    const newsData = rows.slice(1).map(row => {
+    if (rows.length >= 2) {
+      const header = rows[0];
+      newsData = rows.slice(1).map(row => {
         const newsItem = {};
         header.forEach((key, index) => {
-        // Normaliza o nome da chave para ser usado em JS (ex: "PublicadoEm" -> "publicadoEm")
-        const formattedKey = key.charAt(0).toLowerCase() + key.slice(1);
-        newsItem[formattedKey] = row[index] || '';
+          const formattedKey = key.charAt(0).toLowerCase() + key.slice(1);
+          newsItem[formattedKey] = row[index] || '';
         });
         return newsItem;
-    });
-
-      const reversedNews = newsData.reverse();
-
-    return res.status(200).json({ news: newsData.reverse() });
-    
-    } catch (error) {
-    console.error("ERRO AO BUSCAR NOTÍCIAS:", error);
-    return res.status(500).json({ 
-        error: "Erro interno ao buscar as notícias.", 
-        details: error.message 
-    });
+      });
     }
+
+    const responseData = { news: newsData.reverse() };
     
+    // Salva a nova resposta no cache
+    cache = { timestamp: now, data: responseData };
+    
+    return res.status(200).json(responseData);
+
+  } catch (error) {
+    console.error("ERRO AO BUSCAR NOTÍCIAS:", error);
+    return res.status(500).json({ error: "Erro interno ao buscar as notícias." });
+  }
 };
