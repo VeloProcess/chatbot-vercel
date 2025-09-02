@@ -25,28 +25,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Função para registrar status de login/logout no backend
-    async function logUserStatus(status) {
+    // Função para registrar status de login/logout no backend (versão corrigida)
+    function logUserStatus(status) {
         if (!dadosAtendente?.email) return;
-        try {
-            await fetch('/api/logQuestion', {
+        
+        const url = '/api/logQuestion';
+        const data = JSON.stringify({
+            type: 'access',
+            payload: {
+                email: dadosAtendente.email,
+                status: status,
+                sessionId: sessionId
+            }
+        });
+
+        if (navigator.sendBeacon) {
+            const blob = new Blob([data], { type: 'application/json' });
+            navigator.sendBeacon(url, blob);
+        } else {
+            fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'access',
-                    payload: {
-                        email: dadosAtendente.email,
-                        status: status,
-                        sessionId: sessionId
-                    }
-                })
+                body: data,
+                keepalive: true
+            }).catch(error => {
+                console.error(`Erro ao registrar status ${status}:`, error);
             });
-        } catch (error) {
-            console.error(`Erro ao registrar status ${status}:`, error);
         }
     }
 
-    // Função para consultar e exibir status/histórico de um usuário
+    // (O restante das suas funções de setup, como updateUserStatus, checkCurrentUserStatus, etc., permanecem aqui)
     async function updateUserStatus(email) {
         if (!userStatusContainer || !email) return;
         try {
@@ -75,7 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Função para consultar status do usuário atual
     function checkCurrentUserStatus() {
         if (dadosAtendente?.email) {
             updateUserStatus(dadosAtendente.email);
@@ -83,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ================== FUNÇÕES DE CONTROLE DE UI ==================
     function showOverlay() {
         identificacaoOverlay.classList.remove('hidden');
         appWrapper.classList.add('hidden');
@@ -94,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
         appWrapper.classList.remove('hidden');
     }
 
-    // ================== LÓGICA DE AUTENTICAÇÃO ==================
     function waitForGoogleScript() {
         return new Promise((resolve, reject) => {
             const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
@@ -134,14 +139,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     timestamp: Date.now(),
                     funcao: userProfile.funcao
                 };
-
                 localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
-                
                 await logUserStatus('online');
                 hideOverlay();
                 iniciarBot();
                 checkCurrentUserStatus();
-
             } else {
                 errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
                 errorMsg.classList.remove('hidden');
@@ -162,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             localStorage.removeItem('dadosAtendenteChatbot');
         }
-
         if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
             dadosAtendente = dadosSalvos;
             logUserStatus('online');
@@ -239,9 +240,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.body;
         const questionSearch = document.getElementById('question-search');
         const logoutButton = document.getElementById('logout-button');
-        
         const expandableHeader = document.getElementById('expandable-faq-header');
         const moreQuestions = document.getElementById('more-questions');
+        
         if (expandableHeader && moreQuestions) {
             expandableHeader.addEventListener('click', () => {
                 moreQuestions.classList.toggle('hidden');
@@ -262,9 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newsListContainer = document.getElementById('news-list');
             try {
                 const response = await fetch('/api/getNews');
-                if (!response.ok) {
-                    throw new Error('Falha ao buscar notícias da API.');
-                }
+                if (!response.ok) throw new Error('Falha ao buscar notícias da API.');
                 const data = await response.json();
                 newsListContainer.innerHTML = '';
                 if (!data.news || data.news.length === 0) {
@@ -273,12 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 data.news.forEach(item => {
                     const newsItemDiv = document.createElement('div');
-                    newsItemDiv.className = `news-item ${item.tipo.toLowerCase().trim()}-alert`; // Adicionado trim e toLowerCase por segurança
-                    newsItemDiv.innerHTML = `
-                        <h2>${item.titulo}</h2>
-                        <small>Publicado em: ${item.publicadoEm}</small>
-                        <p>${item.conteudo}</p>
-                    `;
+                    newsItemDiv.className = `news-item ${item.tipo.toLowerCase().trim()}-alert`;
+                    newsItemDiv.innerHTML = `<h2>${item.titulo}</h2><small>Publicado em: ${item.publicadoEm}</small><p>${item.conteudo}</p>`;
                     newsListContainer.appendChild(newsItemDiv);
                 });
             } catch (error) {
@@ -288,44 +283,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function carregarStatusProdutos() {
-    const container = document.getElementById('product-status-container');
-    try {
-            const response = await fetch('/api/getProductStatus');
-            if (!response.ok) throw new Error('API falhou');
-            
-            const data = await response.json();
-            
-            const productList = document.createElement('ul'); // Cria uma lista
-            productList.style.padding = '0';
-
-            data.products.forEach(p => {
-                const listItem = document.createElement('li'); // Cria um item de lista
-                listItem.className = 'product-status-item';
-
-                const statusSpan = document.createElement('span');
-                statusSpan.className = 'status';
-                statusSpan.textContent = p.status;
-                
-                if (p.status === 'Disponível') {
-                    statusSpan.classList.add('status-disponivel');
-                } else {
-                    statusSpan.classList.add('status-indisponivel');
-                }
-                
-                // Adiciona o nome do produto e o status no item
-                listItem.textContent = `${p.produto} `;
-                listItem.appendChild(statusSpan);
-                productList.appendChild(listItem);
-            });
-
-            container.innerHTML = ''; // Limpa o "Carregando..."
-            container.appendChild(productList); // Adiciona a lista completa
-
-        } catch (error) {
-            container.textContent = 'Erro ao carregar status.';
-            console.error("Erro ao carregar status dos produtos:", error);
+            const container = document.getElementById('product-status-container');
+            try {
+                const response = await fetch('/api/getProductStatus');
+                if (!response.ok) throw new Error('API falhou');
+                const data = await response.json();
+                const productList = document.createElement('ul');
+                productList.style.padding = '0';
+                data.products.forEach(p => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'product-status-item';
+                    const statusSpan = document.createElement('span');
+                    statusSpan.className = 'status';
+                    statusSpan.textContent = p.status;
+                    if (p.status === 'Disponível') {
+                        statusSpan.classList.add('status-disponivel');
+                    } else {
+                        statusSpan.classList.add('status-indisponivel');
+                    }
+                    listItem.textContent = `${p.produto} `;
+                    listItem.appendChild(statusSpan);
+                    productList.appendChild(listItem);
+                });
+                container.innerHTML = '';
+                container.appendChild(productList);
+            } catch (error) {
+                container.textContent = 'Erro ao carregar status.';
+                console.error("Erro ao carregar status dos produtos:", error);
+            }
         }
-}
 
         if (dadosAtendente && dadosAtendente.funcao === 'Gestor') {
             const dashboardLink = document.getElementById('manager-dashboard-link');
@@ -333,17 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 dashboardLink.classList.remove('hidden');
             }
         }
-
-        document.getElementById('gemini-button').addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
-
-        questionSearch.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const questions = document.querySelectorAll('#quick-questions-list li, #more-questions-list-frequentes li');
-            questions.forEach(question => {
-                const text = question.textContent.toLowerCase();
-                question.classList.toggle('hidden', !text.includes(searchTerm));
-            });
-        });
 
         function showTypingIndicator() {
             if (isTyping) return;
@@ -367,19 +342,16 @@ document.addEventListener('DOMContentLoaded', () => {
             messageContainer.className = `message-container ${sender}`;
             const avatar = document.createElement('div');
             avatar.className = `avatar ${sender}`;
-
             if (sender === 'bot' && source === 'IA') {
                 avatar.textContent = '✦';
                 avatar.title = 'Resposta gerada por IA';
             } else {
                 avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
             }
-
             const messageContentDiv = document.createElement('div');
             messageContentDiv.className = 'message-content';
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message';
-
             let isComplexResponse = false;
             if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
                 try {
@@ -408,9 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         messageDiv.innerHTML = '';
                         messageDiv.appendChild(accordionContainer);
                     }
-                } catch (e) {
-                    isComplexResponse = false;
-                }
+                } catch (e) { isComplexResponse = false; }
             }
             if (!isComplexResponse) {
                 const parseInlineButtons = (rawText) => {
@@ -424,35 +394,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 const textWithButtons = parseInlineButtons(text);
                 messageDiv.innerHTML = marked.parse(textWithButtons);
             }
-
             messageContentDiv.appendChild(messageDiv);
             messageContainer.appendChild(avatar);
             messageContainer.appendChild(messageContentDiv);
-
             messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
                 button.addEventListener('click', () => {
                     const value = button.getAttribute('data-value');
-                    if (value) {
-                        handleSendMessage(value);
-                    }
+                    if (value) { handleSendMessage(value); }
                 });
             });
-
             if (sender === 'bot' && tabulacoes) {
-        // Cria um container para o texto de tabulação
-        const tabulacaoTextContainer = document.createElement('div');
-        tabulacaoTextContainer.className = 'tabulacao-info-text';
-
-        // Substitui os ';' por quebras de linha para uma melhor formatação
-        const textoFormatado = tabulacoes.replace(/;/g, '<br>');
-
-        // Adiciona um título e o texto formatado
-        tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${textoFormatado}`;
-        
-        // Adiciona o container de texto à mensagem do bot
-        messageContentDiv.appendChild(tabulacaoTextContainer);
-    }
-
+                const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
+                if (sugestoes.length > 0) {
+                    const tabulacoesContainer = document.createElement('div');
+                    tabulacoesContainer.className = 'clarification-container hidden';
+                    sugestoes.forEach(sugestao => {
+                        const button = document.createElement('button');
+                        button.className = 'clarification-item';
+                        const sugestaoLimpa = sugestao.trim();
+                        button.textContent = sugestaoLimpa;
+                        button.onclick = () => handleSendMessage(sugestaoLimpa);
+                        tabulacoesContainer.appendChild(button);
+                    });
+                    const triggerButton = document.createElement('div');
+                    triggerButton.className = 'tabulacao-trigger-text';
+                    triggerButton.textContent = 'Veja as tabulações';
+                    triggerButton.style.marginTop = '10px';
+                    triggerButton.onclick = () => {
+                        triggerButton.classList.add('hidden');
+                        tabulacoesContainer.classList.remove('hidden');
+                    };
+                    messageContentDiv.appendChild(triggerButton);
+                    messageContentDiv.appendChild(tabulacoesContainer);
+                }
+            }
             if (sender === 'bot' && sourceRow) {
                 ultimaLinhaDaFonte = sourceRow;
                 const feedbackContainer = document.createElement('div');
@@ -471,7 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 feedbackContainer.appendChild(negativeBtn);
                 messageContentDiv.appendChild(feedbackContainer);
             }
-
             if (sender === 'bot' && options.length > 0) {
                 const optionsContainer = document.createElement('div');
                 optionsContainer.className = 'clarification-container';
@@ -484,7 +458,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 messageContentDiv.appendChild(optionsContainer);
             }
-
             chatBox.appendChild(messageContainer);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
@@ -524,13 +497,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideTypingIndicator();
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
-
                 if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
-                    // >>>>>>>>> AQUI ESTÁ A CORREÇÃO <<<<<<<<<<
                     addMessage(data.resposta, 'bot', { 
                         sourceRow: data.sourceRow, 
                         source: data.source, 
-                        tabulacoes: data.tabulacoes // Passando a informação de tabulações
+                        tabulacoes: data.tabulacoes
                     });
                 } else if (data.status === 'clarification_needed') {
                     addMessage(data.resposta, 'bot', { options: data.options, source: data.source });
@@ -565,13 +536,6 @@ document.addEventListener('DOMContentLoaded', () => {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
 
-        themeSwitcher.addEventListener('click', () => {
-            body.classList.toggle('dark-theme');
-            const isDark = body.classList.contains('dark-theme');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            themeSwitcher.innerHTML = isDark ? '☾' : '☀︎';
-        });
-
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
@@ -590,17 +554,21 @@ document.addEventListener('DOMContentLoaded', () => {
             activeFeedbackContainer = null;
         }
 
-        if (feedbackCancelBtn) feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
+        if (feedbackCancelBtn) {
+            feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
+        }
 
-        if (feedbackSendBtn) feedbackSendBtn.addEventListener('click', () => {
-            const sugestao = feedbackText ? feedbackText.value.trim() : '';
-            if (activeFeedbackContainer) {
-                enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
-                fecharModalFeedback();
-            } else {
-                console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
-            }
-        });
+        if (feedbackSendBtn) {
+            feedbackSendBtn.addEventListener('click', () => {
+                const sugestao = feedbackText ? feedbackText.value.trim() : '';
+                if (activeFeedbackContainer) {
+                    enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
+                    fecharModalFeedback();
+                } else {
+                    console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
+                }
+            });
+        }
 
         function setInitialTheme() {
             const savedTheme = localStorage.getItem('theme');
@@ -620,13 +588,24 @@ document.addEventListener('DOMContentLoaded', () => {
             location.reload();
         }
 
-        logoutButton.addEventListener('click', handleLogout);
+        if (logoutButton) {
+            logoutButton.addEventListener('click', handleLogout);
+        }
+
+        if (themeSwitcher) {
+            themeSwitcher.addEventListener('click', () => {
+                body.classList.toggle('dark-theme');
+                const isDark = body.classList.contains('dark-theme');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                themeSwitcher.innerHTML = isDark ? '☾' : '☀︎';
+            });
+        }
 
         const primeiroNome = dadosAtendente.nome.split(' ')[0];
         addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot');
         setInitialTheme();
         carregarNoticias();
-        carregarStatusProdutos(); // <<< ADICIONE ESTA LINHA
+        carregarStatusProdutos();
     }
 
     // Inicia todo o processo de autenticação
