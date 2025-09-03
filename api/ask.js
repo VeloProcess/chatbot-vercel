@@ -222,7 +222,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         status: "clarification_needed",
         resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8),
+        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
         source: "Planilha",
         sourceRow: 'Pergunta de Esclarecimento' // Adiciona uma referência
       });
