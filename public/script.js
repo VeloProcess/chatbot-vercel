@@ -496,6 +496,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             container.textContent = 'Obrigado pelo feedback!';
             container.className = 'feedback-thanks';
+
+                console.log("Enviando para a API de Feedback:", { action, question: ultimaPergunta, sourceRow: ultimaLinhaDaFonte, email: dadosAtendente.email, sugestao });
             try {
                 await fetch('/api/feedback', {
                     method: 'POST',
