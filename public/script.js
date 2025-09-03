@@ -526,20 +526,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideTypingIndicator();
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
+
+                // Bloco corrigido para repassar TODAS as informações para addMessage
                 if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
                     addMessage(data.resposta, 'bot', { 
-                        sourceRow: data.sourceRow, 
+                        sourceRow: data.sourceRow, // sourceRow pode ser um número ou 'Resposta da IA'
                         source: data.source, 
                         tabulacoes: data.tabulacoes
                     });
                 } else if (data.status === 'clarification_needed') {
-                    addMessage(data.resposta, 'bot', { options: data.options, source: data.source });
+                    addMessage(data.resposta, 'bot', { 
+                        options: data.options, 
+                        source: data.source,
+                        sourceRow: data.sourceRow // sourceRow será 'Pergunta de Esclarecimento'
+                    });
                 } else {
-                    addMessage(data.resposta, 'bot');
+                    addMessage(data.resposta, 'bot', {
+                        sourceRow: 'Erro do Bot' // Adiciona uma referência para erros
+                    });
                 }
             } catch (error) {
                 hideTypingIndicator();
-                addMessage("Erro de conexão com o backend. Aguarde.", 'bot');
+                addMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot', { sourceRow: 'Erro de Conexão' });
                 console.error("Detalhes do erro:", error);
             }
         }
