@@ -202,7 +202,8 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
           status: "sucesso_ia",
           resposta: respostaDaIA,
-          source: "IA" // Informa ao frontend que a resposta veio da IA
+          source: "IA",
+          sourceRow: 'Resposta da IA' // Adiciona uma referência
       });
     }
 
@@ -220,8 +221,9 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         status: "clarification_needed",
         resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 10),
-        source: "Planilha"
+        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8),
+        source: "Planilha",
+        sourceRow: 'Pergunta de Esclarecimento' // Adiciona uma referência
       });
     }
   } catch (error) {
