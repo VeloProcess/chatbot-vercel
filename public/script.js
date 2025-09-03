@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            if (sender === 'bot' && sourceRow) {
+             if (sender === 'bot') { // <-- CONDIÇÃO ALTERADA AQUI
                 ultimaLinhaDaFonte = sourceRow;
                 const feedbackContainer = document.createElement('div');
                 feedbackContainer.className = 'feedback-container';
