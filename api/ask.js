@@ -184,7 +184,8 @@ module.exports = async function handler(req, res) {
           status: "clarification_needed",
           resposta: "Você quer qual informação sobre crédito?",
           options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal"],
-          source: "Planilha" // A fonte é a planilha, pois as opções levarão a respostas de lá.
+          source: "Planilha",
+          sourceRow: 'Pergunta de Esclarecimento' // <-- A LINHA QUE FALTAVA
         });
     }
     // --- FIM DO NOVO BLOCO ---
@@ -199,11 +200,11 @@ module.exports = async function handler(req, res) {
       await logIaUsage(email, pergunta); // Registra que a IA foi acionada
       const respostaDaIA = await askGemini(pergunta);
       
-      return res.status(200).json({
+        return res.status(200).json({
           status: "sucesso_ia",
           resposta: respostaDaIA,
           source: "IA",
-          sourceRow: 'Resposta da IA' // Adiciona uma referência
+          sourceRow: 'Resposta da IA' // <-- ADICIONADO AQUI
       });
     }
 
