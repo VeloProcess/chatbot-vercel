@@ -99,16 +99,29 @@ function findMatches(pergunta, faqData) {
   return correspondenciasUnicas;
 }
 
-// Substitua sua função askHuggingFace por esta versão corrigida
+// Substitua sua função askHuggingFace por esta versão com o prompt aprimorado
 async function askHuggingFace(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
-    // O prompt para chatCompletion é um array de mensagens, o que é mais estruturado.
+    // --- NOVO PROMPT APRIMORADO E MAIS RIGOROSO ---
     const messages = [
-        { role: "system", content: "Você é o VeloBot, um assistente de IA especialista nos processos internos da empresa Velotax. Sua tarefa é responder à pergunta de um atendente de suporte de forma clara, profissional e direta, utilizando o contexto fornecido. Se o contexto for 'Nenhum', use seu conhecimento geral, mas avise que a informação não foi validada na base interna." },
-        { role: "user", content: `Com base no CONTEXTO abaixo, responda à PERGUNTA.\n\nCONTEXTO:\n${contextoDaPlanilha}\n\nPERGUNTA:\n${pergunta}` }
+        { 
+            role: "system", 
+            content: `Você é o VeloBot, um assistente de IA especialista e de alta precisão para a equipe de suporte da Velotax.
+Sua função principal é analisar o CONTEXTO, que é extraído da base de conhecimento oficial, e usá-lo para responder à PERGUNTA do atendente. O CONTEXTO é sua única fonte da verdade.
+
+REGRAS RÍGIDAS:
+1. Responda APENAS com informações contidas no CONTEXTO. Não utilize nenhum conhecimento externo.
+2. Se a resposta para a PERGUNTA não estiver no CONTEXTO, ou se o contexto for 'Nenhum', responda EXATAMENTE e apenas isto: "Não encontrei uma resposta para esta pergunta na base de conhecimento."
+3. Formate sua resposta para ser clara e rápida de ler. Use **negrito** para termos importantes e listas com marcadores (*) ou números (1., 2.) para passo a passo.
+4. Mantenha um tom profissional, direto e de especialista. Você é uma ferramenta de precisão para seus colegas.` 
+        },
+        { 
+            role: "user", 
+            content: `CONTEXTO:\n---\n${contextoDaPlanilha}\n---\n\nPERGUNTA:\n${pergunta}` 
+        }
     ];
 
-    // Mudamos de hf.textGeneration para hf.chatCompletion
+    // Chamada à API (continua a mesma)
     const result = await hf.chatCompletion({
       model: modeloHf,
       messages: messages,
@@ -119,16 +132,13 @@ async function askHuggingFace(pergunta, contextoDaPlanilha = "Nenhum") {
       }
     });
     
-    // A forma de extrair a resposta também mudou para o padrão de chat
     return result.choices[0].message.content;
 
   } catch (error) {
-    // Agora o log de erro será muito mais detalhado
     console.error("ERRO DETALHADO AO CHAMAR A API DO HUGGING FACE:", error);
-    return "Desculpe, não consegui processar sua pergunta neste momento tenta reformular ou pergunte com palavras-chave, assim eu consigo te ajudar.";
+    return "Desculpe, não consegui processar sua pergunta neste momento. Por favor, tente novamente.";
   }
 }
-
 // --- FUNÇÃO PRINCIPAL DA API (HANDLER) COM LÓGICA COMPLETA ---
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
