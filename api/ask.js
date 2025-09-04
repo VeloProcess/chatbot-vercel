@@ -99,7 +99,6 @@ function findMatches(pergunta, faqData) {
   return correspondenciasUnicas;
 }
 
-// Substitua sua função askHuggingFace por esta versão com depuração avançada
 // Substitua sua função askHuggingFace por esta versão corrigida
 async function askHuggingFace(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
