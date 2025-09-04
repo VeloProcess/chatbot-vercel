@@ -101,31 +101,44 @@ function findMatches(pergunta, faqData) {
 
 // --- NOVA FUNÇÃO DE IA COM HUGGING FACE ---
 // >>> SUBSTITUA SUA FUNÇÃO askHuggingFace POR ESTA <<<
+// Substitua sua função askHuggingFace por esta versão aprimorada
 async function askHuggingFace(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
-    // O prompt para chatCompletion é um array de mensagens, o que é mais estruturado.
-    const messages = [
-        { role: "system", content: "Você é o VeloBot, um assistente de IA especialista nos processos da Velotax. Sua tarefa é responder à pergunta de um atendente de suporte de forma clara, profissional e direta, utilizando o contexto fornecido. Se o contexto for 'Nenhum', use seu conhecimento geral, mas avise que a informação não foi validada na base interna." },
-        { role: "user", content: `Com base no CONTEXTO abaixo, responda à PERGUNTA.\n\nCONTEXTO:\n${contextoDaPlanilha}\n\nPERGUNTA:\n${pergunta}` }
-    ];
+    // --- PROMPT MELHORADO E MAIS RIGOROSO ---
+    const prompt = `<s>[INST]
+### VOCÊ É O VELOBOT
+Você é um assistente de IA especialista nos processos internos da empresa Velotax. Sua única fonte da verdade é o CONTEXTO fornecido.
 
-    // Mudamos de hf.textGeneration para hf.chatCompletion
-    const result = await hf.chatCompletion({
+### REGRAS RÍGIDAS
+1.  **NÃO USE CONHECIMENTO EXTERNO.** Sua resposta deve ser baseada **exclusivamente** no CONTEXTO abaixo.
+2.  Se a resposta para a pergunta não estiver no CONTEXTO, responda **apenas**: "A resposta para esta pergunta não foi encontrada na base de conhecimento." e pare.
+3.  **NÃO ALTERE A PERGUNTA.** Responda exatamente o que o atendente perguntou.
+4.  Seja direto e use formatação clara (negrito e listas) para facilitar a leitura.
+
+### CONTEXTO DA BASE DE CONHECIMENTO
+${contextoDaPlanilha}
+
+### PERGUNTA DO ATENDENTE
+${pergunta}
+[/INST]`;
+
+    const result = await hf.textGeneration({
       model: modeloHf,
-      messages: messages,
+      inputs: prompt,
+      // --- PARÂMETROS AJUSTADOS PARA MAIS PRECISÃO ---
       parameters: {
         max_new_tokens: 300,
-        temperature: 0.5,
-        repetition_penalty: 1.1
+        temperature: 0.1,       // Reduzido para respostas mais focadas e menos criativas
+        repetition_penalty: 1.2,
+        return_full_text: false // Para não incluir o prompt na resposta
       }
     });
     
-    // A forma de extrair a resposta também mudou para o padrão de chat
-    return result.choices[0].message.content;
+    return result.generated_text.trim();
 
   } catch (error) {
     console.error("ERRO AO CHAMAR A API DO HUGGING FACE:", error);
-    return "Desculpe, não consegui processar sua pergunta com a IA do Hugging Face neste momento.";
+    return "Desculpe, não consegui processar sua pergunta neste momento tenta reformular ou pergunte com palavras-chave, assim eu consigo te ajudar.";
   }
 }
 
