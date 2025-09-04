@@ -99,25 +99,19 @@ function findMatches(pergunta, faqData) {
   return correspondenciasUnicas;
 }
 
-// --- NOVA FUNÇÃO DE IA COM HUGGING FACE ---
-// >>> SUBSTITUA SUA FUNÇÃO askHuggingFace POR ESTA <<<
-// Substitua sua função askHuggingFace por esta versão aprimorada
+// Substitua sua função askHuggingFace por esta versão com depuração avançada
 async function askHuggingFace(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
-    // --- PROMPT MELHORADO E MAIS RIGOROSO ---
     const prompt = `<s>[INST]
 ### VOCÊ É O VELOBOT
 Você é um assistente de IA especialista nos processos internos da empresa Velotax. Sua única fonte da verdade é o CONTEXTO fornecido.
-
 ### REGRAS RÍGIDAS
 1.  **NÃO USE CONHECIMENTO EXTERNO.** Sua resposta deve ser baseada **exclusivamente** no CONTEXTO abaixo.
 2.  Se a resposta para a pergunta não estiver no CONTEXTO, responda **apenas**: "A resposta para esta pergunta não foi encontrada na base de conhecimento." e pare.
 3.  **NÃO ALTERE A PERGUNTA.** Responda exatamente o que o atendente perguntou.
 4.  Seja direto e use formatação clara (negrito e listas) para facilitar a leitura.
-
 ### CONTEXTO DA BASE DE CONHECIMENTO
 ${contextoDaPlanilha}
-
 ### PERGUNTA DO ATENDENTE
 ${pergunta}
 [/INST]`;
@@ -125,19 +119,30 @@ ${pergunta}
     const result = await hf.textGeneration({
       model: modeloHf,
       inputs: prompt,
-      // --- PARÂMETROS AJUSTADOS PARA MAIS PRECISÃO ---
       parameters: {
         max_new_tokens: 300,
-        temperature: 0.1,       // Reduzido para respostas mais focadas e menos criativas
+        temperature: 0.1,
         repetition_penalty: 1.2,
-        return_full_text: false // Para não incluir o prompt na resposta
+        return_full_text: false
       }
     });
+
+    // --- NOVO BLOCO DE VERIFICAÇÃO ---
+    // Logamos a resposta completa da API para análise
+    console.log("Resposta completa da API Hugging Face:", JSON.stringify(result, null, 2));
+
+    // Verificamos se a resposta tem o formato esperado
+    if (!result || typeof result.generated_text !== 'string') {
+      // Se a API retornou um erro (ex: { "error": "..." }), ele será logado acima
+      throw new Error("A resposta da API do Hugging Face não continha o campo 'generated_text' esperado.");
+    }
+    // --- FIM DO NOVO BLOCO ---
     
     return result.generated_text.trim();
 
   } catch (error) {
-    console.error("ERRO AO CHAMAR A API DO HUGGING FACE:", error);
+    // Agora o log de erro será muito mais detalhado
+    console.error("ERRO DETALHADO AO CHAMAR A API DO HUGGING FACE:", error);
     return "Desculpe, não consegui processar sua pergunta neste momento tenta reformular ou pergunte com palavras-chave, assim eu consigo te ajudar.";
   }
 }
