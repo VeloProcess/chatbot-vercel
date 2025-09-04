@@ -100,45 +100,28 @@ function findMatches(pergunta, faqData) {
 }
 
 // Substitua sua função askHuggingFace por esta versão com depuração avançada
+// Substitua sua função askHuggingFace por esta versão corrigida
 async function askHuggingFace(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
-    const prompt = `<s>[INST]
-### VOCÊ É O VELOBOT
-Você é um assistente de IA especialista nos processos internos da empresa Velotax. Sua única fonte da verdade é o CONTEXTO fornecido.
-### REGRAS RÍGIDAS
-1.  **NÃO USE CONHECIMENTO EXTERNO.** Sua resposta deve ser baseada **exclusivamente** no CONTEXTO abaixo.
-2.  Se a resposta para a pergunta não estiver no CONTEXTO, responda **apenas**: "A resposta para esta pergunta não foi encontrada na base de conhecimento." e pare.
-3.  **NÃO ALTERE A PERGUNTA.** Responda exatamente o que o atendente perguntou.
-4.  Seja direto e use formatação clara (negrito e listas) para facilitar a leitura.
-### CONTEXTO DA BASE DE CONHECIMENTO
-${contextoDaPlanilha}
-### PERGUNTA DO ATENDENTE
-${pergunta}
-[/INST]`;
+    // O prompt para chatCompletion é um array de mensagens, o que é mais estruturado.
+    const messages = [
+        { role: "system", content: "Você é o VeloBot, um assistente de IA especialista nos processos internos da empresa Velotax. Sua tarefa é responder à pergunta de um atendente de suporte de forma clara, profissional e direta, utilizando o contexto fornecido. Se o contexto for 'Nenhum', use seu conhecimento geral, mas avise que a informação não foi validada na base interna." },
+        { role: "user", content: `Com base no CONTEXTO abaixo, responda à PERGUNTA.\n\nCONTEXTO:\n${contextoDaPlanilha}\n\nPERGUNTA:\n${pergunta}` }
+    ];
 
-    const result = await hf.textGeneration({
+    // Mudamos de hf.textGeneration para hf.chatCompletion
+    const result = await hf.chatCompletion({
       model: modeloHf,
-      inputs: prompt,
+      messages: messages,
       parameters: {
         max_new_tokens: 300,
         temperature: 0.1,
-        repetition_penalty: 1.2,
-        return_full_text: false
+        repetition_penalty: 1.1
       }
     });
-
-    // --- NOVO BLOCO DE VERIFICAÇÃO ---
-    // Logamos a resposta completa da API para análise
-    console.log("Resposta completa da API Hugging Face:", JSON.stringify(result, null, 2));
-
-    // Verificamos se a resposta tem o formato esperado
-    if (!result || typeof result.generated_text !== 'string') {
-      // Se a API retornou um erro (ex: { "error": "..." }), ele será logado acima
-      throw new Error("A resposta da API do Hugging Face não continha o campo 'generated_text' esperado.");
-    }
-    // --- FIM DO NOVO BLOCO ---
     
-    return result.generated_text.trim();
+    // A forma de extrair a resposta também mudou para o padrão de chat
+    return result.choices[0].message.content;
 
   } catch (error) {
     // Agora o log de erro será muito mais detalhado
