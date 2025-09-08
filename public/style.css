@@ -45,7 +45,14 @@
     --transicao-rapida: 0.2s ease;
     --transicao-normal: 0.3s ease;
     --transicao-lenta: 0.5s ease;
+
+    --cor-destaque: var(--cor-azul-medio);
+    --cor-destaque-forte: var(--cor-azul-escuro);
+    --cor-destaque-claro: #eaf2ff; /* Fundo sutil para hover */
+    --cor-texto-claro: #ffffff;
+    --cor-fundo-card: #f8f9fa; /* Fundo padrão para cards/perguntas */
 }
+
 
 body.dark-theme {
     --cor-fundo: #121212;
@@ -64,6 +71,12 @@ body.dark-theme {
     --cor-erro: #c62828;
     --cor-alerta: #FFA000;
     --cor-info: #1976D2;
+    --cor-destaque: #3a9bff; /* Azul médio mais claro para dark theme */
+    --cor-destaque-forte: #87c3ff; /* Azul escuro mais claro para dark theme */
+    --cor-destaque-claro: #2c3e50; /* Cor de fundo sutil (balão do bot dark) */
+    --cor-texto-claro: #e0e0e0; /* Texto claro para dark theme */
+    --cor-fundo-card: #2a2a2a; /* Fundo para cards/perguntas dark theme */
+
 }
 
 
@@ -606,11 +619,11 @@ body.dark-theme .expandable-header:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px var(--cor-sombra);
 }
-.critical-alert {
+.critico-alert {
     border-left-color: var(--cor-erro);
     background: rgba(255, 77, 77, 0.1);
 }
-.warning-alert {
+.alerta-alert {
     border-left-color: var(--cor-alerta);
     background: rgba(255, 152, 0, 0.1);
 }
@@ -767,4 +780,92 @@ body.dark-theme .expandable-header:hover {
     border-color: var(--cor-azul-escuro); /* Borda acompanha a cor de hover */
     transform: translateY(-3px) scale(1.03); /* Efeito "flutuante" e crescimento mais pronunciado */
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Sombra mais intensa no hover */
+}
+/* --- ESTILO PARA O TEXTO INFORMATIVO DE TABULAÇÃO --- */
+.tabulacao-info-text {
+    font-size: 14px;
+    padding: 10px;
+    margin-top: 12px;
+    border-top: 1px solid var(--cor-borda); /* Uma linha sutil para separar */
+    color: var(--cor-texto-principal);
+    opacity: 0.8; /* Deixa o texto um pouco mais suave */
+    line-height: 1.5; /* Melhora a legibilidade */
+}
+
+.tabulacao-info-text strong {
+    color: var(--cor-azul-medio); /* Destaca o título */
+}
+
+/* --- ESTILOS PARA STATUS DE PRODUTOS NA SIDEBAR --- */
+#product-status-container {
+    margin-bottom: var(--espaco-lg); /* Adiciona espaço abaixo da seção */
+    padding: 0;
+}
+
+.product-status-item {
+    font-size: 14px;
+    padding: 10px 12px;
+    margin-bottom: var(--espaco-sm);
+    border-radius: var(--borda-raio-sm);
+    background: var(--cor-fundo);
+    border: 1px solid var(--cor-borda);
+    list-style: none; /* Remove bolinhas da lista */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.product-status-item .status {
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+/* Cores de status mais vibrantes para o fundo claro/escuro */
+.status-disponivel {
+    color: white;
+    background-color: var(--cor-sucesso);
+}
+
+.status-indisponivel {
+    color: white;
+    background-color: var(--cor-erro);
+}
+
+/* --- ESTILOS PARA SKELETON LOADERS --- */
+.skeleton {
+    background-color: var(--cor-borda);
+    border-radius: 4px;
+    animation: pulse 1.5s infinite ease-in-out; /* Reutiliza sua animação 'pulse' */
+}
+
+body.dark-theme .skeleton {
+    background-color: var(--cor-borda); /* No dark theme, a borda é escura */
+}
+
+.news-item-skeleton {
+    padding: var(--espaco-md);
+    margin-bottom: var(--espaco-md);
+    background: var(--cor-caixa-chat);
+    border-radius: var(--borda-raio-sm);
+    border-left: 4px solid var(--cor-borda);
+}
+
+.skeleton-title {
+    width: 60%;
+    height: 20px;
+    margin-bottom: var(--espaco-sm);
+}
+
+.skeleton-text-small {
+    width: 30%;
+    height: 12px;
+    margin-bottom: 12px;
+}
+
+.skeleton-text {
+    width: 100%;
+    height: 16px;
+    margin-bottom: var(--espaco-sm);
 }
