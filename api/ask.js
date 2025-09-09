@@ -60,6 +60,7 @@ async function logIaUsage(email, pergunta) {
   }
 }
 
+// Substitua sua função findMatches inteira por esta versão aprimorada
 function findMatches(pergunta, faqData) {
     const cabecalho = faqData[0];
     const dados = faqData.slice(1);
@@ -71,19 +72,31 @@ function findMatches(pergunta, faqData) {
     if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
         throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
     }
+
     const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
     let todasAsCorrespondencias = [];
+
     for (let i = 0; i < dados.length; i++) {
         const linhaAtual = dados[i];
         const textoPerguntaOriginal = linhaAtual[idxPergunta] || '';
         if (!textoPerguntaOriginal) continue;
+
+        // >>> INÍCIO DA MELHORIA <<<
+        // Agora normalizamos e combinamos o texto da Pergunta (A), Palavras-chave (B) e Sinónimos (E)
+        const textoPerguntaNormalizado = normalizarTexto(textoPerguntaOriginal);
         const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
         const textoSinonimos = normalizarTexto(linhaAtual[idxSinonimos] || '');
-        const textoDeBuscaCombinado = `${textoPalavrasChave} ${textoSinonimos}`;
+        
+        const textoDeBuscaCombinado = `${textoPerguntaNormalizado} ${textoPalavrasChave} ${textoSinonimos}`;
+        // >>> FIM DA MELHORIA <<<
+        
         let relevanceScore = 0;
         palavrasDaBusca.forEach(palavra => {
-            if (textoDeBuscaCombinado.includes(palavra)) { relevanceScore++; }
+            if (textoDeBuscaCombinado.includes(palavra)) {
+                relevanceScore++;
+            }
         });
+
         if (relevanceScore > 0) {
             todasAsCorrespondencias.push({
                 resposta: linhaAtual[idxResposta],
