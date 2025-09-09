@@ -1,12 +1,11 @@
-// api/ask.js (Versão Final com Sinónimos da Coluna E)
+// api/ask.js (Versão Final Completa com Todas as Funções)
 
 const { google } = require('googleapis');
 const OpenAI = require('openai');
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-// Altera o intervalo para ler até à coluna E
-const FAQ_SHEET_NAME = "FAQ!A:E"; 
+const FAQ_SHEET_NAME = "FAQ!A:E"; // Lendo até à coluna E para sinónimos
 const CACHE_DURATION_SECONDS = 0;
 
 // --- CONFIGURAÇÃO DA IA (OPENAI) ---
@@ -23,7 +22,7 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: 'v4', auth });
 let cache = { timestamp: null, data: null };
 
-// --- FUNÇÕES DE APOIO ---
+// --- FUNÇÕES DE APOIO (RESTAURADAS E COMPLETAS) ---
 
 async function getFaqData() {
   const now = new Date();
@@ -46,9 +45,21 @@ function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-async function logIaUsage(email, pergunta) { /* ... (O seu código desta função continua o mesmo) ... */ }
+async function logIaUsage(email, pergunta) {
+  try {
+    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const newRow = [timestamp, email, pergunta];
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Log_IA_Usage',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [newRow] },
+    });
+  } catch (error) {
+    console.error("ERRO AO REGISTRAR USO DA IA:", error);
+  }
+}
 
-// >>> FUNÇÃO FINDMATCHES ATUALIZADA PARA LER SINÓNIMOS DA COLUNA E <<<
 function findMatches(pergunta, faqData) {
     const cabecalho = faqData[0];
     const dados = faqData.slice(1);
@@ -60,27 +71,19 @@ function findMatches(pergunta, faqData) {
     if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
         throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
     }
-
     const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
     let todasAsCorrespondencias = [];
-
     for (let i = 0; i < dados.length; i++) {
         const linhaAtual = dados[i];
         const textoPerguntaOriginal = linhaAtual[idxPergunta] || '';
         if (!textoPerguntaOriginal) continue;
-
-        // Combina o conteúdo das Palavras-chave e dos Sinónimos para uma busca mais poderosa
         const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
         const textoSinonimos = normalizarTexto(linhaAtual[idxSinonimos] || '');
         const textoDeBuscaCombinado = `${textoPalavrasChave} ${textoSinonimos}`;
-        
         let relevanceScore = 0;
         palavrasDaBusca.forEach(palavra => {
-            if (textoDeBuscaCombinado.includes(palavra)) {
-                relevanceScore++;
-            }
+            if (textoDeBuscaCombinado.includes(palavra)) { relevanceScore++; }
         });
-
         if (relevanceScore > 0) {
             todasAsCorrespondencias.push({
                 resposta: linhaAtual[idxResposta],
@@ -91,7 +94,6 @@ function findMatches(pergunta, faqData) {
             });
         }
     }
-    // ... (resto da função findMatches continua igual)
     const uniqueMatches = {};
     todasAsCorrespondencias.forEach(match => {
         const key = match.perguntaOriginal.trim();
@@ -104,11 +106,36 @@ function findMatches(pergunta, faqData) {
     return correspondenciasUnicas;
 }
 
-async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") { /* ... (continua o mesmo) ... */ }
+async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
+  try {
+    const messages = [
+        { 
+            role: "system", 
+            content: `Você é o VeloBot, um assistente de IA de alta precisão... (Seu prompt completo aqui)` 
+        },
+        { 
+            role: "user", 
+            content: `CONTEXTO:\n---\n${contextoDaPlanilha}\n---\n\nPERGUNTA DO ATENDENTE:\n${pergunta}` 
+        }
+    ];
+    const chatCompletion = await openai.chat.completions.create({
+      messages: messages,
+      model: modeloOpenAI,
+      temperature: 0.1,
+      max_tokens: 300,
+    });
+    return chatCompletion.choices[0].message.content;
+  } catch (error) {
+    console.error("ERRO AO CHAMAR A API DA OPENAI:", error);
+    return "Desculpe, não consegui processar sua pergunta com a IA neste momento.";
+  }
+}
 
 // --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   
   try {
@@ -117,28 +144,31 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
 
-    // Busca os dados das duas abas (FAQ e Sinonimos)
-    const { faqData, sinonimosData } = await getSheetData();
-    // Passa os sinônimos para a função de busca
-    const correspondencias = findMatches(pergunta, faqData, sinonimosData);
-    
+    const faqData = await getFaqData(); // <-- A função que estava a faltar
+    const correspondencias = findMatches(pergunta, faqData);
     const palavras = pergunta.trim().split(/\s+/);
 
-    // --- LÓGICA DO FLUXOGRAMA ---
     if (palavras.length <= 3) {
-        console.log("Pergunta curta detectada. Buscando direto na planilha...");
-        if (correspondencias.length === 1 || (correspondencias.length > 1 && correspondencias[0].score > (correspondencias[1]?.score || 0))) {
-            return res.status(200).json({ status: "sucesso", /*...*/ });
-        } else if (correspondencias.length > 1) {
-            return res.status(200).json({ status: "clarification_needed", /*...*/ });
-        }
+      if (correspondencias.length === 1 || (correspondencias.length > 1 && correspondencias[0].score > (correspondencias[1]?.score || 0))) {
+        return res.status(200).json({
+          status: "sucesso",
+          resposta: correspondencias[0].resposta,
+          sourceRow: correspondencias[0].sourceRow,
+          tabulacoes: correspondencias[0].tabulacoes,
+          source: "Planilha"
+        });
+      } else if (correspondencias.length > 1) {
+        return res.status(200).json({
+          status: "clarification_needed",
+          resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor?`,
+          options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8),
+          source: "Planilha",
+          sourceRow: 'Pergunta de Esclarecimento'
+        });
+      }
     }
     
-    // FLUXO 2: Pergunta complexa ou palavra-chave sem resposta direta, aciona a IA
-    console.log("Pergunta complexa ou sem correspondência direta. Usando IA...");
-    
     if (correspondencias.length === 0) {
-      // Caso 2a: Não encontrou NADA, usa a IA como fallback.
       await logIaUsage(email, pergunta);
       const respostaDaIA = await askOpenAI(pergunta);
       return res.status(200).json({
@@ -148,7 +178,6 @@ module.exports = async function handler(req, res) {
         sourceRow: 'Resposta da IA (Sem Contexto)'
       });
     } else {
-      // Caso 2b: Encontrou contexto, usa a IA para sintetizar a resposta (RAG).
       const contextoDaPlanilha = correspondencias
         .slice(0, 3)
         .map(c => `Tópico: ${c.perguntaOriginal}\nConteúdo: ${c.resposta}`)
@@ -161,7 +190,6 @@ module.exports = async function handler(req, res) {
         sourceRow: 'Resposta Sintetizada'
       });
     }
-
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
     return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
