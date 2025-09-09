@@ -1,12 +1,13 @@
-// api/ask.js (Versão com Busca Semântica por Embeddings)
+// api/ask.js (Versão Simplificada SEM EMBEDDINGS)
 
 const { google } = require('googleapis');
 const OpenAI = require('openai');
-const cosineSimilarity = require('cosine-similarity');
+// REMOVIDO: a dependência cosine-similarity não é mais necessária
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:F"; // Lendo até a coluna F para Embeddings
+// ALTERADO: Agora lê apenas as colunas A, B, C, D
+const FAQ_SHEET_NAME = "FAQ!A:D"; 
 
 // --- CONFIGURAÇÃO DA IA (OPENAI) ---
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -18,11 +19,9 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
-let cache = { timestamp: null, data: null }; // O cache ainda pode ser útil
 
 // --- FUNÇÕES DE APOIO ---
 async function getFaqData() {
-  // A função getFaqData continua a mesma, mas agora busca até a coluna F
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: FAQ_SHEET_NAME,
@@ -33,49 +32,7 @@ async function getFaqData() {
   return response.data.values;
 }
 
-// >>> NOVA FUNÇÃO DE BUSCA SEMÂNTICA <<<
-async function findSemanticMatches(pergunta, faqData) {
-  const header = faqData[0];
-  const data = faqData.slice(1);
-  const SIMILARITY_THRESHOLD = 0.75; // Limiar de confiança (ajuste se necessário)
-
-  console.log("1. Gerando embedding para a pergunta do usuário...");
-  const questionEmbeddingResponse = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: pergunta,
-  });
-  const questionVector = questionEmbeddingResponse.data[0].embedding;
-
-  console.log("2. Calculando similaridade com a base de conhecimento...");
-  const allMatches = [];
-  for (let i = 0; i < data.length; i++) {
-    const row = data[i];
-    const embeddingString = row[5]; // Coluna F (Embedding)
-    if (embeddingString) {
-      try {
-        const storedVector = JSON.parse(embeddingString);
-        const similarity = cosineSimilarity(questionVector, storedVector);
-        
-        if (similarity > SIMILARITY_THRESHOLD) {
-          allMatches.push({
-            resposta: row[2], // Coluna C
-            perguntaOriginal: row[0], // Coluna A
-            sourceRow: i + 2,
-            score: similarity,
-            tabulacoes: row[3] || null, // Coluna D
-          });
-        }
-      } catch (e) {
-        console.warn(`Aviso: Falha ao parsear embedding na linha ${i + 2}.`);
-      }
-    }
-  }
-
-  allMatches.sort((a, b) => b.score - a.score);
-  console.log(`3. Encontradas ${allMatches.length} correspondências acima do limiar.`);
-  return allMatches;
-}
-
+// REMOVIDA: A função findSemanticMatches foi completamente removida.
 
 async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
@@ -85,12 +42,9 @@ async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
         content: `
 Você é o VeloBot, um assistente de IA de alta precisão especializado em atendimento Velotax.
 Regras principais:
-1. Você só pode responder se o tópico da pergunta existir na base da planilha.
-2. Se o item não estiver na planilha, responda apenas: "Não encontrei essa informação na base da Velotax, pode reformular para eu analisar melhor e procurar sua resposta?."
-3. Quando o item existir na planilha, você pode complementar a resposta pesquisando em fontes oficiais (ex.: Receita Federal, gov.br) para enriquecer a explicação, mas nunca criar nada fora do escopo.
-4. A pesquisa externa serve apenas para atualizar ou detalhar informações dentro dos tópicos listados.
-5. Categorias válidas: Antecipação, App, Crédito do Trabalhador, Crédito Pessoal, Declaração/IRPF, Restituição, Veloprime, PIX e Outros (somente os itens listados).
-6. Sempre priorize o conteúdo da planilha. Se usar pesquisa externa, deixe claro que foi para complementar dentro do mesmo tópico.
+1. Responda com base no CONTEXTO fornecido. O contexto vem da nossa base de conhecimento interna e é a fonte da verdade.
+2. Se o CONTEXTO for "Nenhum", significa que não encontramos um tópico relacionado na nossa base. Nesse caso, responda apenas: "Não encontrei essa informação na base da Velotax, pode reformular para eu analisar melhor e procurar sua resposta?."
+3. Use o CONTEXTO para formular uma resposta completa e útil para o atendente.
 `
       },
       { 
@@ -117,9 +71,36 @@ function normalizarTexto(texto) {
   return texto
     .toString()
     .toLowerCase()
-    .normalize('NFD') // Separa os acentos das letras
-    .replace(/[\u0300-\u036f]/g, ''); // Remove os acentos
+    .normalize('NFD')
+    .replace(/[\u00e0-\u00e5]/g, 'a') // Adicionado para normalizar variações de 'a'
+    .replace(/[\u00e8-\u00eb]/g, 'e') // Adicionado para normalizar variações de 'e'
+    .replace(/[\u00ec-\u00ef]/g, 'i') // Adicionado para normalizar variações de 'i'
+    .replace(/[\u00f2-\u00f6]/g, 'o') // Adicionado para normalizar variações de 'o'
+    .replace(/[\u00f9-\u00fc]/g, 'u') // Adicionado para normalizar variações de 'u'
+    .replace(/[\u00e7]/g, 'c')       // Adicionado para normalizar 'ç'
+    .replace(/[\u0300-\u036f]/g, '');
 }
+
+
+async function logIaUsage(email, pergunta) {
+  try {
+    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const LOG_IA_SHEET_NAME = 'Log_IA_Usage';
+    
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: LOG_IA_SHEET_NAME,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[timestamp, email || 'nao_fornecido', pergunta]],
+      },
+    });
+    console.log('Pergunta registrada no log de uso da IA.');
+  } catch (error) {
+    console.warn('AVISO: Falha ao registrar o uso da IA na planilha.', error.message);
+  }
+}
+
 // --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -133,63 +114,42 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
 
-    const perguntaNormalizada = normalizarTexto(pergunta); 
-    
-    if (perguntaNormalizada === 'credito') {
-        return res.status(200).json({
-          status: "clarification_needed",
-          resposta: "Você quer qual informação sobre crédito?",
-          options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal"],
-          source: "Planilha"
-        });
+    const perguntaNormalizada = normalizarTexto(pergunta);
+    const faqData = await getFaqData();
+    const header = faqData.shift(); // Remove o cabeçalho
+
+    // LÓGICA SIMPLIFICADA: Busca por palavra-chave na pergunta
+    const correspondencias = faqData.filter(row => {
+        const perguntaDaPlanilha = normalizarTexto(row[0] || ''); // Coluna A: Pergunta
+        return perguntaDaPlanilha.includes(perguntaNormalizada);
+    });
+
+    let contextoDaPlanilha = "Nenhum";
+    let sourceRow = 'Resposta da IA (Sem Contexto)';
+
+    if (correspondencias.length > 0) {
+      // Se encontrou, monta o contexto para a IA
+      contextoDaPlanilha = correspondencias
+        .map(c => `Tópico: ${c[0]}\nConteúdo: ${c[2]}`) // c[0] = Pergunta, c[2] = Resposta
+        .join('\n\n---\n\n');
+      sourceRow = 'Resposta Sintetizada pela IA';
+      console.log(`Contexto encontrado para a pergunta "${pergunta}"`);
+    } else {
+      // Se não encontrou, registra no log de uso da IA
+      await logIaUsage(email, pergunta);
+      console.log(`Nenhum contexto encontrado para "${pergunta}". Enviando para IA sem contexto.`);
     }
 
-    const faqData = await getFaqData(); // <-- A função que estava a faltar
-    const correspondencias = await findSemanticMatches(pergunta, faqData);
-    const palavras = pergunta.trim().split(/\s+/);
+    // A IA sempre gera a resposta final, mas com ou sem contexto da planilha.
+    const respostaDaIA = await askOpenAI(pergunta, contextoDaPlanilha);
     
-    if (palavras.length <= 3) {
-      if (correspondencias.length === 1 || (correspondencias.length > 1 && correspondencias[0].score > (correspondencias[1]?.score || 0))) {
-        return res.status(200).json({
-          status: "sucesso",
-          resposta: correspondencias[0].resposta,
-          sourceRow: correspondencias[0].sourceRow,
-          tabulacoes: correspondencias[0].tabulacoes,
-          source: "Planilha"
-        });
-      } else if (correspondencias.length > 1) {
-        return res.status(200).json({
-          status: "clarification_needed",
-          resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor?`,
-          options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8),
-          source: "Planilha",
-          sourceRow: 'Pergunta de Esclarecimento'
-        });
-      }
-    }
-    
-    if (correspondencias.length === 0) {
-      await logIaUsage(email, pergunta);
-      const respostaDaIA = await askOpenAI(pergunta);
-      return res.status(200).json({
-        status: "sucesso_ia",
-        resposta: respostaDaIA,
-        source: "IA (Fallback)",
-        sourceRow: 'Resposta da IA (Sem Contexto)'
-      });
-    } else {
-      const contextoDaPlanilha = correspondencias
-        .slice(0, 3)
-        .map(c => `Tópico: ${c.perguntaOriginal}\nConteúdo: ${c.resposta}`)
-        .join('\n\n---\n\n');
-      const respostaDaIA = await askOpenAI(pergunta, contextoDaPlanilha);
-      return res.status(200).json({
-        status: "sucesso_ia",
-        resposta: respostaDaIA,
-        source: "IA (com base na Planilha)",
-        sourceRow: 'Resposta Sintetizada'
-      });
-    }
+    return res.status(200).json({
+      status: "sucesso_ia",
+      resposta: respostaDaIA,
+      source: contextoDaPlanilha !== "Nenhum" ? "IA (com base na Planilha)" : "IA (Fallback)",
+      sourceRow: sourceRow
+    });
+
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
     return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
