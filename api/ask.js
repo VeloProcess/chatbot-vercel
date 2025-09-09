@@ -112,6 +112,14 @@ Regras principais:
   }
 }
 
+function normalizarTexto(texto) {
+  if (!texto) return '';
+  return texto
+    .toString()
+    .toLowerCase()
+    .normalize('NFD') // Separa os acentos das letras
+    .replace(/[\u0300-\u036f]/g, ''); // Remove os acentos
+}
 // --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
