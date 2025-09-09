@@ -145,7 +145,7 @@ Regras principais:
       messages: messages,
       model: modeloOpenAI,
       temperature: 0.1,
-      max_tokens: 300,
+      max_tokens: 1024,
     });
     return chatCompletion.choices[0].message.content;
   } catch (error) {
