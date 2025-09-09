@@ -119,47 +119,38 @@ function findMatches(pergunta, faqData) {
     return correspondenciasUnicas;
 }
 
-async function askOpenAI(pergunta) {
+async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
     const messages = [
-        {
-            role: "system",
-            content: `### Persona e Objetivo
-Você é um assistente virtual de suporte interno da empresa Velotax. Sua função é responder a perguntas de atendentes de forma clara, profissional e concisa, utilizando seu conhecimento sobre os seguintes tópicos:
-
-### Tópicos Permitidos
-* Antecipação do Imposto de Renda pela Velotax
-* Crédito Pessoal pela Velotax
-* Crédito do Trabalhador pela Velotax
-* Normas, regras e produtos da Velotax
-* Processos internos da Velotax
-* Funcionamento do aplicativo e do site da Velotax
-* Assuntos relacionados a impostos no Brasil que a Velotax ajuda a resolver.
-
-### Regras de Comportamento
-1.  **FOCO TOTAL:** Responda **somente** a perguntas relacionadas aos Tópicos Permitidos.
-2.  **RECUSA DE TÓPICOS EXTERNOS:** Se a pergunta for sobre qualquer outro assunto não relacionado (como receitas, história, esportes, etc.), recuse educadamente com a frase: "Desculpe, só posso responder a perguntas sobre os processos e produtos da Velotax."
-3.  **QUANDO NÃO SOUBER:** Se a pergunta estiver dentro dos tópicos permitidos, mas você não tiver certeza da resposta, diga educadamente que não possui essa informação específica no momento.
-4.  **NÃO INVENTE:** É proibido criar informações ou processos que não sejam de conhecimento público sobre a empresa.`
-        },
-          {
-            role: "user",
-            content: pergunta
-          }
+      { 
+        role: "system", 
+        content: `
+Você é o VeloBot, um assistente de IA de alta precisão especializado em atendimento Velotax.
+Regras principais:
+1. Você só pode responder se o tópico da pergunta existir na base da planilha.
+2. Se o item não estiver na planilha, responda apenas: "Não encontrei essa informação na base da Velotax."
+3. Quando o item existir na planilha, você pode complementar a resposta pesquisando em fontes oficiais (ex.: Receita Federal, gov.br) para enriquecer a explicação, mas nunca criar nada fora do escopo.
+4. A pesquisa externa serve apenas para atualizar ou detalhar informações dentro dos tópicos listados.
+5. Categorias válidas: Antecipação, App, Crédito do Trabalhador, Crédito Pessoal, Declaração/IRPF, Restituição, Veloprime, PIX e Outros (somente os itens listados).
+6. Sempre priorize o conteúdo da planilha. Se usar pesquisa externa, deixe claro que foi para complementar dentro do mesmo tópico.
+`
+      },
+      { 
+        role: "user", 
+        content: `CONTEXTO:\n---\n${contextoDaPlanilha}\n---\n\nPERGUNTA DO ATENDENTE:\n${pergunta}` 
+      }
     ];
-
+    
     const chatCompletion = await openai.chat.completions.create({
       messages: messages,
       model: modeloOpenAI,
-      temperature: 0.2, // Temperatura baixa para respostas mais diretas
+      temperature: 0.1,
       max_tokens: 300,
     });
-    
     return chatCompletion.choices[0].message.content;
-
   } catch (error) {
     console.error("ERRO AO CHAMAR A API DA OPENAI:", error);
-    return "Desculpe, não consegui processar sua pergunta com a IA da OpenAI neste momento.";
+    return "Desculpe, não consegui processar sua pergunta com a IA neste momento.";
   }
 }
 
