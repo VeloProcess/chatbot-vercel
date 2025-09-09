@@ -1,17 +1,15 @@
-// api/ask.js (Versão Final Completa com Todas as Funções)
+// api/ask.js (Versão com Busca Semântica por Embeddings)
 
 const { google } = require('googleapis');
 const OpenAI = require('openai');
+const cosineSimilarity = require('cosine-similarity');
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:E"; // Lendo até à coluna E para sinónimos
-const CACHE_DURATION_SECONDS = 0;
+const FAQ_SHEET_NAME = "FAQ!A:F"; // Lendo até a coluna F para Embeddings
 
 // --- CONFIGURAÇÃO DA IA (OPENAI) ---
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const modeloOpenAI = "gpt-3.5-turbo";
 
 // --- CLIENTE GOOGLE SHEETS ---
@@ -20,104 +18,64 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
-let cache = { timestamp: null, data: null };
+let cache = { timestamp: null, data: null }; // O cache ainda pode ser útil
 
-// --- FUNÇÕES DE APOIO (RESTAURADAS E COMPLETAS) ---
-
+// --- FUNÇÕES DE APOIO ---
 async function getFaqData() {
-  const now = new Date();
-  if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
-    return cache.data;
-  }
+  // A função getFaqData continua a mesma, mas agora busca até a coluna F
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: FAQ_SHEET_NAME,
   });
   if (!response.data.values || response.data.values.length === 0) {
-    throw new Error("Não foi possível ler dados da planilha FAQ ou ela está vazia.");
+    throw new Error("Não foi possível ler dados da planilha FAQ.");
   }
-  cache = { timestamp: now, data: response.data.values };
-  return cache.data;
+  return response.data.values;
 }
 
-function normalizarTexto(texto) {
-  if (!texto || typeof texto !== 'string') return '';
-  return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
-}
+// >>> NOVA FUNÇÃO DE BUSCA SEMÂNTICA <<<
+async function findSemanticMatches(pergunta, faqData) {
+  const header = faqData[0];
+  const data = faqData.slice(1);
+  const SIMILARITY_THRESHOLD = 0.75; // Limiar de confiança (ajuste se necessário)
 
-async function logIaUsage(email, pergunta) {
-  try {
-    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const newRow = [timestamp, email, pergunta];
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_IA_Usage',
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: [newRow] },
-    });
-  } catch (error) {
-    console.error("ERRO AO REGISTRAR USO DA IA:", error);
+  console.log("1. Gerando embedding para a pergunta do usuário...");
+  const questionEmbeddingResponse = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: pergunta,
+  });
+  const questionVector = questionEmbeddingResponse.data[0].embedding;
+
+  console.log("2. Calculando similaridade com a base de conhecimento...");
+  const allMatches = [];
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const embeddingString = row[5]; // Coluna F (Embedding)
+    if (embeddingString) {
+      try {
+        const storedVector = JSON.parse(embeddingString);
+        const similarity = cosineSimilarity(questionVector, storedVector);
+        
+        if (similarity > SIMILARITY_THRESHOLD) {
+          allMatches.push({
+            resposta: row[2], // Coluna C
+            perguntaOriginal: row[0], // Coluna A
+            sourceRow: i + 2,
+            score: similarity,
+            tabulacoes: row[3] || null, // Coluna D
+          });
+        }
+      } catch (e) {
+        console.warn(`Aviso: Falha ao parsear embedding na linha ${i + 2}.`);
+      }
+    }
   }
+
+  allMatches.sort((a, b) => b.score - a.score);
+  console.log(`3. Encontradas ${allMatches.length} correspondências acima do limiar.`);
+  return allMatches;
 }
 
-// Substitua sua função findMatches inteira por esta versão aprimorada
-function findMatches(pergunta, faqData) {
-    const cabecalho = faqData[0];
-    const dados = faqData.slice(1);
-    const idxPergunta = cabecalho.indexOf("Pergunta");
-    const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
-    const idxResposta = cabecalho.indexOf("Resposta");
-    const idxSinonimos = 4; // Coluna E (A=0, B=1, C=2, D=3, E=4)
-
-    if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
-        throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
-    }
-
-    const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
-    let todasAsCorrespondencias = [];
-
-    for (let i = 0; i < dados.length; i++) {
-        const linhaAtual = dados[i];
-        const textoPerguntaOriginal = linhaAtual[idxPergunta] || '';
-        if (!textoPerguntaOriginal) continue;
-
-        // >>> INÍCIO DA MELHORIA <<<
-        // Agora normalizamos e combinamos o texto da Pergunta (A), Palavras-chave (B) e Sinónimos (E)
-        const textoPerguntaNormalizado = normalizarTexto(textoPerguntaOriginal);
-        const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
-        const textoSinonimos = normalizarTexto(linhaAtual[idxSinonimos] || '');
-        
-        const textoDeBuscaCombinado = `${textoPerguntaNormalizado} ${textoPalavrasChave} ${textoSinonimos}`;
-        // >>> FIM DA MELHORIA <<<
-        
-        let relevanceScore = 0;
-        palavrasDaBusca.forEach(palavra => {
-            if (textoDeBuscaCombinado.includes(palavra)) {
-                relevanceScore++;
-            }
-        });
-
-        if (relevanceScore > 0) {
-            todasAsCorrespondencias.push({
-                resposta: linhaAtual[idxResposta],
-                perguntaOriginal: textoPerguntaOriginal,
-                sourceRow: i + 2,
-                score: relevanceScore,
-                tabulacoes: linhaAtual[3] || null
-            });
-        }
-    }
-    const uniqueMatches = {};
-    todasAsCorrespondencias.forEach(match => {
-        const key = match.perguntaOriginal.trim();
-        if (!uniqueMatches[key] || match.score > uniqueMatches[key].score) {
-            uniqueMatches[key] = match;
-        }
-    });
-    let correspondenciasUnicas = Object.values(uniqueMatches);
-    correspondenciasUnicas.sort((a, b) => b.score - a.score);
-    return correspondenciasUnicas;
-}
 
 async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
@@ -179,9 +137,9 @@ module.exports = async function handler(req, res) {
     }
 
     const faqData = await getFaqData(); // <-- A função que estava a faltar
-    const correspondencias = findMatches(pergunta, faqData);
+    const correspondencias = await findSemanticMatches(pergunta, faqData);
     const palavras = pergunta.trim().split(/\s+/);
-
+    
     if (palavras.length <= 3) {
       if (correspondencias.length === 1 || (correspondencias.length > 1 && correspondencias[0].score > (correspondencias[1]?.score || 0))) {
         return res.status(200).json({
