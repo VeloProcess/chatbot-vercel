@@ -142,10 +142,10 @@ Você é um assistente virtual de suporte interno da empresa Velotax. Sua funç�
 3.  **QUANDO NÃO SOUBER:** Se a pergunta estiver dentro dos tópicos permitidos, mas você não tiver certeza da resposta, diga educadamente que não possui essa informação específica no momento.
 4.  **NÃO INVENTE:** É proibido criar informações ou processos que não sejam de conhecimento público sobre a empresa.`
         },
-        {
+          {
             role: "user",
             content: pergunta
-        }
+          }
     ];
 
     const chatCompletion = await openai.chat.completions.create({
