@@ -369,137 +369,158 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null } = {}) {
-            const messageContainer = document.createElement('div');
-            messageContainer.className = `message-container ${sender}`;
-            const avatar = document.createElement('div');
-            avatar.className = `avatar ${sender}`;
-            if (sender === 'bot' && source === 'IA') {
-                avatar.textContent = '✦';
-                avatar.title = 'Resposta gerada por IA';
-            } else {
-                avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
-            }
-            const messageContentDiv = document.createElement('div');
-            messageContentDiv.className = 'message-content';
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message';
-            let isComplexResponse = false;
+    const messageContainer = document.createElement('div');
+    messageContainer.className = `message-container ${sender}`;
 
-// ✅ DETECTA QUANDO A RESPOSTA É UM ARRAY JSON VÁLIDO
-if (sender === 'bot' && typeof text === 'string' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
-    try {
-        const items = JSON.parse(text);
-        if (Array.isArray(items) && items.length > 0) {
-            isComplexResponse = true;
-            const accordionContainer = document.createElement('div');
-            accordionContainer.className = 'accordion-container';
-            items.forEach(item => {
-                const accordionItem = document.createElement('div');
-                accordionItem.className = 'accordion-item';
-                const titleDiv = document.createElement('div');
-                titleDiv.className = 'accordion-title';
-                // ✅ SE TIVER "title" E "content", FORMATA COMO ACORDEÃO, SENÃO MOSTRA COMO JSON BONITO
-                if (item.title && item.content) {
-                    titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
-                    const contentDiv = document.createElement('div');
-                    contentDiv.className = 'accordion-content';
-                    contentDiv.innerHTML = marked.parse(item.content);
-                    titleDiv.addEventListener('click', () => {
-                        titleDiv.classList.toggle('active');
-                        contentDiv.classList.toggle('visible');
-                    });
-                    accordionItem.appendChild(titleDiv);
-                    accordionItem.appendChild(contentDiv);
-                } else {
-                    accordionItem.innerHTML = `<pre class="json-block">${JSON.stringify(item, null, 2)}</pre>`;
-                }
-                accordionContainer.appendChild(accordionItem);
-            });
-            messageDiv.innerHTML = '';
-            messageDiv.appendChild(accordionContainer);
-        }
-    } catch (e) { isComplexResponse = false; }
-}
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${sender}`;
+    if (sender === 'bot' && source === 'IA') {
+        avatar.textContent = '✦';
+        avatar.title = 'Resposta gerada por IA';
+    } else {
+        avatar.textContent = sender === 'user'
+            ? formatarAssinatura(dadosAtendente.nome).charAt(0)
+            : '🤖';
+    }
 
-// ✅ SE NÃO FOR JSON COMPLEXO, RENDERIZA COMO MARKDOWN
-if (!isComplexResponse) {
-    const parseInlineButtons = (rawText) => {
-        if (typeof rawText !== 'string') return '';
-        const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
-        return rawText.replace(buttonRegex, (match, text, value) => {
-            const escapedValue = value.trim().replace(/"/g, '&quot;');
-            return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
-        });
-    };
-    const textWithButtons = parseInlineButtons(text);
-    // ✅ Markdown sempre processado pelo Marked.js
-    messageDiv.innerHTML = marked.parse(textWithButtons);
-}
+    const messageContentDiv = document.createElement('div');
+    messageContentDiv.className = 'message-content';
 
-            messageContentDiv.appendChild(messageDiv);
-            messageContainer.appendChild(avatar);
-            messageContainer.appendChild(messageContentDiv);
-            messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
-                button.addEventListener('click', () => {
-                    const value = button.getAttribute('data-value');
-                    if (value) { handleSendMessage(value); }
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
+
+    let isComplexResponse = false;
+    let safeText = (typeof text === 'string' ? text : (text ? String(text) : '')).trim();
+
+    // ✅ Detecta e renderiza JSON
+    if (sender === 'bot' && safeText.startsWith('[') && safeText.endsWith(']')) {
+        try {
+            const items = JSON.parse(safeText);
+            if (Array.isArray(items) && items.length > 0) {
+                isComplexResponse = true;
+                const accordionContainer = document.createElement('div');
+                accordionContainer.className = 'accordion-container';
+
+                items.forEach(item => {
+                    const accordionItem = document.createElement('div');
+                    accordionItem.className = 'accordion-item';
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'accordion-title';
+
+                    if (item.title && item.content) {
+                        titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'accordion-content';
+                        contentDiv.innerHTML = marked.parse(item.content);
+                        titleDiv.addEventListener('click', () => {
+                            titleDiv.classList.toggle('active');
+                            contentDiv.classList.toggle('visible');
+                        });
+                        accordionItem.appendChild(titleDiv);
+                        accordionItem.appendChild(contentDiv);
+                    } else {
+                        accordionItem.innerHTML = `<pre class="json-block">${JSON.stringify(item, null, 2)}</pre>`;
+                    }
+                    accordionContainer.appendChild(accordionItem);
                 });
+
+                messageDiv.innerHTML = '';
+                messageDiv.appendChild(accordionContainer);
+            }
+        } catch (e) {
+            console.warn('Erro ao interpretar JSON na resposta do bot:', e);
+            isComplexResponse = false;
+        }
+    }
+
+    // ✅ Se não for JSON, renderiza Markdown normalmente
+    if (!isComplexResponse) {
+        const parseInlineButtons = (rawText) => {
+            if (typeof rawText !== 'string') return '';
+            const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
+            return rawText.replace(buttonRegex, (match, label, value) => {
+                const safeValue = value.trim().replace(/"/g, '&quot;');
+                return `<button class="inline-chat-button" data-value="${safeValue}">${label.trim()}</button>`;
             });
+        };
+        const textWithButtons = parseInlineButtons(safeText);
+        messageDiv.innerHTML = marked.parse(textWithButtons || '');
+    }
 
-            if (sender === 'bot' && tabulacoes) {
-                const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
-                if (sugestoes.length > 0) {
-                    const tabulacaoTextContainer = document.createElement('div');
-                    tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
-                    const textoFormatado = tabulacoes.replace(/;/g, '<br>');
-                    tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${textoFormatado}`;
-                    const triggerButton = document.createElement('button');
-                    triggerButton.className = 'clarification-item';
-                    triggerButton.textContent = 'Veja as tabulações';
-                    triggerButton.style.marginTop = '10px';
-                    triggerButton.onclick = () => {
-                        triggerButton.classList.add('hidden');
-                        tabulacaoTextContainer.classList.remove('hidden');
-                    };
-                    messageContentDiv.appendChild(triggerButton);
-                    messageContentDiv.appendChild(tabulacaoTextContainer);
-                }
-            }
+    messageContentDiv.appendChild(messageDiv);
+    messageContainer.appendChild(avatar);
+    messageContainer.appendChild(messageContentDiv);
 
-             if (sender === 'bot') { // <-- CONDIÇÃO ALTERADA AQUI
-                ultimaLinhaDaFonte = sourceRow;
-                const feedbackContainer = document.createElement('div');
-                feedbackContainer.className = 'feedback-container';
-                const positiveBtn = document.createElement('button');
-                positiveBtn.className = 'feedback-btn';
-                positiveBtn.innerHTML = '👍';
-                positiveBtn.title = 'Resposta útil';
-                positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-                const negativeBtn = document.createElement('button');
-                negativeBtn.className = 'feedback-btn';
-                negativeBtn.innerHTML = '👎';
-                negativeBtn.title = 'Resposta incorreta ou incompleta';
-                negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-                feedbackContainer.appendChild(positiveBtn);
-                feedbackContainer.appendChild(negativeBtn);
-                messageContentDiv.appendChild(feedbackContainer);
-            }
-            if (sender === 'bot' && options.length > 0) {
+    // ✅ Ações dos botões inline
+    messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const value = button.getAttribute('data-value');
+            if (value) handleSendMessage(value);
+        });
+    });
+
+    // ✅ Exibe sugestões de tabulação se existirem
+    if (sender === 'bot' && tabulacoes) {
+        const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
+        if (sugestoes.length > 0) {
+            const tabulacaoTextContainer = document.createElement('div');
+            tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
+            tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${tabulacoes.replace(/;/g, '<br>')}`;
+
+            const triggerButton = document.createElement('button');
+            triggerButton.className = 'clarification-item';
+            triggerButton.textContent = 'Veja as tabulações';
+            triggerButton.style.marginTop = '10px';
+            triggerButton.onclick = () => {
+                triggerButton.classList.add('hidden');
+                tabulacaoTextContainer.classList.remove('hidden');
+            };
+
+            messageContentDiv.appendChild(triggerButton);
+            messageContentDiv.appendChild(tabulacaoTextContainer);
+        }
+    }
+
+    // ✅ Feedback (positivo/negativo)
+    if (sender === 'bot') {
+        ultimaLinhaDaFonte = sourceRow;
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.className = 'feedback-container';
+
+        const positiveBtn = document.createElement('button');
+        positiveBtn.className = 'feedback-btn';
+        positiveBtn.innerHTML = '👍';
+        positiveBtn.title = 'Resposta útil';
+        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+
+        const negativeBtn = document.createElement('button');
+        negativeBtn.className = 'feedback-btn';
+        negativeBtn.innerHTML = '👎';
+        negativeBtn.title = 'Resposta incorreta ou incompleta';
+        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+
+        feedbackContainer.appendChild(positiveBtn);
+        feedbackContainer.appendChild(negativeBtn);
+        messageContentDiv.appendChild(feedbackContainer);
+    }
+
+    // ✅ Lista de opções (corrigido para evitar [object Object])
+    if (sender === 'bot' && options.length > 0) {
         const optionsContainer = document.createElement('div');
         optionsContainer.className = 'clarification-container';
         options.forEach(option => {
-        const button = document.createElement('button');
-        button.className = 'clarification-item';
-        // ✅ TRATA CORRETAMENTE QUANDO VEM OBJETO
-        button.textContent = option.perguntaOriginal || String(option);
-        button.onclick = () => handleSendMessage(option.perguntaOriginal || option);
-        optionsContainer.appendChild(button);
-    });
-    messageContentDiv.appendChild(optionsContainer);
+            const button = document.createElement('button');
+            button.className = 'clarification-item';
+            button.textContent = option.perguntaOriginal || String(option);
+            button.onclick = () => handleSendMessage(option.perguntaOriginal || option);
+            optionsContainer.appendChild(button);
+        });
+        messageContentDiv.appendChild(optionsContainer);
+    }
+
+    chatBox.appendChild(messageContainer);
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
-            chatBox.appendChild(messageContainer);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
 
         async function enviarFeedback(action, container, sugestao = null) {
             if (!ultimaPergunta || !ultimaLinhaDaFonte) {
