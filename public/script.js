@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove();
         }
 
-        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null } = {}) {
+        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, topic = null } = {}) {
     const messageContainer = document.createElement('div');
     messageContainer.className = `message-container ${sender}`;
 
