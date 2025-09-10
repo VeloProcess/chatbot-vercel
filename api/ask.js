@@ -1,4 +1,4 @@
-// api/ask.js (Versão Final Completa com RAG, Sites Resumidos e IA Fallback)
+// api/ask.js (Versão Final Completa com RAG, Sites Resumidos, IA Fallback e Lógica de Listas)
 
 const { google } = require('googleapis');
 const OpenAI = require('openai');
@@ -6,7 +6,7 @@ const axios = require('axios');
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:E"; 
+const FAQ_SHEET_NAME = "FAQ!A:E";
 const CACHE_DURATION_SECONDS = 0;
 
 // --- CONFIGURAÇÃO DA IA (OPENAI) ---
@@ -173,7 +173,7 @@ PERGUNTA DO ATENDENTE:
   }
 }
 
-// --- BUSCA EM SITES AUTORIZADOS COM RESUMO ---
+// --- BUSCA EM SITES AUTORIZADOS ---
 async function buscarEPrepararContextoSites(pergunta) {
   const sites = [
     "https://www.gov.br/receitafederal",
@@ -186,7 +186,6 @@ async function buscarEPrepararContextoSites(pergunta) {
     try {
       const { data } = await axios.get(site);
       if (data.toLowerCase().includes(pergunta.toLowerCase())) {
-        // Resumir conteúdo relevante via IA
         const promptResumo = `
 Você é um assistente que deve resumir apenas o conteúdo relevante da seguinte página
 em português do Brasil, para responder a pergunta do usuário.
@@ -221,12 +220,20 @@ module.exports = async function handler(req, res) {
     const { pergunta, email } = req.query;
     if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
 
+    const perguntaNormalizada = normalizarTexto(pergunta);
+    if (perguntaNormalizada === 'credito') {
+      return res.status(200).json({
+        status: "clarification_needed",
+        resposta: "Você quer qual informação sobre crédito?",
+        options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal"],
+        source: "Planilha"
+      });
+    }
+
     const faqData = await getFaqData();
     const correspondencias = findMatches(pergunta, faqData);
-    const palavras = pergunta.trim().split(/\s+/);
 
-    // Pergunta curta com correspondência direta na planilha
-    if (palavras.length <= 3 && correspondencias.length > 0) {
+    if (correspondencias.length === 1 || (correspondencias.length > 1 && correspondencias[0].score > (correspondencias[1]?.score || 0))) {
       return res.status(200).json({
         status: "sucesso",
         resposta: correspondencias[0].resposta,
@@ -234,40 +241,32 @@ module.exports = async function handler(req, res) {
         tabulacoes: correspondencias[0].tabulacoes,
         source: "Planilha"
       });
-    }
-
-    // Se não encontrou na planilha, busca sites autorizados resumidos
-    if (correspondencias.length === 0) {
-      const contextoSites = await buscarEPrepararContextoSites(pergunta);
-      if (contextoSites) {
-        const respostaIaSites = await askOpenAI(pergunta, contextoSites);
-        return res.status(200).json({
-          status: "sucesso_site",
-          resposta: respostaIaSites,
-          source: "Sites autorizados (resumidos)"
-        });
-      }
-      // Se não encontrou nem em sites, cai para IA fallback
-      await logIaUsage(email, pergunta);
-      const respostaIa = await askOpenAI(pergunta);
+    } else if (correspondencias.length > 1) {
       return res.status(200).json({
-        status: "sucesso_ia",
-        resposta: respostaIa,
-        source: "IA (Fallback)"
+        status: "clarification_needed",
+        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor?`,
+        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 10),
+        source: "Planilha",
+        sourceRow: 'Pergunta de Esclarecimento'
       });
     }
 
-    // Se encontrou contexto na planilha, passa para IA como RAG
-    const contextoDaPlanilha = correspondencias
-      .slice(0, 3)
-      .map(c => `Tópico: ${c.perguntaOriginal}\nConteúdo: ${c.resposta}`)
-      .join('\n\n---\n\n');
+    const contextoSites = await buscarEPrepararContextoSites(pergunta);
+    if (contextoSites) {
+      const respostaIaSites = await askOpenAI(pergunta, contextoSites);
+      return res.status(200).json({
+        status: "sucesso_site",
+        resposta: respostaIaSites,
+        source: "Sites autorizados (resumidos)"
+      });
+    }
 
-    const respostaIa = await askOpenAI(pergunta, contextoDaPlanilha);
+    await logIaUsage(email, pergunta);
+    const respostaIa = await askOpenAI(pergunta);
     return res.status(200).json({
       status: "sucesso_ia",
       resposta: respostaIa,
-      source: "IA (com base na Planilha)"
+      source: "IA (Fallback)"
     });
 
   } catch (error) {
