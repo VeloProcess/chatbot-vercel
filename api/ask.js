@@ -217,9 +217,12 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { pergunta, email } = req.query;
-    if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
-
+    const { pergunta, email, perguntaOriginal } = req.query;
+           // Se o frontend enviar perguntaOriginal (quando o usuário clica em uma opção), usamos ela direto
+    const perguntaFinal = perguntaOriginal || pergunta;
+        if (!perguntaFinal) {
+  return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
+}
     const perguntaNormalizada = normalizarTexto(pergunta);
     if (perguntaNormalizada === 'credito') {
       return res.status(200).json({
@@ -243,12 +246,16 @@ module.exports = async function handler(req, res) {
       });
     } else if (correspondencias.length > 1) {
       return res.status(200).json({
-        status: "clarification_needed",
-        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor?`,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 10),
-        source: "Planilha",
-        sourceRow: 'Pergunta de Esclarecimento'
-      });
+      status: "clarification_needed",
+      resposta: `Encontrei vários tópicos sobre "${perguntaFinal}". Qual deles se encaixa melhor?`,
+      options: correspondencias.slice(0, 10).map(c => ({
+      perguntaOriginal: c.perguntaOriginal,
+      sourceRow: c.sourceRow
+  })),
+      source: "Planilha",
+      sourceRow: 'Pergunta de Esclarecimento'
+});
+
     }
 
     const contextoSites = await buscarEPrepararContextoSites(pergunta);
