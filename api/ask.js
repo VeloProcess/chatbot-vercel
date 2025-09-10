@@ -1,19 +1,18 @@
-// api/ask.js (Versão Final Completa com RAG, Sites Resumidos, IA Fallback e Lógica de Listas)
+// api/ask.js (Versão Final com IA Híbrida e Busca Otimizada)
 
 const { google } = require('googleapis');
-const OpenAI = require('openai');
-const axios = require('axios');
+// Importa a biblioteca da IA do Google
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:E";
-const CACHE_DURATION_SECONDS = 0;
+const FAQ_SHEET_NAME = "FAQ!A:D";
+const CACHE_DURATION_SECONDS = 0; // Cache desativado para atualizações instantâneas
 
-// --- CONFIGURAÇÃO DA IA (OPENAI) ---
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const modeloOpenAI = "gpt-4o";
+// --- CONFIGURAÇÃO DA IA ---
+// Pega a chave de API das variáveis de ambiente do seu provedor de hospedagem (ex: Vercel)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"}); // Modelo rápido e eficiente
 
 // --- CLIENTE GOOGLE SHEETS ---
 const auth = new google.auth.GoogleAuth({
@@ -24,6 +23,7 @@ const sheets = google.sheets({ version: 'v4', auth });
 let cache = { timestamp: null, data: null };
 
 // --- FUNÇÕES DE APOIO ---
+
 async function getFaqData() {
   const now = new Date();
   if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
@@ -42,35 +42,40 @@ async function getFaqData() {
 
 function normalizarTexto(texto) {
   if (!texto || typeof texto !== 'string') return '';
-  return texto.toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s]/gi, '')
-    .trim();
+  return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
 async function logIaUsage(email, pergunta) {
   try {
-    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const timestamp = new Date().toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo'
+    });
+    
     const newRow = [timestamp, email, pergunta];
+
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_IA_Usage',
+      range: 'Log_IA_Usage', // O nome da nova aba
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [newRow] },
+      resource: {
+        values: [newRow],
+      },
     });
+    console.log("Uso da IA registrado com sucesso.");
   } catch (error) {
+    // É importante que um erro no log não quebre a resposta para o usuário.
     console.error("ERRO AO REGISTRAR USO DA IA:", error);
   }
 }
 
+// Lógica de busca atualizada para usar APENAS a coluna de palavras-chave
 function findMatches(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
+
   const idxPergunta = cabecalho.indexOf("Pergunta");
   const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
   const idxResposta = cabecalho.indexOf("Resposta");
-  const idxSinonimos = 4;
 
   if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
@@ -83,25 +88,29 @@ function findMatches(pergunta, faqData) {
     const linhaAtual = dados[i];
     const textoPerguntaOriginal = linhaAtual[idxPergunta] || '';
     if (!textoPerguntaOriginal) continue;
-    const textoPerguntaNormalizado = normalizarTexto(textoPerguntaOriginal);
+
+    // A busca agora ocorre apenas no texto das palavras-chave
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
-    const textoSinonimos = normalizarTexto(linhaAtual[idxSinonimos] || '');
-    const textoDeBuscaCombinado = `${textoPerguntaNormalizado} ${textoPalavrasChave} ${textoSinonimos}`;
+    
     let relevanceScore = 0;
     palavrasDaBusca.forEach(palavra => {
-      if (textoDeBuscaCombinado.includes(palavra)) relevanceScore++;
+      if (textoPalavrasChave.includes(palavra)) {
+        relevanceScore++;
+      }
     });
+
     if (relevanceScore > 0) {
-      todasAsCorrespondencias.push({
-        resposta: linhaAtual[idxResposta],
-        perguntaOriginal: textoPerguntaOriginal,
-        sourceRow: i + 2,
-        score: relevanceScore,
-        tabulacoes: linhaAtual[3] || null
-      });
+    todasAsCorrespondencias.push({
+      resposta: linhaAtual[idxResposta],
+      perguntaOriginal: textoPerguntaOriginal,
+      sourceRow: i + 2,
+      score: relevanceScore,
+      tabulacoes: linhaAtual[3] || null // Adiciona o conteúdo da coluna D
+    });
     }
   }
-
+  
+  // Lógica de desduplicação e ordenação
   const uniqueMatches = {};
   todasAsCorrespondencias.forEach(match => {
     const key = match.perguntaOriginal.trim();
@@ -109,168 +118,117 @@ function findMatches(pergunta, faqData) {
       uniqueMatches[key] = match;
     }
   });
+  let correspondenciasUnicas = Object.values(uniqueMatches);
+  correspondenciasUnicas.sort((a, b) => b.score - a.score);
 
-  return Object.values(uniqueMatches).sort((a, b) => b.score - a.score);
+  return correspondenciasUnicas;
 }
 
-// --- FUNÇÃO DE IA COM PROMPT CORRIGIDO ---
-async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
+// Função para consultar a IA
+async function askGemini(pergunta) {
   try {
     const prompt = `
-### PERSONA E OBJETIVO
-Você é o VeloBot, assistente factual da Velotax. Responda à pergunta do atendente usando **somente o contexto abaixo** ou **fontes externas autorizadas**.
-
-### FONTES DA VERDADE
-1. CONTEXTO DA PLANILHA (prioridade máxima)
-2. FONTES EXTERNAS AUTORIZADAS:
-   - Site da Receita Federal
-   - Portal e-CAC
-   - GOV.BR
-   - Site oficial da Velotax (velotax.com.br)
-
-### REGRAS DE FORMATAÇÃO
-- SE NO CONTEXTO DA PLANILHA:
-achei isto na minha base de dados sobre
-${pergunta}
-
-[INSIRA A INFORMAÇÃO EXATA DO CONTEXTO]
-
-fonte: base de conhecimento
-
-- SE EM FONTES EXTERNAS:
-sobre
-${pergunta} eu encontrei em [NOME DO SITE]
-
-[INSIRA A INFORMAÇÃO EXATA DO SITE]
-
-fonte: [NOME DO SITE]
-
-- NÃO REFORMULE ou resuma.
-- FALHA SEGURA: "Não encontrei esta informação na base de conhecimento ou nos sites autorizados."
-- Sempre em português do Brasil (pt-BR).
-
+### Persona
+Você é o Veloprocess, um assistente de IA especialista nos processos e produtos internos da empresa Velotax. Seu objetivo é auxiliar os atendentes de suporte (N1) a encontrarem respostas rápidas, precisas e seguras para ajudarem os clientes finais.
+### Contexto da Empresa
+A Velotax é uma fintech que simplifica a vida tributária e financeira dos brasileiros, oferecendo produtos como declaração de impostos, antecipação de restituição, e linhas de crédito.
+### Regras e Tarefa
+Você receberá uma PERGUNTA de um atendente e, opcionalmente, um CONTEXTO extraído da nossa base de conhecimento interna. Siga estas regras rigorosamente:
+1.  **PRIORIDADE AO CONTEXTO:** Se o CONTEXTO for fornecido, sua resposta deve se basear **EXCLUSIVAMENTE** nele. Não adicione informações externas ou suposições. Se a resposta não estiver no contexto, afirme que a informação específica não foi encontrada nos trechos fornecidos.
+2.  **SEM CONTEXTO:** Se nenhum CONTEXTO for fornecido, responda à pergunta com base no seu conhecimento geral sobre o assunto, mas sempre adicione uma ressalva como: "Esta informação é baseada em conhecimento geral e não foi validada em nossa base de processos interna." Se você não souber a resposta, seja honesto e diga que não encontrou essa informação.
+3.  **SEJA ACIONÁVEL E DIRETO:** Forneça respostas que ajudem o atendente a agir. Se for um procedimento, use passos numerados (1., 2., 3.). Se for uma lista de itens, use bullet points (*). Use **negrito** para destacar informações críticas como prazos, valores, nomes de documentos ou ações importantes.
+4.  **TOM E LINGUAGEM:** Mantenha um tom profissional, prestativo e confiante. Dirija-se ao atendente como um colega de equipe. Evite linguagem casual ou gírias.
+5.  **FOCO NO ESCOPO:** Responda apenas a perguntas relacionadas aos processos e produtos da Velotax. Se a pergunta for inadequada ou claramente fora de escopo (ex: "qual a capital da Mongólia?"), recuse-se a responder educadamente.
 ---
-CONTEXTO DA PLANILHA:
+**CONTEXTO FORNECIDO PELA BASE DE CONHECIMENTO:**
+"""${contextoDaPlanilha}
 """
-${contextoDaPlanilha}
-"""
-
-PERGUNTA DO ATENDENTE:
+**PERGUNTA DO ATENDENTE:**
 "${pergunta}"
 `;
 
-    const chatCompletion = await openai.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
-      model: modeloOpenAI,
-      temperature: 0,
-      max_tokens: 1024,
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
 
-    return chatCompletion.choices[0].message.content;
   } catch (error) {
-    console.error("ERRO AO CHAMAR A API DA OPENAI:", error);
-    return "Desculpe, não consegui processar sua pergunta com a IA neste momento.";
+    console.error("ERRO AO CHAMAR A API DO GEMINI:", error);
+    return "Desculpe, não consegui processar sua pergunta com a IA neste momento. Tente novamente mais tarde.";
   }
 }
 
-// --- BUSCA EM SITES AUTORIZADOS ---
-async function buscarEPrepararContextoSites(pergunta) {
-  const sites = [
-    "https://www.gov.br/receitafederal",
-    "https://cav.receita.fazenda.gov.br",
-    "https://www.gov.br",
-    "https://velotax.com.br"
-  ];
-  let contexto = "";
-  for (const site of sites) {
-    try {
-      const { data } = await axios.get(site);
-      if (data.toLowerCase().includes(pergunta.toLowerCase())) {
-        const promptResumo = `
-Você é um assistente que deve resumir apenas o conteúdo relevante da seguinte página
-em português do Brasil, para responder a pergunta do usuário.
-Pergunta: "${pergunta}"
-Conteúdo da página: """${data}"""
-Resuma apenas o necessário para responder a pergunta, mantendo informações literais.
-`;
-        const resumo = await openai.chat.completions.create({
-          messages: [{ role: "user", content: promptResumo }],
-          model: modeloOpenAI,
-          temperature: 0,
-          max_tokens: 512
-        });
-        const trechoResumido = resumo.choices[0].message.content;
-        contexto += `Fonte: ${site}\n${trechoResumido}\n\n`;
-      }
-    } catch (e) {
-      console.error(`Falha ao processar site ${site}:`, e.message);
-    }
-  }
-  return contexto || null;
-}
 
-// --- HANDLER PRINCIPAL ---
+// --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 module.exports = async function handler(req, res) {
+  // Configuração do CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=240');
   if (req.method === 'OPTIONS') return res.status(200).end();
-
+  
+    
   try {
     const { pergunta, email } = req.query;
-    if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
-
-    const perguntaNormalizada = normalizarTexto(pergunta);
-    if (perguntaNormalizada === 'credito') {
-      return res.status(200).json({
-        status: "clarification_needed",
-        resposta: "Você quer qual informação sobre crédito?",
-        options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal"],
-        source: "Planilha"
-      });
+    if (!pergunta) {
+      return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
+
+    // --- NOVO BLOCO PARA O MENU 'CRÉDITO' ---
+    // Normalizamos a pergunta para uma verificação limpa.
+    const perguntaNormalizada = normalizarTexto(pergunta); 
+    
+    // Se a pergunta for EXATAMENTE "crédito", retorna as opções imediatamente.
+    if (perguntaNormalizada === 'credito') {
+        return res.status(200).json({
+          status: "clarification_needed",
+          resposta: "Você quer qual informação sobre crédito?",
+          options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal"],
+          source: "Planilha",
+          sourceRow: 'Pergunta de Esclarecimento' // <-- A LINHA QUE FALTAVA
+        });
+    }
+    // --- FIM DO NOVO BLOCO ---
 
     const faqData = await getFaqData();
     const correspondencias = findMatches(pergunta, faqData);
 
-    if (correspondencias.length === 1 || (correspondencias.length > 1 && correspondencias[0].score > (correspondencias[1]?.score || 0))) {
+    // --- LÓGICA HÍBRIDA ---
+    // Se não encontrar correspondências na planilha, consulta a IA.
+    if (correspondencias.length === 0) {
+      console.log(`Sem correspondência na planilha para "${pergunta}". Consultando a IA...`);
+      await logIaUsage(email, pergunta); // Registra que a IA foi acionada
+      const respostaDaIA = await askGemini(pergunta);
+      
+        return res.status(200).json({
+          status: "sucesso_ia",
+          resposta: respostaDaIA,
+          source: "IA",
+          sourceRow: 'Resposta da IA' // <-- ADICIONADO AQUI
+      });
+    }
+
+    // Se encontrar, usa a lógica de decisão original.
+    if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1].score) {
       return res.status(200).json({
         status: "sucesso",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
-        tabulacoes: correspondencias[0].tabulacoes,
+        tabulacoes: correspondencias[0].tabulacoes, // <-- ALTERAÇÃO AQUI
         source: "Planilha"
       });
-    } else if (correspondencias.length > 1) {
+    }
+      else {
       return res.status(200).json({
         status: "clarification_needed",
-        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor?`,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 10),
+        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
+        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
         source: "Planilha",
-        sourceRow: 'Pergunta de Esclarecimento'
+        sourceRow: 'Pergunta de Esclarecimento' // Adiciona uma referência
       });
     }
-
-    const contextoSites = await buscarEPrepararContextoSites(pergunta);
-    if (contextoSites) {
-      const respostaIaSites = await askOpenAI(pergunta, contextoSites);
-      return res.status(200).json({
-        status: "sucesso_site",
-        resposta: respostaIaSites,
-        source: "Sites autorizados (resumidos)"
-      });
-    }
-
-    await logIaUsage(email, pergunta);
-    const respostaIa = await askOpenAI(pergunta);
-    return res.status(200).json({
-      status: "sucesso_ia",
-      resposta: respostaIa,
-      source: "IA (Fallback)"
-    });
-
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
     return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
   }
-};
+}
