@@ -245,18 +245,14 @@ module.exports = async function handler(req, res) {
         source: "Planilha"
       });
     } else if (correspondencias.length > 1) {
-      return res.status(200).json({
-      status: "clarification_needed",
-      resposta: `Encontrei vários tópicos sobre "${perguntaFinal}". Qual deles se encaixa melhor?`,
-      options: correspondencias.slice(0, 10).map(c => ({
-      perguntaOriginal: c.perguntaOriginal,
-      sourceRow: c.sourceRow
-  })),
-      source: "Planilha",
-      sourceRow: 'Pergunta de Esclarecimento'
-});
-
-    }
+  return res.status(200).json({
+    status: "clarification_needed",
+    resposta: `Encontrei vários tópicos sobre "${perguntaFinal}". Qual deles se encaixa melhor?`,
+    options: correspondencias.slice(0, 10).map(c => c.perguntaOriginal),
+    source: "Planilha",
+    sourceRow: "Pergunta de Esclarecimento"
+  });
+}
 
     const contextoSites = await buscarEPrepararContextoSites(pergunta);
     if (contextoSites) {
