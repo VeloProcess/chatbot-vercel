@@ -378,9 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
         avatar.textContent = '✦';
         avatar.title = 'Resposta gerada por IA';
     } else {
-        avatar.textContent = sender === 'user'
-            ? formatarAssinatura(dadosAtendente.nome).charAt(0)
-            : '🤖';
+        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
     }
 
     const messageContentDiv = document.createElement('div');
@@ -392,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isComplexResponse = false;
     let safeText = (typeof text === 'string' ? text : (text ? String(text) : '')).trim();
 
-    // ✅ Detecta e renderiza JSON
+    // Renderiza JSON se for
     if (sender === 'bot' && safeText.startsWith('[') && safeText.endsWith(']')) {
         try {
             const items = JSON.parse(safeText);
@@ -433,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ✅ Se não for JSON, renderiza Markdown normalmente
+    // Markdown normal se não for JSON
     if (!isComplexResponse) {
         const parseInlineButtons = (rawText) => {
             if (typeof rawText !== 'string') return '';
@@ -451,7 +449,6 @@ document.addEventListener('DOMContentLoaded', () => {
     messageContainer.appendChild(avatar);
     messageContainer.appendChild(messageContentDiv);
 
-    // ✅ Ações dos botões inline
     messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
         button.addEventListener('click', () => {
             const value = button.getAttribute('data-value');
@@ -459,14 +456,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ✅ Exibe sugestões de tabulação se existirem
+    // Sugestões de tabulação
     if (sender === 'bot' && tabulacoes) {
         const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
         if (sugestoes.length > 0) {
             const tabulacaoTextContainer = document.createElement('div');
             tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
             tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${tabulacoes.replace(/;/g, '<br>')}`;
-
             const triggerButton = document.createElement('button');
             triggerButton.className = 'clarification-item';
             triggerButton.textContent = 'Veja as tabulações';
@@ -475,46 +471,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerButton.classList.add('hidden');
                 tabulacaoTextContainer.classList.remove('hidden');
             };
-
             messageContentDiv.appendChild(triggerButton);
             messageContentDiv.appendChild(tabulacaoTextContainer);
         }
     }
 
-    // ✅ Feedback (positivo/negativo)
+    // Feedback
     if (sender === 'bot') {
         ultimaLinhaDaFonte = sourceRow;
         const feedbackContainer = document.createElement('div');
         feedbackContainer.className = 'feedback-container';
-
         const positiveBtn = document.createElement('button');
         positiveBtn.className = 'feedback-btn';
         positiveBtn.innerHTML = '👍';
         positiveBtn.title = 'Resposta útil';
         positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-
         const negativeBtn = document.createElement('button');
         negativeBtn.className = 'feedback-btn';
         negativeBtn.innerHTML = '👎';
         negativeBtn.title = 'Resposta incorreta ou incompleta';
         negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-
         feedbackContainer.appendChild(positiveBtn);
         feedbackContainer.appendChild(negativeBtn);
         messageContentDiv.appendChild(feedbackContainer);
     }
 
-    // ✅ Lista de tópicos da coluna A da aba FAQ
-    if (sender === 'bot' && topic) {
-        // Supondo que 'planilhaFAQ' seja o array de objetos da aba FAQ
+    // Lista de tópicos da aba FAQ (coluna A)
+    if (sender === 'bot' && topic && planilhaFAQ?.length > 0) {
         const filteredItems = planilhaFAQ.filter(item =>
             item.Pergunta && item.Pergunta.toLowerCase().includes(topic.toLowerCase())
         );
 
-        const optionsContainer = document.createElement('div');
-        optionsContainer.className = 'clarification-container';
-
         if (filteredItems.length > 0) {
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'clarification-container';
             filteredItems.forEach(item => {
                 const button = document.createElement('button');
                 button.className = 'clarification-item';
@@ -522,16 +512,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.onclick = () => handleSendMessage(item.Pergunta);
                 optionsContainer.appendChild(button);
             });
+            messageContentDiv.appendChild(optionsContainer);
         } else {
             const aviso = document.createElement('div');
             aviso.className = 'message';
             aviso.textContent = `Nenhum tópico encontrado para "${topic}"`;
-            optionsContainer.appendChild(aviso);
+            messageContentDiv.appendChild(aviso);
         }
-
-        // Substitui o conteúdo do messageDiv pelo container de tópicos
-        messageDiv.innerHTML = '';
-        messageDiv.appendChild(optionsContainer);
     }
 
     chatBox.appendChild(messageContainer);
