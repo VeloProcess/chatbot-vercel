@@ -504,19 +504,25 @@ document.addEventListener('DOMContentLoaded', () => {
         messageContentDiv.appendChild(feedbackContainer);
     }
 
-    // ✅ Lista de opções (corrigido para evitar [object Object])
-    if (sender === 'bot' && options.length > 0) {
+    // ✅ Lista de opções baseada na coluna 'Pergunta' da planilha
+if (sender === 'bot' && topic) {  // 'topic' é a palavra-chave pesquisada pelo atendente
+    const filteredItems = planilha.filter(item => 
+        item.Pergunta && item.Pergunta.toLowerCase().includes(topic.toLowerCase())
+    );
+
+    if (filteredItems.length > 0) {
         const optionsContainer = document.createElement('div');
         optionsContainer.className = 'clarification-container';
-        options.forEach(option => {
+        filteredItems.forEach(item => {
             const button = document.createElement('button');
             button.className = 'clarification-item';
-            button.textContent = option.perguntaOriginal || String(option);
-            button.onclick = () => handleSendMessage(option.perguntaOriginal || option);
+            button.textContent = item.Pergunta;
+            button.onclick = () => handleSendMessage(item.Pergunta);
             optionsContainer.appendChild(button);
         });
         messageContentDiv.appendChild(optionsContainer);
     }
+}
 
     chatBox.appendChild(messageContainer);
     chatBox.scrollTop = chatBox.scrollHeight;
