@@ -474,17 +474,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageContentDiv.appendChild(feedbackContainer);
             }
             if (sender === 'bot' && options.length > 0) {
-                const optionsContainer = document.createElement('div');
-                optionsContainer.className = 'clarification-container';
-                options.forEach(optionText => {
-                    const button = document.createElement('button');
-                    button.className = 'clarification-item';
-                    button.textContent = optionText;
-                    button.onclick = () => handleSendMessage(optionText);
-                    optionsContainer.appendChild(button);
-                });
-                messageContentDiv.appendChild(optionsContainer);
-            }
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'clarification-container';
+        options.forEach(option => {
+        const button = document.createElement('button');
+        button.className = 'clarification-item';
+        // ✅ TRATA CORRETAMENTE QUANDO VEM OBJETO
+        button.textContent = option.perguntaOriginal || String(option);
+        button.onclick = () => handleSendMessage(option.perguntaOriginal || option);
+        optionsContainer.appendChild(button);
+    });
+    messageContentDiv.appendChild(optionsContainer);
+}
             chatBox.appendChild(messageContainer);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
@@ -553,13 +554,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function handleSendMessage(text) {
-            const trimmedText = text.trim();
-            if (!trimmedText) return;
-            addMessage(trimmedText, 'user');
-            logQuestionOnSheet(trimmedText, dadosAtendente.email);
-            buscarResposta(trimmedText);
-            userInput.value = '';
-        }
+    // ✅ TRATAMENTO PARA EVITAR O ERRO DO trim()
+    if (Array.isArray(text)) {
+        console.warn("handleSendMessage recebeu array, convertendo em string:", text);
+        text = text.map(item => (typeof item === 'string' ? item : item.perguntaOriginal || JSON.stringify(item))).join(', ');
+    } else if (typeof text !== 'string') {
+        console.warn("handleSendMessage recebeu valor não-string, convertendo:", text);
+        text = String(text);
+    }
+
+    const trimmedText = text.trim();
+    if (!trimmedText) return;
+
+    addMessage(trimmedText, 'user');
+    logQuestionOnSheet(trimmedText, dadosAtendente.email);
+    buscarResposta(trimmedText);
+    const userInput = document.getElementById('user-input');
+    if (userInput) userInput.value = '';
+}
 
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
