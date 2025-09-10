@@ -374,10 +374,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const avatar = document.createElement('div');
     avatar.className = `avatar ${sender}`;
-    avatar.textContent = sender === 'bot' 
-        ? (source === 'IA' ? '✦' : '🤖') 
-        : formatarAssinatura(dadosAtendente.nome).charAt(0);
-    if (sender === 'bot' && source === 'IA') avatar.title = 'Resposta gerada por IA';
+    if (sender === 'bot' && source === 'IA') {
+        avatar.textContent = '✦';
+        avatar.title = 'Resposta gerada por IA';
+    } else {
+        avatar.textContent = sender === 'user'
+            ? formatarAssinatura(dadosAtendente.nome).charAt(0)
+            : '🤖';
+    }
 
     const messageContentDiv = document.createElement('div');
     messageContentDiv.className = 'message-content';
@@ -388,43 +392,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let isComplexResponse = false;
     let safeText = (typeof text === 'string' ? text : (text ? String(text) : '')).trim();
 
-    // --- BUSCA POR TOPIC (botões baseados na coluna Pergunta) ---
-    if (sender === 'bot' && topic) {
-        const filteredItems = planilha.filter(item => 
-            item.Pergunta && item.Pergunta.toLowerCase().includes(topic.toLowerCase())
-        );
-
-        if (filteredItems.length > 0) {
-            const optionsContainer = document.createElement('div');
-            optionsContainer.className = 'clarification-container';
-            filteredItems.forEach(item => {
-                const button = document.createElement('button');
-                button.className = 'clarification-item';
-                button.textContent = item.Pergunta;
-                button.onclick = () => handleSendMessage(item.Pergunta);
-                optionsContainer.appendChild(button);
-            });
-            messageDiv.appendChild(optionsContainer);
-            isComplexResponse = true; // evita Markdown ou JSON sobrescrever
-        } else {
-            messageDiv.textContent = 'Nenhuma correspondência encontrada.';
-            isComplexResponse = true;
-        }
-    }
-
-    // --- JSON complexo (acordeão) ---
-    if (!isComplexResponse && sender === 'bot' && safeText.startsWith('[') && safeText.endsWith(']')) {
+    // ✅ Detecta e renderiza JSON
+    if (sender === 'bot' && safeText.startsWith('[') && safeText.endsWith(']')) {
         try {
             const items = JSON.parse(safeText);
             if (Array.isArray(items) && items.length > 0) {
+                isComplexResponse = true;
                 const accordionContainer = document.createElement('div');
                 accordionContainer.className = 'accordion-container';
+
                 items.forEach(item => {
                     const accordionItem = document.createElement('div');
                     accordionItem.className = 'accordion-item';
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'accordion-title';
+
                     if (item.title && item.content) {
-                        const titleDiv = document.createElement('div');
-                        titleDiv.className = 'accordion-title';
                         titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
                         const contentDiv = document.createElement('div');
                         contentDiv.className = 'accordion-content';
@@ -440,32 +423,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     accordionContainer.appendChild(accordionItem);
                 });
+
+                messageDiv.innerHTML = '';
                 messageDiv.appendChild(accordionContainer);
-                isComplexResponse = true;
             }
-        } catch(e) {
-            console.warn('Erro ao interpretar JSON:', e);
+        } catch (e) {
+            console.warn('Erro ao interpretar JSON na resposta do bot:', e);
+            isComplexResponse = false;
         }
     }
 
-    // --- Markdown + inline buttons ---
+    // ✅ Se não for JSON, renderiza Markdown normalmente
     if (!isComplexResponse) {
-        const parseInlineButtons = rawText => {
+        const parseInlineButtons = (rawText) => {
             if (typeof rawText !== 'string') return '';
-            const regex = /\[button:(.*?)\|(.*?)\]/g;
-            return rawText.replace(regex, (match, label, value) => {
+            const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
+            return rawText.replace(buttonRegex, (match, label, value) => {
                 const safeValue = value.trim().replace(/"/g, '&quot;');
                 return `<button class="inline-chat-button" data-value="${safeValue}">${label.trim()}</button>`;
             });
         };
-        messageDiv.innerHTML = marked.parse(parseInlineButtons(safeText));
+        const textWithButtons = parseInlineButtons(safeText);
+        messageDiv.innerHTML = marked.parse(textWithButtons || '');
     }
 
     messageContentDiv.appendChild(messageDiv);
     messageContainer.appendChild(avatar);
     messageContainer.appendChild(messageContentDiv);
 
-    // --- Ações dos botões inline ---
+    // ✅ Ações dos botões inline
     messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
         button.addEventListener('click', () => {
             const value = button.getAttribute('data-value');
@@ -473,7 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Sugestões de tabulação ---
+    // ✅ Exibe sugestões de tabulação se existirem
     if (sender === 'bot' && tabulacoes) {
         const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
         if (sugestoes.length > 0) {
@@ -495,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Feedback positivo/negativo ---
+    // ✅ Feedback (positivo/negativo)
     if (sender === 'bot') {
         ultimaLinhaDaFonte = sourceRow;
         const feedbackContainer = document.createElement('div');
@@ -516,6 +502,36 @@ document.addEventListener('DOMContentLoaded', () => {
         feedbackContainer.appendChild(positiveBtn);
         feedbackContainer.appendChild(negativeBtn);
         messageContentDiv.appendChild(feedbackContainer);
+    }
+
+    // ✅ Lista de tópicos da coluna A da aba FAQ
+    if (sender === 'bot' && topic) {
+        // Supondo que 'planilhaFAQ' seja o array de objetos da aba FAQ
+        const filteredItems = planilhaFAQ.filter(item =>
+            item.Pergunta && item.Pergunta.toLowerCase().includes(topic.toLowerCase())
+        );
+
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'clarification-container';
+
+        if (filteredItems.length > 0) {
+            filteredItems.forEach(item => {
+                const button = document.createElement('button');
+                button.className = 'clarification-item';
+                button.textContent = item.Pergunta;
+                button.onclick = () => handleSendMessage(item.Pergunta);
+                optionsContainer.appendChild(button);
+            });
+        } else {
+            const aviso = document.createElement('div');
+            aviso.className = 'message';
+            aviso.textContent = `Nenhum tópico encontrado para "${topic}"`;
+            optionsContainer.appendChild(aviso);
+        }
+
+        // Substitui o conteúdo do messageDiv pelo container de tópicos
+        messageDiv.innerHTML = '';
+        messageDiv.appendChild(optionsContainer);
     }
 
     chatBox.appendChild(messageContainer);
