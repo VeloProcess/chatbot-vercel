@@ -384,47 +384,58 @@ document.addEventListener('DOMContentLoaded', () => {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message';
             let isComplexResponse = false;
-            if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
-                try {
-                    const items = JSON.parse(text);
-                    if (Array.isArray(items) && items.length > 0 && items.every(item => item.title && item.content)) {
-                        isComplexResponse = true;
-                        const accordionContainer = document.createElement('div');
-                        accordionContainer.className = 'accordion-container';
-                        items.forEach(item => {
-                            const accordionItem = document.createElement('div');
-                            accordionItem.className = 'accordion-item';
-                            const titleDiv = document.createElement('div');
-                            titleDiv.className = 'accordion-title';
-                            titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
-                            const contentDiv = document.createElement('div');
-                            contentDiv.className = 'accordion-content';
-                            contentDiv.innerHTML = marked.parse(item.content);
-                            titleDiv.addEventListener('click', () => {
-                                titleDiv.classList.toggle('active');
-                                contentDiv.classList.toggle('visible');
-                            });
-                            accordionItem.appendChild(titleDiv);
-                            accordionItem.appendChild(contentDiv);
-                            accordionContainer.appendChild(accordionItem);
-                        });
-                        messageDiv.innerHTML = '';
-                        messageDiv.appendChild(accordionContainer);
-                    }
-                } catch (e) { isComplexResponse = false; }
-            }
-            if (!isComplexResponse) {
-                const parseInlineButtons = (rawText) => {
-                    if (typeof rawText !== 'string') return '';
-                    const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
-                    return rawText.replace(buttonRegex, (match, text, value) => {
-                        const escapedValue = value.trim().replace(/"/g, '&quot;');
-                        return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
+
+// ✅ DETECTA QUANDO A RESPOSTA É UM ARRAY JSON VÁLIDO
+if (sender === 'bot' && typeof text === 'string' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
+    try {
+        const items = JSON.parse(text);
+        if (Array.isArray(items) && items.length > 0) {
+            isComplexResponse = true;
+            const accordionContainer = document.createElement('div');
+            accordionContainer.className = 'accordion-container';
+            items.forEach(item => {
+                const accordionItem = document.createElement('div');
+                accordionItem.className = 'accordion-item';
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'accordion-title';
+                // ✅ SE TIVER "title" E "content", FORMATA COMO ACORDEÃO, SENÃO MOSTRA COMO JSON BONITO
+                if (item.title && item.content) {
+                    titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'accordion-content';
+                    contentDiv.innerHTML = marked.parse(item.content);
+                    titleDiv.addEventListener('click', () => {
+                        titleDiv.classList.toggle('active');
+                        contentDiv.classList.toggle('visible');
                     });
-                };
-                const textWithButtons = parseInlineButtons(text);
-                messageDiv.innerHTML = marked.parse(textWithButtons);
-            }
+                    accordionItem.appendChild(titleDiv);
+                    accordionItem.appendChild(contentDiv);
+                } else {
+                    accordionItem.innerHTML = `<pre class="json-block">${JSON.stringify(item, null, 2)}</pre>`;
+                }
+                accordionContainer.appendChild(accordionItem);
+            });
+            messageDiv.innerHTML = '';
+            messageDiv.appendChild(accordionContainer);
+        }
+    } catch (e) { isComplexResponse = false; }
+}
+
+// ✅ SE NÃO FOR JSON COMPLEXO, RENDERIZA COMO MARKDOWN
+if (!isComplexResponse) {
+    const parseInlineButtons = (rawText) => {
+        if (typeof rawText !== 'string') return '';
+        const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
+        return rawText.replace(buttonRegex, (match, text, value) => {
+            const escapedValue = value.trim().replace(/"/g, '&quot;');
+            return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
+        });
+    };
+    const textWithButtons = parseInlineButtons(text);
+    // ✅ Markdown sempre processado pelo Marked.js
+    messageDiv.innerHTML = marked.parse(textWithButtons);
+}
+
             messageContentDiv.appendChild(messageDiv);
             messageContainer.appendChild(avatar);
             messageContainer.appendChild(messageContentDiv);

@@ -869,3 +869,15 @@ body.dark-theme .skeleton {
     height: 16px;
     margin-bottom: var(--espaco-sm);
 }
+.json-block {
+    background: var(--cor-fundo-card);
+    color: var(--cor-texto-principal);
+    padding: 10px;
+    border-radius: var(--borda-raio-sm);
+    border: 1px solid var(--cor-borda);
+    font-family: monospace;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+}
