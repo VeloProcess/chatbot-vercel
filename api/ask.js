@@ -1,16 +1,17 @@
-// api/ask.js (Versão Simplificada SEM EMBEDDINGS)
+// api/ask.js (Versão Final com a Lógica do Fluxograma e OpenAI)
 
 const { google } = require('googleapis');
 const OpenAI = require('openai');
-// REMOVIDO: a dependência cosine-similarity não é mais necessária
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-// ALTERADO: Agora lê apenas as colunas A, B, C, D
-const FAQ_SHEET_NAME = "FAQ!A:D"; 
+const FAQ_SHEET_NAME = "FAQ!A:E"; // Lendo até a coluna E para sinónimos
+const CACHE_DURATION_SECONDS = 0;
 
 // --- CONFIGURAÇÃO DA IA (OPENAI) ---
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 const modeloOpenAI = "gpt-3.5-turbo";
 
 // --- CLIENTE GOOGLE SHEETS ---
@@ -19,85 +20,124 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
+let cache = { timestamp: null, data: null };
 
 // --- FUNÇÕES DE APOIO ---
+
 async function getFaqData() {
+  const now = new Date();
+  if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
+    return cache.data;
+  }
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: FAQ_SHEET_NAME,
   });
   if (!response.data.values || response.data.values.length === 0) {
-    throw new Error("Não foi possível ler dados da planilha FAQ.");
+    throw new Error("Não foi possível ler dados da planilha FAQ ou ela está vazia.");
   }
-  return response.data.values;
+  cache = { timestamp: now, data: response.data.values };
+  return cache.data;
 }
 
-// REMOVIDA: A função findSemanticMatches foi completamente removida.
+function normalizarTexto(texto) {
+  if (!texto || typeof texto !== 'string') return '';
+  return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
+}
+
+async function logIaUsage(email, pergunta) {
+  try {
+    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const newRow = [timestamp, email, pergunta];
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Log_IA_Usage',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [newRow] },
+    });
+  } catch (error) {
+    console.error("ERRO AO REGISTRAR USO DA IA:", error);
+  }
+}
+
+function findMatches(pergunta, faqData) {
+    const cabecalho = faqData[0];
+    const dados = faqData.slice(1);
+    const idxPergunta = cabecalho.indexOf("Pergunta");
+    const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
+    const idxResposta = cabecalho.indexOf("Resposta");
+    const idxSinonimos = 4; // Coluna E
+
+    if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
+        throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
+    }
+    const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
+    let todasAsCorrespondencias = [];
+    for (let i = 0; i < dados.length; i++) {
+        const linhaAtual = dados[i];
+        const textoPerguntaOriginal = linhaAtual[idxPergunta] || '';
+        if (!textoPerguntaOriginal) continue;
+        
+        const textoPerguntaNormalizado = normalizarTexto(textoPerguntaOriginal);
+        const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
+        const textoSinonimos = normalizarTexto(linhaAtual[idxSinonimos] || '');
+        
+        const textoDeBuscaCombinado = `${textoPerguntaNormalizado} ${textoPalavrasChave} ${textoSinonimos}`;
+        
+        let relevanceScore = 0;
+        palavrasDaBusca.forEach(palavra => {
+            if (textoDeBuscaCombinado.includes(palavra)) { relevanceScore++; }
+        });
+        if (relevanceScore > 0) {
+            todasAsCorrespondencias.push({
+                resposta: linhaAtual[idxResposta],
+                perguntaOriginal: textoPerguntaOriginal,
+                sourceRow: i + 2,
+                score: relevanceScore,
+                tabulacoes: linhaAtual[3] || null
+            });
+        }
+    }
+    const uniqueMatches = {};
+    todasAsCorrespondencias.forEach(match => {
+        const key = match.perguntaOriginal.trim();
+        if (!uniqueMatches[key] || match.score > uniqueMatches[key].score) {
+            uniqueMatches[key] = match;
+        }
+    });
+    let correspondenciasUnicas = Object.values(uniqueMatches);
+    correspondenciasUnicas.sort((a, b) => b.score - a.score);
+    return correspondenciasUnicas;
+}
 
 async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
   try {
     const messages = [
-      { 
-        role: "system", 
-        content: `
-Você é o VeloBot, um assistente de IA de alta precisão especializado em atendimento Velotax.
-Regras principais:
-1. Responda com base no CONTEXTO fornecido. O contexto vem da nossa base de conhecimento interna e é a fonte da verdade.
-2. Se o CONTEXTO for "Nenhum", significa que não encontramos um tópico relacionado na nossa base. Nesse caso, responda apenas: "Não encontrei essa informação na base da Velotax, pode reformular para eu analisar melhor e procurar sua resposta?."
-3. Use o CONTEXTO para formular uma resposta completa e útil para o atendente.
-`
-      },
-      { 
-        role: "user", 
-        content: `CONTEXTO:\n---\n${contextoDaPlanilha}\n---\n\nPERGUNTA DO ATENDENTE:\n${pergunta}` 
-      }
-    ];
+        { 
+            role: "system", 
+            content: `Você é o VeloBot, um assistente de IA de alta precisão para a equipe de suporte da Velotax. Sua única função é analisar o CONTEXTO fornecido e usá-lo para responder à PERGUNTA do atendente. O CONTEXTO é sua única fonte da verdade. É proibido usar qualquer conhecimento externo ou da internet.
 
+### Regras Invioláveis:
+1.  **Fonte da Verdade:** Se a resposta para a PERGUNTA não estiver claramente no CONTEXTO, ou se o CONTEXTO for 'Nenhum', responda **EXATAMENTE** e apenas isto: "Não encontrei uma resposta para esta pergunta na base de conhecimento." Não tente adivinhar.
+2.  **Brevidade e Clareza:** Seja breve e direto ao ponto. Resuma as informações do CONTEXTO se necessário para focar nos pontos mais essenciais da pergunta. Use **negrito** para termos importantes e listas para passo a passo.
+3.  **Idioma:** Responda **SEMPRE** e **SOMENTE** em português do Brasil (pt-BR).
+4.  **Integridade da Pergunta:** Não altere ou adicione informações à pergunta original do atendente.`
+        },
+        { 
+            role: "user", 
+            content: `CONTEXTO:\n---\n${contextoDaPlanilha}\n---\n\nPERGUNTA DO ATENDENTE:\n${pergunta}` 
+        }
+    ];
     const chatCompletion = await openai.chat.completions.create({
       messages: messages,
       model: modeloOpenAI,
       temperature: 0.1,
-      max_tokens: 1024,
+      max_tokens: 300,
     });
     return chatCompletion.choices[0].message.content;
   } catch (error) {
     console.error("ERRO AO CHAMAR A API DA OPENAI:", error);
     return "Desculpe, não consegui processar sua pergunta com a IA neste momento.";
-  }
-}
-
-function normalizarTexto(texto) {
-  if (!texto) return '';
-  return texto
-    .toString()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u00e0-\u00e5]/g, 'a') // Adicionado para normalizar variações de 'a'
-    .replace(/[\u00e8-\u00eb]/g, 'e') // Adicionado para normalizar variações de 'e'
-    .replace(/[\u00ec-\u00ef]/g, 'i') // Adicionado para normalizar variações de 'i'
-    .replace(/[\u00f2-\u00f6]/g, 'o') // Adicionado para normalizar variações de 'o'
-    .replace(/[\u00f9-\u00fc]/g, 'u') // Adicionado para normalizar variações de 'u'
-    .replace(/[\u00e7]/g, 'c')       // Adicionado para normalizar 'ç'
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
-
-async function logIaUsage(email, pergunta) {
-  try {
-    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const LOG_IA_SHEET_NAME = 'Log_IA_Usage';
-    
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: LOG_IA_SHEET_NAME,
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [[timestamp, email || 'nao_fornecido', pergunta]],
-      },
-    });
-    console.log('Pergunta registrada no log de uso da IA.');
-  } catch (error) {
-    console.warn('AVISO: Falha ao registrar o uso da IA na planilha.', error.message);
   }
 }
 
@@ -114,41 +154,62 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
     }
 
-    const perguntaNormalizada = normalizarTexto(pergunta);
     const faqData = await getFaqData();
-    const header = faqData.shift(); // Remove o cabeçalho
+    const correspondencias = findMatches(pergunta, faqData);
+    const palavras = pergunta.trim().split(/\s+/);
 
-    // LÓGICA SIMPLIFICADA: Busca por palavra-chave na pergunta
-    const correspondencias = faqData.filter(row => {
-        const perguntaDaPlanilha = normalizarTexto(row[0] || ''); // Coluna A: Pergunta
-        return perguntaDaPlanilha.includes(perguntaNormalizada);
-    });
+    // --- LÓGICA DO FLUXOGRAMA ---
 
-    let contextoDaPlanilha = "Nenhum";
-    let sourceRow = 'Resposta da IA (Sem Contexto)';
+    // FLUXO 1: Pergunta curta (palavra-chave)
+    if (palavras.length <= 3) {
+      console.log("Pergunta curta detectada. Buscando direto na planilha...");
 
-    if (correspondencias.length > 0) {
-      // Se encontrou, monta o contexto para a IA
-      contextoDaPlanilha = correspondencias
-        .map(c => `Tópico: ${c[0]}\nConteúdo: ${c[2]}`) // c[0] = Pergunta, c[2] = Resposta
-        .join('\n\n---\n\n');
-      sourceRow = 'Resposta Sintetizada pela IA';
-      console.log(`Contexto encontrado para a pergunta "${pergunta}"`);
-    } else {
-      // Se não encontrou, registra no log de uso da IA
-      await logIaUsage(email, pergunta);
-      console.log(`Nenhum contexto encontrado para "${pergunta}". Enviando para IA sem contexto.`);
+      if (correspondencias.length === 1 || (correspondencias.length > 1 && correspondencias[0].score > (correspondencias[1]?.score || 0))) {
+        return res.status(200).json({
+          status: "sucesso",
+          resposta: correspondencias[0].resposta,
+          sourceRow: correspondencias[0].sourceRow,
+          tabulacoes: correspondencias[0].tabulacoes,
+          source: "Planilha"
+        });
+      } else if (correspondencias.length > 1) {
+        return res.status(200).json({
+          status: "clarification_needed",
+          resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor?`,
+          options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8),
+          source: "Planilha",
+          sourceRow: 'Pergunta de Esclarecimento'
+        });
+      }
     }
-
-    // A IA sempre gera a resposta final, mas com ou sem contexto da planilha.
-    const respostaDaIA = await askOpenAI(pergunta, contextoDaPlanilha);
     
-    return res.status(200).json({
-      status: "sucesso_ia",
-      resposta: respostaDaIA,
-      source: contextoDaPlanilha !== "Nenhum" ? "IA (com base na Planilha)" : "IA (Fallback)",
-      sourceRow: sourceRow
-    });
+    // FLUXO 2: Pergunta complexa ou palavra-chave sem resposta direta, aciona a IA
+    console.log("Pergunta complexa ou sem correspondência direta. Usando IA...");
+    
+    if (correspondencias.length === 0) {
+      // Caso 2a: Não encontrou NADA, usa a IA como fallback.
+      await logIaUsage(email, pergunta);
+      const respostaDaIA = await askOpenAI(pergunta);
+      return res.status(200).json({
+        status: "sucesso_ia",
+        resposta: respostaDaIA,
+        source: "IA (Fallback)",
+        sourceRow: 'Resposta da IA (Sem Contexto)'
+      });
+    } else {
+      // Caso 2b: Encontrou contexto, usa a IA para sintetizar a resposta (RAG).
+      const contextoDaPlanilha = correspondencias
+        .slice(0, 3)
+        .map(c => `Tópico: ${c.perguntaOriginal}\nConteúdo: ${c.resposta}`)
+        .join('\n\n---\n\n');
+      const respostaDaIA = await askOpenAI(pergunta, contextoDaPlanilha);
+      return res.status(200).json({
+        status: "sucesso_ia",
+        resposta: respostaDaIA,
+        source: "IA (com base na Planilha)",
+        sourceRow: 'Resposta Sintetizada'
+      });
+    }
 
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
