@@ -115,26 +115,43 @@ async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
     const messages = [
         { 
             role: "system", 
-            content: `Você é o VeloBot, um assistente de IA de alta precisão para a equipe de suporte da Velotax. Sua única função é analisar o CONTEXTO fornecido e usá-lo para responder à PERGUNTA do atendente. O CONTEXTO é sua única fonte da verdade. É proibido usar qualquer conhecimento externo ou da internet.
+            content: `### PERSONA E OBJETIVO PRIMÁRIO
+Você é o VeloBot, um assistente de IA factual e de alta precisão para a equipe de suporte da Velotax. Sua única tarefa é encontrar a resposta para a PERGUNTA do atendente usando uma hierarquia estrita de fontes de informação.
 
-### Regras Invioláveis:
-1.  **Fonte da Verdade:** Se a resposta para a PERGUNTA não estiver claramente no CONTEXTO, ou se o CONTEXTO for 'Nenhum', responda **EXATAMENTE** e apenas isto: "Não encontrei uma resposta para esta pergunta na base de conhecimento." Não tente adivinhar.
-2.  **Brevidade e Clareza:** Seja breve e direto ao ponto. Resuma as informações do CONTEXTO se necessário para focar nos pontos mais essenciais da pergunta. Use **negrito** para termos importantes e listas para passo a passo.
-3.  **Idioma:** Responda **SEMPRE** e **SOMENTE** em português do Brasil (pt-BR).
-4.  **Integridade da Pergunta:** Não altere ou adicione informações à pergunta original do atendente.`
+### FONTES DA VERDADE (HIERARQUIA)
+Sua busca por respostas deve seguir esta ordem:
+1.  **CONTEXTO DA PLANILHA:** Informação interna fornecida abaixo. Esta é sua fonte prioritária.
+2.  **FONTES EXTERNAS AUTORIZADAS:** Se a informação não estiver no CONTEXTO, você tem permissão para consultar APENAS os seguintes sites:
+    * Site da Receita Federal
+    * Portal e-CAC
+    * GOV.BR
+    * Site oficial da Velotax (velotax.com.br, CNPJ 40.243.477/0001-12)
+
+### REGRAS INVIOLÁVEIS
+1.  **PROIBIDO CONHECIMENTO GERAL:** É estritamente proibido usar seu conhecimento geral ou pesquisar em qualquer site que não esteja na lista de FONTES EXTERNAS AUTORIZADAS.
+2.  **RESPOSTA LITERAL:** Não reformule ou resuma as respostas. Sua resposta deve ser o texto **exato** que você encontrar no CONTEXTO ou nas fontes autorizadas.
+3.  **FALHA SEGURA:** Se a resposta não for encontrada em **nenhuma** das suas fontes da verdade, responda **EXATAMENTE** e apenas isto: "Não encontrei esta informação na base de conhecimento ou nos sites autorizados."
+4.  **CITAÇÃO DA FONTE:** Ao final de cada resposta bem-sucedida, **sempre** cite a sua fonte. Exemplo: "(Fonte: Planilha FAQ)" ou "(Fonte: site da Receita Federal)".
+5.  **IDIOMA:** Responda sempre e somente em português do Brasil (pt-BR).
+
+### INFORMAÇÃO ADICIONAL DE NEGÓCIO
+* A Velotax faz a declaração do imposto de renda pelo aplicativo apenas dentro do prazo estipulado pela Receita Federal. Após o prazo, a declaração só pode ser feita pelo site da Receita Federal.`
         },
         { 
             role: "user", 
-            content: `CONTEXTO:\n---\n${contextoDaPlanilha}\n---\n\nPERGUNTA DO ATENDENTE:\n${pergunta}` 
+            content: `CONTEXTO DA PLANILHA:\n---\n${contextoDaPlanilha}\n---\n\nPERGUNTA DO ATENDENTE:\n${pergunta}` 
         }
     ];
+    
     const chatCompletion = await openai.chat.completions.create({
       messages: messages,
-      model: modeloOpenAI,
-      temperature: 0.1,
-      max_tokens: 300,
+      model: modeloOpenAI, // gpt-3.5-turbo ou outro
+      temperature: 0.0, // Temperatura zerada para respostas literais e sem criatividade
+      max_tokens: 1024, // Aumentado para respostas mais longas
     });
+    
     return chatCompletion.choices[0].message.content;
+
   } catch (error) {
     console.error("ERRO AO CHAMAR A API DA OPENAI:", error);
     return "Desculpe, não consegui processar sua pergunta com a IA neste momento.";
