@@ -1,4 +1,4 @@
-// api/ask.js (Versão OpenAI - Sem Gemini)
+// api/ask.js (Versão OpenAI - Com Busca em Sites Oficiais)
 
 const { google } = require('googleapis');
 const axios = require('axios');
@@ -17,7 +17,7 @@ const sheets = google.sheets({ version: 'v4', auth });
 
 // --- CLIENTE OPENAI ---
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const modeloOpenAI = "gpt-4o-mini"; // Modelo ajustável
+const modeloOpenAI = "gpt-4o-mini";
 
 // --- FUNÇÕES DE APOIO ---
 async function getFaqData() {
@@ -39,12 +39,11 @@ function normalizarTexto(texto) {
 async function logIaUsage(email, pergunta) {
   try {
     const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const newRow = [timestamp, email, pergunta];
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Log_IA_Usage',
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [newRow] },
+      resource: { values: [[timestamp, email, pergunta]] },
     });
   } catch (error) {
     console.error("ERRO AO REGISTRAR USO DA IA:", error);
@@ -57,7 +56,6 @@ function findMatches(pergunta, faqData) {
   const idxPergunta = cabecalho.indexOf("Pergunta");
   const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
   const idxResposta = cabecalho.indexOf("Resposta");
-
   if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
   }
@@ -69,9 +67,7 @@ function findMatches(pergunta, faqData) {
     const linhaAtual = dados[i];
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
     let relevanceScore = 0;
-    palavrasDaBusca.forEach(palavra => {
-      if (textoPalavrasChave.includes(palavra)) relevanceScore++;
-    });
+    palavrasDaBusca.forEach(palavra => { if (textoPalavrasChave.includes(palavra)) relevanceScore++; });
     if (relevanceScore > 0) {
       todasAsCorrespondencias.push({
         resposta: linhaAtual[idxResposta],
@@ -87,13 +83,10 @@ function findMatches(pergunta, faqData) {
   const uniqueMatches = {};
   todasAsCorrespondencias.forEach(match => {
     const key = match.perguntaOriginal.trim();
-    if (!uniqueMatches[key] || match.score > uniqueMatches[key].score) {
-      uniqueMatches[key] = match;
-    }
+    if (!uniqueMatches[key] || match.score > uniqueMatches[key].score) uniqueMatches[key] = match;
   });
-  let correspondenciasUnicas = Object.values(uniqueMatches);
-  correspondenciasUnicas.sort((a, b) => b.score - a.score);
-  return correspondenciasUnicas;
+
+  return Object.values(uniqueMatches).sort((a, b) => b.score - a.score);
 }
 
 // --- FUNÇÃO OPENAI ---
@@ -103,37 +96,12 @@ async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum") {
 ### PERSONA E OBJETIVO
 Você é o VeloBot, assistente factual da Velotax. Responda à pergunta do atendente usando **somente o contexto abaixo** ou **fontes externas autorizadas**.
 
-### FONTES DA VERDADE
-1. CONTEXTO DA PLANILHA (prioridade máxima)
-2. FONTES EXTERNAS AUTORIZADAS:
-   - Site da Receita Federal
-   - Portal e-CAC
-   - GOV.BR
-   - Site oficial da Velotax (velotax.com.br)
-
 ### REGRAS DE FORMATAÇÃO
-- SE NO CONTEXTO DA PLANILHA:
-achei isto na minha base de dados sobre
-${pergunta}
-
-[INSIRA A INFORMAÇÃO EXATA DO CONTEXTO]
-
-fonte: base de conhecimento
-
-- SE EM FONTES EXTERNAS:
-sobre
-${pergunta} eu encontrei em [NOME DO SITE]
-
-[INSIRA A INFORMAÇÃO EXATA DO SITE]
-
-fonte: [NOME DO SITE]
-
-- NÃO REFORMULE ou resuma.
+- NÃO REFORMULE ou invente nada.
 - FALHA SEGURA: "Não encontrei esta informação na base de conhecimento ou nos sites autorizados."
 - Sempre em português do Brasil (pt-BR).
 
----
-CONTEXTO DA PLANILHA:
+CONTEXTO:
 """
 ${contextoDaPlanilha}
 """
@@ -152,8 +120,30 @@ PERGUNTA DO ATENDENTE:
     return chatCompletion.choices[0].message.content;
   } catch (error) {
     console.error("ERRO AO CHAMAR A API DA OPENAI:", error);
-    return "Desculpe, não consegui processar sua pergunta com a IA neste momento.";
+    return "Não encontrei esta informação na base de conhecimento ou nos sites autorizados.";
   }
+}
+
+// --- FUNÇÃO PARA BUSCAR SITES ---
+async function buscarEPrepararContextoSites(pergunta) {
+  const sites = [
+    "https://www.gov.br/receitafederal",
+    "https://cav.receita.fazenda.gov.br",
+    "https://www.gov.br",
+    "https://velotax.com.br"
+  ];
+  let contexto = "";
+  for (const site of sites) {
+    try {
+      const { data } = await axios.get(site);
+      if (data.toLowerCase().includes(pergunta.toLowerCase())) {
+        contexto += `Fonte: ${site}\nTrecho: ${data.substring(0, 1000)}\n\n`;
+      }
+    } catch (e) {
+      console.error(`Falha ao processar site ${site}:`, e.message);
+    }
+  }
+  return contexto || null;
 }
 
 // --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
@@ -168,7 +158,6 @@ module.exports = async function handler(req, res) {
     const { pergunta, email } = req.query;
     if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
 
-    // --- BLOCO DE MENU ESPECÍFICO ---
     const perguntaNormalizada = normalizarTexto(pergunta);
     if (perguntaNormalizada === 'credito') {
       return res.status(200).json({
@@ -183,21 +172,7 @@ module.exports = async function handler(req, res) {
     const faqData = await getFaqData();
     const correspondencias = findMatches(pergunta, faqData);
 
-    // --- LÓGICA HÍBRIDA USANDO OPENAI ---
-    if (correspondencias.length === 0) {
-      await logIaUsage(email, pergunta);
-      const contextoSites = ""; // Se quiser, pode chamar buscarEPrepararContextoSites()
-      const respostaDaIA = await askOpenAI(pergunta, contextoSites);
-      return res.status(200).json({
-        status: "sucesso_ia",
-        resposta: respostaDaIA,
-        source: "IA",
-        sourceRow: 'Resposta da IA'
-      });
-    }
-
-    // --- SE HOUVER CORRESPONDÊNCIAS ---
-    if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1].score) {
+    if (correspondencias.length > 0) {
       return res.status(200).json({
         status: "sucesso",
         resposta: correspondencias[0].resposta,
@@ -205,15 +180,27 @@ module.exports = async function handler(req, res) {
         tabulacoes: correspondencias[0].tabulacoes,
         source: "Planilha"
       });
-    } else {
+    }
+
+    // --- Busca em sites oficiais ---
+    const contextoSites = await buscarEPrepararContextoSites(pergunta);
+
+    if (!contextoSites) {
       return res.status(200).json({
-        status: "clarification_needed",
-        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
-        source: "Planilha",
-        sourceRow: 'Pergunta de Esclarecimento'
+        status: "falha_segura",
+        resposta: "Não encontrei esta informação na base de conhecimento ou nos sites autorizados.",
+        source: null
       });
     }
+
+    await logIaUsage(email, pergunta);
+    const respostaDaIA = await askOpenAI(pergunta, contextoSites);
+    return res.status(200).json({
+      status: "sucesso_ia",
+      resposta: respostaDaIA,
+      source: "Sites Autorizados"
+    });
+
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
     return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
