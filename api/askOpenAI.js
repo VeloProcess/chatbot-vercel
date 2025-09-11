@@ -32,7 +32,7 @@ ${contextoPlanilha}
     const resposta = completion.choices[0].message.content;
     session[email].push({ role: "assistant", content: resposta });
 
-    res.status(200).json({ resposta });
+    res.status(200).send(resposta);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Erro ao chamar OpenAI" });
