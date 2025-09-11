@@ -370,6 +370,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typingIndicator) typingIndicator.remove();
         }
 
+        function scrollToBottom() {
+        const chatBox = document.getElementById('chat-box');
+        chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+    }
+
+    function showTyping() {
+        const typingIndicator = document.getElementById('typing-indicator');
+        if (typingIndicator) typingIndicator.classList.remove('hidden');
+    }
+
+    function hideTyping() {
+        const typingIndicator = document.getElementById('typing-indicator');
+        if (typingIndicator) typingIndicator.classList.add('hidden');
+    }
+
         function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null } = {}) {
             const messageContainer = document.createElement('div');
             messageContainer.className = `message-container ${sender}`;
