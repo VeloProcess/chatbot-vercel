@@ -53,19 +53,42 @@ async function buscarRespostaStreaming(pergunta) {
     }
 }
     async function buscarRespostaAI(pergunta) {
-    const response = await fetch("/api/askOpenAI", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-    pergunta,
-    contextoPlanilha: "",
-    email: dadosAtendente.email
-    })
-});
+    if (!pergunta || !pergunta.trim()) return; // evita enviar vazio
+    showTypingIndicator();
 
-  const data = await response.json();
-  if (data.resposta) addMessage(data.resposta, "bot", { source: "IA" });
+    try {
+        const response = await fetch("/api/askOpenAI", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                pergunta,
+                contextoPlanilha: "",
+                email: dadosAtendente.email
+            })
+        });
+
+        hideTypingIndicator();
+
+        if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
+        const data = await response.json();
+
+        if (data.resposta) {
+            addMessage(data.resposta, 'bot', {
+                sourceRow: 'Resposta da IA',
+                source: 'IA'
+            });
+        } else {
+            addMessage("Não recebi resposta da IA.", 'bot', { sourceRow: 'Erro IA' });
+        }
+
+    } catch (error) {
+        hideTypingIndicator();
+        addMessage("Erro de conexão com a IA. Tente novamente em instantes.", 'bot', { sourceRow: 'Erro Conexão' });
+        console.error("Detalhes do erro:", error);
+    }
 }
+
+
     // ================== CONFIGURAÇÕES GLOBAIS ==================
     const DOMINIO_PERMITIDO = "@velotax.com.br";
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
