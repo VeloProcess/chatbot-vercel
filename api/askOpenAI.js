@@ -1,4 +1,7 @@
 import OpenAI from "openai";
+import { prepararContexto } from "./contexto.js";
+
+const contexto = await prepararContexto();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -12,25 +15,26 @@ export default async function handler(req, res) {
     session[email].push({ role: "user", content: pergunta });
 
     const prompt = `
-### PERSONA
-Você é o VeloBot, assistente da Velotax.
-### HISTÓRICO
-${session[email].map(h => `${h.role}: ${h.content}`).join("\n")}
-### CONTEXTO
-${contextoPlanilha}
-### PERGUNTA
+Você é o VeloBot, assistente interno da Velotax.
+Use apenas informações dos arquivos e sites autorizados.
+Se não encontrar resposta, diga que não encontrou.
+
+Pergunta do usuário:
 "${pergunta}"
+
+Contexto autorizado:
+${contexto}
 `;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-      max_tokens: 1024
-    });
+   const completion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.2,
+    max_tokens: 1024
+});
 
     const resposta = completion.choices[0].message.content;
-    session[email].push({ role: "assistant", content: resposta });
+    res.status(200).json({ resposta });
 
     res.status(200).send(resposta);
   } catch (error) {
