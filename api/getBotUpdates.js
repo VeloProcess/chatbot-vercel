@@ -1,59 +1,42 @@
-const { google } = require("googleapis");
+const { google } = require('googleapis');
 
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const SHEET_NAME = "AtualizacoesBot";
 
+// Configurar autenticação
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    keyFile: "credentials.json", // Caminho para sua credencial do Google Service Account
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
 });
 
-const sheets = google.sheets({ version: "v4", auth });
+async function getBotUpdates(req, res) {
+    try {
+        const client = await auth.getClient();
+        const sheets = google.sheets({ version: 'v4', auth: client });
 
-// --- Busca a última atualização ---
-async function buscarUltimaAtualizacao(email) {
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: SHEET_NAME + "!A:D",
-  });
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!A:C`, // Supondo: Coluna A = Data, B = Atualização, C = Status
+        });
 
-  const rows = res.data.values || [];
-  if (rows.length < 2) return null; // sem dados
-  const cabecalho = rows[0];
-  const dados = rows.slice(1);
+        const rows = response.data.values;
+        if (!rows || rows.length === 0) {
+            return res.json({ temAtualizacao: false, ultimaAtualizacao: null });
+        }
 
-  // pega a última linha
-  const ultima = dados[dados.length - 1];
-  const [versao, data, texto, usuariosLidos] = ultima;
-  const lido = usuariosLidos?.split(",").map(u => u.trim()) || [];
+        // Pega a última linha marcada como "Ativa" na Coluna C
+        const ultimaLinhaAtiva = rows.reverse().find(row => row[2]?.toLowerCase() === 'ativa');
 
-  return {
-    versao,
-    data,
-    texto,
-    lido,
-    estaLido: lido.includes(email)
-  };
+        if (!ultimaLinhaAtiva) {
+            return res.json({ temAtualizacao: false, ultimaAtualizacao: null });
+        }
+
+        const ultimaAtualizacao = ultimaLinhaAtiva[1]; // Coluna B = descrição
+        return res.json({ temAtualizacao: true, ultimaAtualizacao });
+    } catch (error) {
+        console.error("Erro ao buscar atualizações do bot:", error);
+        return res.status(500).json({ temAtualizacao: false, ultimaAtualizacao: null });
+    }
 }
 
-// --- Marca como lida ---
-async function marcarComoLido(email) {
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: SHEET_NAME + "!A:D",
-  });
-  const rows = res.data.values || [];
-  if (rows.length < 2) return;
-
-  const ultima = rows[rows.length - 1];
-  const [versao, data, texto, usuariosLidos] = ultima;
-  const lido = usuariosLidos?.split(",").map(u => u.trim()) || [];
-  if (!lido.includes(email)) lido.push(email);
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!D${rows.length}`,
-    valueInputOption: "RAW",
-    resource: { values: [[lido.join(", ")]] },
-  });
-}
+module.exports = { getBotUpdates };
