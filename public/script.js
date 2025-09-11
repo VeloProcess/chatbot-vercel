@@ -33,7 +33,8 @@ async function buscarRespostaStreaming(pergunta) {
     chatBox.appendChild(botMessage);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-        const response = await fetch("/api/ask", {
+    console.log("Enviando para IA:", pergunta, dadosAtendente.email);
+        const response = await fetch("/api/askOpenAI", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
