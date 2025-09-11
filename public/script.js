@@ -52,9 +52,19 @@ async function buscarRespostaStreaming(pergunta) {
     chatBox.scrollTop = chatBox.scrollHeight;
     }
 }
+
     async function buscarRespostaAI(pergunta) {
-    if (!pergunta || !pergunta.trim()) return; // evita enviar vazio
-    showTypingIndicator();
+    // Verifica se pergunta e email estão definidos
+    if (!pergunta || !pergunta.trim()) {
+        console.warn("Nenhuma pergunta fornecida.");
+        addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
+        return;
+    }
+    if (!dadosAtendente || !dadosAtendente.email) {
+        console.error("Email do atendente não definido.");
+        addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
+        return;
+    }
 
     try {
         const response = await fetch("/api/askOpenAI", {
@@ -67,24 +77,24 @@ async function buscarRespostaStreaming(pergunta) {
             })
         });
 
-        hideTypingIndicator();
+        if (!response.ok) {
+            const text = await response.text();
+            console.error("Erro do backend:", response.status, text);
+            addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
+            return;
+        }
 
-        if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
         const data = await response.json();
-
         if (data.resposta) {
-            addMessage(data.resposta, 'bot', {
-                sourceRow: 'Resposta da IA',
-                source: 'IA'
-            });
+            addMessage(data.resposta, "bot", { source: "IA" });
         } else {
-            addMessage("Não recebi resposta da IA.", 'bot', { sourceRow: 'Erro IA' });
+            console.warn("Resposta da IA vazia:", data);
+            addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
         }
 
     } catch (error) {
-        hideTypingIndicator();
-        addMessage("Erro de conexão com a IA. Tente novamente em instantes.", 'bot', { sourceRow: 'Erro Conexão' });
-        console.error("Detalhes do erro:", error);
+        console.error("Erro na requisição:", error);
+        addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
     }
 }
 
