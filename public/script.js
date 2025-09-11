@@ -261,32 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return assinaturaFormatada;
     }
-     async function verificarAtualizacao() {
-        try {
-            const response = await fetch('/api/getBotUpdates');
-            const data = await response.json();
-            const notificationIcon = document.getElementById('notification-icon');
-            if (!notificationIcon) return;
-            if (data.temAtualizacao) {
-                notificationIcon.className = 'bx bx-message-exclamation';
-                mostrarPopUpAtualizacao(data.ultimaAtualizacao);
-            } else { notificationIcon.className = 'bx bx-message'; }
-        } catch (err) { console.error("Erro ao verificar atualizações:", err); }
-    }
 
-    function mostrarPopUpAtualizacao(texto) {
-        const overlay = document.createElement('div');
-        overlay.id = 'update-overlay';
-        overlay.innerHTML = `
-            <div id="update-box">
-                <h2>Nova atualização do Veloprocess</h2>
-                <p>${texto}</p>
-                <button id="update-close">Fechar</button>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-        document.getElementById('update-close').addEventListener('click', () => overlay.remove());
-    }
 
     document.getElementById('notification-button')?.addEventListener('click', () => verificarAtualizacao());
 
@@ -308,6 +283,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 expandableHeader.classList.toggle('expanded');
             });
         }
+        // ====== POP-UP DE ATUALIZAÇÃO ======
+    async function checarAtualizacao() {
+        try {
+            const response = await fetch('/api/getBotUpdates');
+            if (!response.ok) throw new Error('Falha ao buscar atualizações');
+            const data = await response.json();
+            if (!data.temAtualizacao || !data.ultimaAtualizacao) return;
+
+            const ultimaExibida = localStorage.getItem('ultimaAtualizacaoExibida');
+            if (ultimaExibida !== data.ultimaAtualizacao) {
+                mostrarPopUpAtualizacao(data.ultimaAtualizacao);
+                localStorage.setItem('ultimaAtualizacaoExibida', data.ultimaAtualizacao);
+            }
+        } catch (error) {
+            console.error('Erro ao verificar atualizações:', error);
+        }
+    }
+
+    function mostrarPopUpAtualizacao(texto) {
+        const popUp = document.createElement('div');
+        popUp.className = 'bot-update-popup';
+        popUp.innerHTML = `
+            <div class="popup-content">
+                <span>${texto}</span>
+                <button id="fechar-popup">Fechar</button>
+            </div>
+        `;
+        document.body.appendChild(popUp);
+        document.getElementById('fechar-popup').addEventListener('click', () => popUp.remove());
+    }
+
             verificarAtualizacao();
         
         document.addEventListener('visibilitychange', () => {
