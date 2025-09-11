@@ -82,7 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const data = await response.json();
-        if (data.resposta) {
+if (data.resposta) {
+    addMessage(data.resposta, "bot", { source: "IA" });
+
             // Cria um novo container para cada resposta
             const chatBox = document.getElementById("chat-box");
             const botMessage = document.createElement("div");
