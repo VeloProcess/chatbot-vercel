@@ -21,17 +21,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função para buscar resposta da IA com streaming
     async function buscarRespostaStreaming(pergunta) {
-        ultimaPergunta = pergunta;
-        const chatBox = document.getElementById("chat-box");
+    ultimaPergunta = pergunta;
+    const chatBox = document.getElementById("chat-box");
 
-        const botMessage = document.createElement("div");
-        botMessage.className = "message-container bot";
-        botMessage.innerHTML = `<div class="message-content"><div class="message" id="bot-stream">...</div></div>`;
-        chatBox.appendChild(botMessage);
+    // Cria novo container para cada resposta
+    const botMessage = document.createElement("div");
+    botMessage.className = "message-container bot";
+    const messageContent = document.createElement("div");
+    messageContent.className = "message-content";
+    const messageText = document.createElement("div");
+    messageText.className = "message";
+    messageText.textContent = "...";
+    messageContent.appendChild(messageText);
+    botMessage.appendChild(messageContent);
+    chatBox.appendChild(botMessage);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    const response = await fetch("/api/askOpenAI", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let textoCompleto = "";
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textoCompleto += decoder.decode(value);
+        messageText.textContent = textoCompleto;
         chatBox.scrollTop = chatBox.scrollHeight;
+    }
+}
 
-        console.log("Enviando para IA:", pergunta, dadosAtendente.email);
+    // Função para buscar resposta da IA normal (sem streaming)
+    async function buscarRespostaAI(pergunta) {
+    if (!pergunta || !pergunta.trim()) {
+        addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
+        return;
+    }
+    if (!dadosAtendente || !dadosAtendente.email) {
+        addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
+        return;
+    }
 
+    try {
         const response = await fetch("/api/askOpenAI", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -45,65 +81,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let textoCompleto = "";
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            textoCompleto += chunk;
-            document.getElementById("bot-stream").textContent = textoCompleto;
+        const data = await response.json();
+        if (data.resposta) {
+            // Cria um novo container para cada resposta
+            const chatBox = document.getElementById("chat-box");
+            const botMessage = document.createElement("div");
+            botMessage.className = "message-container bot";
+            botMessage.innerHTML = `<div class="message-content"><div class="message">${data.resposta}</div></div>`;
+            chatBox.appendChild(botMessage);
             chatBox.scrollTop = chatBox.scrollHeight;
+        } else {
+            addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
         }
+
+    } catch (error) {
+        console.error("Erro na requisição:", error);
+        addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
     }
-
-    // Função para buscar resposta da IA normal (sem streaming)
-    async function buscarRespostaAI(pergunta) {
-        // Verifica se pergunta e email estão definidos
-        if (!pergunta || !pergunta.trim()) {
-            console.warn("Nenhuma pergunta fornecida.");
-            addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
-            return;
-        }
-        if (!dadosAtendente || !dadosAtendente.email) {
-            console.error("Email do atendente não definido.");
-            addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
-            return;
-        }
-
-        try {
-            const response = await fetch("/api/askOpenAI", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    pergunta,
-                    contextoPlanilha: "",
-                    email: dadosAtendente.email
-                })
-            });
-
-            if (!response.ok) {
-                const text = await response.text();
-                console.error("Erro do backend:", response.status, text);
-                addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
-                return;
-            }
-
-            const data = await response.json();
-            if (data.resposta) {
-                addMessage(data.resposta, "bot", { source: "IA" });
-            } else {
-                console.warn("Resposta da IA vazia:", data);
-                addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
-            }
-
-        } catch (error) {
-            console.error("Erro na requisição:", error);
-            addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
-        }
-    }
+}
 
     // Funções de scroll e typing
     function scrollToBottom() {
