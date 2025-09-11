@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // >>> INÍCIO DA CORREÇÃO <<<
+
     // Função autônoma para definir o tema inicial
     function setInitialTheme() {
         const body = document.body;
@@ -8,74 +9,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (savedTheme === 'dark') {
             body.classList.add('dark-theme');
-            if (themeSwitcher) { // Verifica se o botão existe na página atual
-                themeSwitcher.innerHTML = ' ☾ ';
-            }
+            if (themeSwitcher) themeSwitcher.innerHTML = ' ☾ ';
         } else {
             body.classList.remove('dark-theme');
-            if (themeSwitcher) { // Verifica se o botão existe na página atual
-                themeSwitcher.innerHTML = ' ☀︎ ';
-            }
+            if (themeSwitcher) themeSwitcher.innerHTML = ' ☀︎ ';
         }
     }
 
     // Aplica o tema imediatamente ao carregar a página
     setInitialTheme();
-    // >>> FIM DA CORREÇÃO <<<
-    
-async function buscarRespostaStreaming(pergunta) {
-    ultimaPergunta = pergunta;
-    const chatBox = document.getElementById("chat-box");
-    
-    const botMessage = document.createElement("div");
-    botMessage.className = "message-container bot";
-    botMessage.innerHTML = `<div class="message-content"><div class="message" id="bot-stream">...</div></div>`;
-    chatBox.appendChild(botMessage);
-    chatBox.scrollTop = chatBox.scrollHeight;
 
-    console.log("Enviando para IA:", pergunta, dadosAtendente.email);
-        const response = await fetch("/api/askOpenAI", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
-    });
+    // Função para buscar resposta da IA com streaming
+    async function buscarRespostaStreaming(pergunta) {
+        ultimaPergunta = pergunta;
+        const chatBox = document.getElementById("chat-box");
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let textoCompleto = "";
+        const botMessage = document.createElement("div");
+        botMessage.className = "message-container bot";
+        botMessage.innerHTML = `<div class="message-content"><div class="message" id="bot-stream">...</div></div>`;
+        chatBox.appendChild(botMessage);
+        chatBox.scrollTop = chatBox.scrollHeight;
 
-    while(true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value);
-    textoCompleto += chunk;
-    document.getElementById("bot-stream").textContent = textoCompleto;
-    chatBox.scrollTop = chatBox.scrollHeight;
-    }
-}
+        console.log("Enviando para IA:", pergunta, dadosAtendente.email);
 
-    async function buscarRespostaAI(pergunta) {
-    // Verifica se pergunta e email estão definidos
-    if (!pergunta || !pergunta.trim()) {
-        console.warn("Nenhuma pergunta fornecida.");
-        addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
-        return;
-    }
-    if (!dadosAtendente || !dadosAtendente.email) {
-        console.error("Email do atendente não definido.");
-        addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
-        return;
-    }
-
-    try {
         const response = await fetch("/api/askOpenAI", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                pergunta,
-                contextoPlanilha: "",
-                email: dadosAtendente.email
-            })
+            body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
         });
 
         if (!response.ok) {
@@ -85,19 +45,79 @@ async function buscarRespostaStreaming(pergunta) {
             return;
         }
 
-        const data = await response.json();
-        if (data.resposta) {
-            addMessage(data.resposta, "bot", { source: "IA" });
-        } else {
-            console.warn("Resposta da IA vazia:", data);
-            addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let textoCompleto = "";
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            textoCompleto += chunk;
+            document.getElementById("bot-stream").textContent = textoCompleto;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    }
+
+    // Função para buscar resposta da IA normal (sem streaming)
+    async function buscarRespostaAI(pergunta) {
+        // Verifica se pergunta e email estão definidos
+        if (!pergunta || !pergunta.trim()) {
+            console.warn("Nenhuma pergunta fornecida.");
+            addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
+            return;
+        }
+        if (!dadosAtendente || !dadosAtendente.email) {
+            console.error("Email do atendente não definido.");
+            addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
+            return;
         }
 
-    } catch (error) {
-        console.error("Erro na requisição:", error);
-        addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
+        try {
+            const response = await fetch("/api/askOpenAI", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pergunta,
+                    contextoPlanilha: "",
+                    email: dadosAtendente.email
+                })
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                console.error("Erro do backend:", response.status, text);
+                addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
+                return;
+            }
+
+            const data = await response.json();
+            if (data.resposta) {
+                addMessage(data.resposta, "bot", { source: "IA" });
+            } else {
+                console.warn("Resposta da IA vazia:", data);
+                addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
+            }
+
+        } catch (error) {
+            console.error("Erro na requisição:", error);
+            addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
+        }
     }
-}
+
+    // Funções de scroll e typing
+    function scrollToBottom() {
+        const chatBox = document.getElementById('chat-box');
+        chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+    }
+
+    function showTyping() {
+        document.getElementById('typing-indicator')?.classList.remove('hidden');
+    }
+
+    function hideTyping() {
+        document.getElementById('typing-indicator')?.classList.add('hidden');
+    }
 
 
     // ================== CONFIGURAÇÕES GLOBAIS ==================
