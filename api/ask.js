@@ -193,7 +193,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         status: "clarification_needed",
         resposta: "Você quer qual informação sobre crédito?",
-        options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal"],
+        options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal", "Data dos créditos ( lotes )"],
         source: "Planilha",
         sourceRow: 'Pergunta de Esclarecimento'
       });
