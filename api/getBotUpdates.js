@@ -1,42 +1,39 @@
-const { google } = require('googleapis');
+import { google } from 'googleapis';
 
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const SHEET_NAME = "AtualizacoesBot";
 
-// Configurar autenticação
-const auth = new google.auth.GoogleAuth({
-    keyFile: "credentials.json", // Caminho para sua credencial do Google Service Account
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-});
+// Função para ler dados da planilha
+async function getBotUpdatesFromSheet() {
+    const auth = new google.auth.GoogleAuth({
+        keyFile: "credentials.json",
+        scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    });
 
-async function getBotUpdates(req, res) {
-    try {
-        const client = await auth.getClient();
-        const sheets = google.sheets({ version: 'v4', auth: client });
+    const client = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
 
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!A:C`, // Supondo: Coluna A = Data, B = Atualização, C = Status
-        });
+    const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A:C`
+    });
 
-        const rows = response.data.values;
-        if (!rows || rows.length === 0) {
-            return res.json({ temAtualizacao: false, ultimaAtualizacao: null });
-        }
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) return { temAtualizacao: false, ultimaAtualizacao: null };
 
-        // Pega a última linha marcada como "Ativa" na Coluna C
-        const ultimaLinhaAtiva = rows.reverse().find(row => row[2]?.toLowerCase() === 'ativa');
+    const ultimaLinhaAtiva = rows.reverse().find(row => row[2]?.toLowerCase() === 'ativa');
+    if (!ultimaLinhaAtiva) return { temAtualizacao: false, ultimaAtualizacao: null };
 
-        if (!ultimaLinhaAtiva) {
-            return res.json({ temAtualizacao: false, ultimaAtualizacao: null });
-        }
-
-        const ultimaAtualizacao = ultimaLinhaAtiva[1]; // Coluna B = descrição
-        return res.json({ temAtualizacao: true, ultimaAtualizacao });
-    } catch (error) {
-        console.error("Erro ao buscar atualizações do bot:", error);
-        return res.status(500).json({ temAtualizacao: false, ultimaAtualizacao: null });
-    }
+    return { temAtualizacao: true, ultimaAtualizacao: ultimaLinhaAtiva[1] };
 }
 
-module.exports = { getBotUpdates };
+// Exportação padrão obrigatória para API routes (Vercel, Netlify)
+export default async function handler(req, res) {
+    try {
+        const updates = await getBotUpdatesFromSheet();
+        res.status(200).json(updates);
+    } catch (error) {
+        console.error("Erro ao buscar atualizações do bot:", error);
+        res.status(500).json({ temAtualizacao: false, ultimaAtualizacao: null });
+    }
+}
