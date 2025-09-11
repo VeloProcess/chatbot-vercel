@@ -122,43 +122,6 @@ async function buscarEPrepararContextoSites(pergunta) {
   return contexto || null;
 }
 
-// --- FUNÇÃO OPENAI ---
-        async function askOpenAI(pergunta, contextoPlanilha, email, historicoSessao = []) {
-  try {
-    const prompt = `
-### PERSONA
-Você é o VeloBot, assistente oficial da Velotax. Responda com base no histórico de conversa, no contexto da planilha e nos sites autorizados.
-
-### HISTÓRICO DE CONVERSA
-${historicoSessao.map(h => `${h.role}: ${h.content}`).join("\n")}
-
-### CONTEXTO DA PLANILHA
-${contextoPlanilha}
-
-### REGRAS
-- Se a nova pergunta for ambígua, use o histórico para entender o que o atendente quis dizer.
-- Seja direto e claro, mas natural.
-- Se o atendente disser "não entendi", reformule sua última resposta de forma mais simples.
-- Se não encontrar no contexto ou nos sites, diga: "Não encontrei essa informação nem na base de conhecimento nem nos sites oficiais."
-- Sempre responda em português do Brasil.
-
-### PERGUNTA ATUAL
-"${pergunta}"
-`;
-
-    const completion = await openai.chat.completions.create({
-      model: modeloOpenAI,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-      max_tokens: 1024,
-    });
-
-    return completion.choices[0].message.content;
-  } catch (error) {
-    console.error("ERRO AO CHAMAR OPENAI:", error);
-    return "Desculpe, não consegui processar sua pergunta.";
-  }
-}
 
 // --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 module.exports = async function handler(req, res) {
@@ -190,16 +153,20 @@ module.exports = async function handler(req, res) {
 
     // --- SEM CORRESPONDÊNCIAS NA PLANILHA ---
     if (correspondencias.length === 0) {
-      await logIaUsage(email, pergunta);
-      const contextoSites = await buscarEPrepararContextoSites(pergunta);
-      const respostaDaIA = await askOpenAI(pergunta, contextoSites || "Nenhum", email, reformular);
-      return res.status(200).json({
+    // Loga o uso da IA
+    await logIaUsage(email, pergunta);
+    // Prepara o contexto dos sites autorizados
+    const contextoSites = await buscarEPrepararContextoSites(pergunta);
+    // Pergunta à OpenAI
+    const respostaDaIA = await askOpenAI(pergunta, contextoSites || "Nenhum", email, reformular);
+    // Retorna a resposta da IA
+    return res.status(200).json({
         status: "sucesso_ia",
         resposta: respostaDaIA,
         source: "IA",
         sourceRow: 'Resposta da IA'
-      });
-    }
+    });
+}
 
     // --- SE HOUVER CORRESPONDÊNCIAS ---
     if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1].score) {

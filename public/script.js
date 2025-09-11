@@ -22,7 +22,50 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplica o tema imediatamente ao carregar a página
     setInitialTheme();
     // >>> FIM DA CORREÇÃO <<<
+    
+async function buscarRespostaStreaming(pergunta) {
+    ultimaPergunta = pergunta;
+    const chatBox = document.getElementById("chat-box");
+    
+    const botMessage = document.createElement("div");
+    botMessage.className = "message-container bot";
+    botMessage.innerHTML = `<div class="message-content"><div class="message" id="bot-stream">...</div></div>`;
+    chatBox.appendChild(botMessage);
+    chatBox.scrollTop = chatBox.scrollHeight;
 
+        const response = await fetch("/api/askOpenAIStreaming", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let textoCompleto = "";
+
+    while(true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    textoCompleto += chunk;
+    document.getElementById("bot-stream").textContent = textoCompleto;
+    chatBox.scrollTop = chatBox.scrollHeight;
+    }
+}
+    async function buscarRespostaAI(pergunta) {
+    const response = await fetch("/api/askOpenAI", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+    pergunta,
+    contextoPlanilha: "",
+    email: dadosAtendente.email
+    })
+});
+
+  const data = await response.json();
+  if (data.resposta) addMessage(data.resposta, "bot", { source: "IA" });
+}
     // ================== CONFIGURAÇÕES GLOBAIS ==================
     const DOMINIO_PERMITIDO = "@velotax.com.br";
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
@@ -574,7 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!trimmedText) return;
             addMessage(trimmedText, 'user');
             logQuestionOnSheet(trimmedText, dadosAtendente.email);
-            buscarResposta(trimmedText);
+            buscarRespostaStreaming(trimmedText);
             userInput.value = '';
         }
 
