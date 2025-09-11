@@ -869,3 +869,14 @@ body.dark-theme .skeleton {
     height: 16px;
     margin-bottom: var(--espaco-sm);
 }
+#notification-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    margin-left: 10px;
+}
+
+#notification-button:focus {
+    outline: none;
+}

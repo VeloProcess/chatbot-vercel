@@ -261,6 +261,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return assinaturaFormatada;
     }
+     async function verificarAtualizacao() {
+        try {
+            const response = await fetch('/api/getBotUpdates');
+            const data = await response.json();
+            const notificationIcon = document.getElementById('notification-icon');
+            if (!notificationIcon) return;
+            if (data.temAtualizacao) {
+                notificationIcon.className = 'bx bx-message-exclamation';
+                mostrarPopUpAtualizacao(data.ultimaAtualizacao);
+            } else { notificationIcon.className = 'bx bx-message'; }
+        } catch (err) { console.error("Erro ao verificar atualizações:", err); }
+    }
+
+    function mostrarPopUpAtualizacao(texto) {
+        const overlay = document.createElement('div');
+        overlay.id = 'update-overlay';
+        overlay.innerHTML = `
+            <div id="update-box">
+                <h2>Nova atualização do Veloprocess</h2>
+                <p>${texto}</p>
+                <button id="update-close">Fechar</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        document.getElementById('update-close').addEventListener('click', () => overlay.remove());
+    }
+
+    document.getElementById('notification-button')?.addEventListener('click', () => verificarAtualizacao());
 
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
     function iniciarBot() {
@@ -280,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 expandableHeader.classList.toggle('expanded');
             });
         }
+            verificarAtualizacao();
         
         document.addEventListener('visibilitychange', () => {
             if (!dadosAtendente) return;

@@ -123,54 +123,40 @@ async function buscarEPrepararContextoSites(pergunta) {
 }
 
 // --- FUNÇÃO OPENAI ---
-async function askOpenAI(pergunta, contextoDaPlanilha = "Nenhum", email = null, reformular = false) {
+        async function askOpenAI(pergunta, contextoPlanilha, email, historicoSessao = []) {
   try {
-    let sessionContext = userSessions[email]?.contexto || "";
     const prompt = `
-### PERSONA E OBJETIVO
-Você é o VeloBot, assistente factual da Velotax.
-Responda à pergunta do atendente usando **somente o contexto abaixo**, **sites autorizados** ou a **memória da sessão** se houver.
+### PERSONA
+Você é o VeloBot, assistente oficial da Velotax. Responda com base no histórico de conversa, no contexto da planilha e nos sites autorizados.
 
-### MEMÓRIA DE SESSÃO
-${sessionContext}
+### HISTÓRICO DE CONVERSA
+${historicoSessao.map(h => `${h.role}: ${h.content}`).join("\n")}
 
 ### CONTEXTO DA PLANILHA
-"""
-${contextoDaPlanilha}
-"""
-
-### PERGUNTA
-"${pergunta}"
+${contextoPlanilha}
 
 ### REGRAS
-- Se a informação estiver na base ou sites, responda exatamente com os dados encontrados.
-- Se não encontrar, responda: "Não encontrei esta informação na base de conhecimento ou nos sites autorizados."
-- Sempre em português do Brasil (pt-BR).
-- Se o atendente pedir para reformular, explique de maneira diferente mantendo o mesmo conteúdo.
+- Se a nova pergunta for ambígua, use o histórico para entender o que o atendente quis dizer.
+- Seja direto e claro, mas natural.
+- Se o atendente disser "não entendi", reformule sua última resposta de forma mais simples.
+- Se não encontrar no contexto ou nos sites, diga: "Não encontrei essa informação nem na base de conhecimento nem nos sites oficiais."
+- Sempre responda em português do Brasil.
 
+### PERGUNTA ATUAL
+"${pergunta}"
 `;
 
-    const chatCompletion = await openai.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+    const completion = await openai.chat.completions.create({
       model: modeloOpenAI,
-      temperature: 0,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
       max_tokens: 1024,
     });
 
-    const resposta = chatCompletion.choices[0].message.content;
-
-    // Atualiza memória de sessão
-    if (email) {
-      userSessions[email] = {
-        contexto: sessionContext + `\nPergunta anterior: ${pergunta}\nResposta: ${resposta}`,
-        ultimaPergunta: pergunta
-      };
-    }
-
-    return resposta;
+    return completion.choices[0].message.content;
   } catch (error) {
-    console.error("ERRO AO CHAMAR A API DA OPENAI:", error);
-    return "Desculpe, não consegui processar sua pergunta com a IA neste momento.";
+    console.error("ERRO AO CHAMAR OPENAI:", error);
+    return "Desculpe, não consegui processar sua pergunta.";
   }
 }
 
