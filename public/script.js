@@ -21,39 +21,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função para buscar resposta da IA com streaming
     async function buscarRespostaStreaming(pergunta) {
-    ultimaPergunta = pergunta;
-    const chatBox = document.getElementById("chat-box");
+  const chatBox = document.getElementById("chat-box");
+  const botMessage = document.createElement("div");
+  botMessage.className = "message-container bot";
+  botMessage.innerHTML = `<div class="message-content"><div class="message" id="bot-stream">...</div></div>`;
+  chatBox.appendChild(botMessage);
+  chatBox.scrollTop = chatBox.scrollHeight;
 
-    // Cria novo container para cada resposta
-    const botMessage = document.createElement("div");
-    botMessage.className = "message-container bot";
-    const messageContent = document.createElement("div");
-    messageContent.className = "message-content";
-    const messageText = document.createElement("div");
-    messageText.className = "message";
-    messageText.textContent = "...";
-    messageContent.appendChild(messageText);
-    botMessage.appendChild(messageContent);
-    chatBox.appendChild(botMessage);
+  const response = await fetch("/api/askOpenAI", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta, email: dadosAtendente.email })
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let textoCompleto = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    if (chunk.trim() === "[DONE]") break;
+    textoCompleto += chunk;
+    document.getElementById("bot-stream").textContent = textoCompleto;
     chatBox.scrollTop = chatBox.scrollHeight;
-
-    const response = await fetch("/api/askOpenAI", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
-    });
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let textoCompleto = "";
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textoCompleto += decoder.decode(value);
-        messageText.textContent = textoCompleto;
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
+  }
 }
 
     // Função para buscar resposta da IA normal (sem streaming)
