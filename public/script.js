@@ -529,7 +529,7 @@ if (resposta.trim()) {
                 } catch (e) { isComplexResponse = false; }
             }
             if (!isComplexResponse) {
-
+                
     const parseInlineButtons = (rawText) => {
         if (typeof rawText !== 'string') return '';
         const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
@@ -549,16 +549,16 @@ if (resposta.trim()) {
     // Garante que o texto fique dentro de <p>
     formattedText = `<p>${formattedText}</p>`;
 
-    const rawText = "1. **Confirme a Identidade**\n[button:Clique aqui|acao]";
-const textWithButtons = parseInlineButtons(rawText);
+    const textWithButtons = parseInlineButtons(formattedText);
+    messageDiv.innerHTML = marked.parse(textWithButtons);
 
-
-    const markdown = "Olá, **Gabriel**!\n- Item 1\n- Item 2";
+        const markdown = "Olá, **Gabriel**!\n- Item 1\n- Item 2";
 const html = marked.parse(markdown);
 // html: <p>Olá, <strong>Gabriel</strong>!</p><ul><li>Item 1</li><li>Item 2</li></ul>
 
 messageDiv.innerHTML = marked.parse(textWithButtons);
 }
+
             messageContentDiv.appendChild(messageDiv);
             messageContainer.appendChild(avatar);
             messageContainer.appendChild(messageContentDiv);
