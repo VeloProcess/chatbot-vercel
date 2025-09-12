@@ -1,6 +1,7 @@
 // api/getProductStatus.js (Versão com Cache)
 
-const { google } = require('googleapis');
+import { google } from "googleapis";
+import fs from "fs";
 
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const CACHE_DURATION_SECONDS = 180; // Cache de 3 minutos

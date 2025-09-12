@@ -1,6 +1,7 @@
 // api/logQuestion.js (Versão Atualizada com Histórico de Login/Logout)
 
-const { google } = require('googleapis');
+import { google } from "googleapis";
+import fs from "fs";
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
