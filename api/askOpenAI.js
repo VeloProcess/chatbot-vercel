@@ -77,7 +77,7 @@ ${contextoPlanilha}
     });
 
     const resposta = completion.choices[0].message.content;
-    res.status(200).json({ resposta });
+    res.status(200).send(resposta);
   } catch (error) {
     console.error("🔥 ERRO no handler askOpenAI:", error);
     res.status(500).json({ error: "Erro interno no servidor", details: error.message });
