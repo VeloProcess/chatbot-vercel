@@ -22,6 +22,11 @@ export default async function handler(req, res) {
     if (!pergunta || !email) {
       return res.status(400).json({ error: "Faltando parâmetros" });
     }
+    
+    if (!global.sessionMemory) {
+  global.sessionMemory = {};
+}
+const session = global.sessionMemory;
 
     // Carrega os PDFs e converte para texto
     const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
