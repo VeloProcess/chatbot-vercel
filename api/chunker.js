@@ -1,41 +1,29 @@
-// chunker.js
 import fs from "fs/promises";
 import path from "path";
-import pdf from "pdf-parse";
 
-// Função para ler um PDF e retornar o texto
-async function lerPDF(caminho) {
+export function carregarBase() {
   try {
-    const buffer = await fs.readFile(caminho);
-    const data = await pdf(buffer);
-    return data.text;
-  } catch (error) {
-    console.error(`Erro ao ler PDF ${caminho}:`, error.message);
-    return "";
-  }
-}
+    // Caminho do JSON
+    const jsonPath = path.join(process.cwd(), "data/base.json");
+    const jsonData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
 
-// Função para dividir texto em chunks
-function chunkText(text, size = 500) {
-  const chunks = [];
-  let start = 0;
-  while (start < text.length) {
-    chunks.push(text.slice(start, start + size));
-    start += size; // ou size / 2 se quiser sobreposição
-  }
-  return chunks;
-}
+    // Concatena todos os valores em um único texto
+    const fullText = Object.values(jsonData).join("\n\n");
 
-// Gera e exporta os chunks no momento em que o arquivo é importado
-export async function getDocumentChunks() {
-  try {
-    const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
-    const produtos = await lerPDF(path.join(process.cwd(), "data/produtos.pdf"));
+    // Cria chunks de 500 caracteres (pode ajustar)
+    const chunkSize = 500;
+    const chunks = [];
+    let start = 0;
 
-    const documentText = regrasInternas + "\n\n" + produtos;
-    return chunkText(documentText, 500);
-  } catch (error) {
-    console.error("Erro ao gerar chunks:", error);
-    return [];
+    while (start < fullText.length) {
+      const chunk = fullText.slice(start, start + chunkSize);
+      chunks.push(chunk);
+      start += chunkSize; // ou chunkSize / 2 para sobreposição
+    }
+
+    return { json: jsonData, chunks };
+  } catch (err) {
+    console.error("Erro ao carregar base.json:", err.message);
+    return { json: {}, chunks: [] };
   }
 }

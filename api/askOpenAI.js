@@ -1,47 +1,15 @@
 import OpenAI from "openai";
-import fs from "fs/promises";
-import path from "path";
-import pdf from "pdf-parse";
+import { carregarBase } from "../chunker.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Função para ler PDF
-async function lerPDF(caminho) {
-  try {
-    const buffer = await fs.readFile(caminho);
-    const data = await pdf(buffer);
-    return data.text;
-  } catch (error) {
-    console.error(`Erro ao ler PDF ${caminho}:`, error.message);
-    return "";
-  }
-}
+// Carrega base de dados e chunks logo no início
+const { json: baseDeDados, chunks: documentChunks } = carregarBase();
 
-// Função para criar chunks
-function chunkText(text, size = 500) {
-  const chunks = [];
-  let start = 0;
-  while (start < text.length) {
-    chunks.push(text.slice(start, start + size));
-    start += size;
-  }
-  return chunks;
-}
-
-// Função de busca nos chunks
-function searchInChunks(pergunta, chunks) {
+function searchInChunks(pergunta) {
   const lowerQuestion = pergunta.toLowerCase();
-  return chunks.filter(chunk => chunk.toLowerCase().includes(lowerQuestion));
+  return documentChunks.filter(chunk => chunk.toLowerCase().includes(lowerQuestion));
 }
-
-// 🔧 Pré-carrega os PDFs (fora do handler, para não ler em toda requisição)
-let documentChunks = [];
-(async () => {
-  const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
-  const produtos = await lerPDF(path.join(process.cwd(), "data/produtos.pdf"));
-  const documentText = regrasInternas + "\n\n" + produtos;
-  documentChunks = chunkText(documentText, 500);
-})();
 
 export default async function handler(req, res) {
   try {
@@ -50,19 +18,25 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Faltando parâmetros" });
     }
 
-    // Garante memória global
-    if (!global.sessionMemory) global.sessionMemory = {};
+    // Memória de sessão global
+    if (!global.sessionMemory) {
+      global.sessionMemory = {};
+    }
     const session = global.sessionMemory;
 
-    if (!Array.isArray(session[email])) session[email] = [];
+    if (!Array.isArray(session[email])) {
+      session[email] = [];
+    }
+
+    // Adiciona pergunta ao histórico
     session[email].push({ role: "user", content: pergunta });
 
     const historico = session[email].length
       ? session[email].map(h => `${h.role}: ${h.content}`).join("\n")
       : "Nenhum histórico anterior.";
 
-    // Busca nos chunks relevantes
-    const relevantChunks = searchInChunks(pergunta, documentChunks).join("\n\n");
+    // Busca nos chunks
+    const relevantChunks = searchInChunks(pergunta).join("\n\n");
 
     const prompt = `
 ### PERSONA
@@ -74,7 +48,7 @@ Sua função é ensinar o atendente como responder corretamente ao cliente.
 ${historico}
 
 ### CONTEXTO DA EMPRESA
-${relevantChunks || 'Nenhum conteúdo encontrado nos documentos.'}
+${relevantChunks || "Nenhum conteúdo encontrado nos documentos."}
 
 ### REGRAS DE RESPOSTA
 - Responda de forma clara e prática, em tom profissional.
@@ -95,8 +69,6 @@ ${relevantChunks || 'Nenhum conteúdo encontrado nos documentos.'}
     });
 
     const resposta = completion.choices[0].message.content;
-    session[email].push({ role: "assistant", content: resposta });
-
     res.status(200).send(resposta);
   } catch (error) {
     console.error("ERRO no handler askOpenAI:", error);
