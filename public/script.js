@@ -80,10 +80,14 @@ document.addEventListener('DOMContentLoaded', () => {
             addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
             return;
         }
+    const respostaFormatada = resposta
+    .replace(/\n{2,}/g, "</p><p>") // quebra dupla vira novo parágrafo
+    .replace(/\n/g, "<br>");       // quebra simples vira <br>
+
 
         const resposta = await response.text();
 if (resposta.trim()) {
-    addMessage(resposta, "bot", { source: "IA" });
+    addMessage(`<p>${respostaFormatada}</p>`, "bot", { source: "IA", html: true });
 
             // Cria um novo container para cada resposta
             const chatBox = document.getElementById("chat-box");
@@ -525,17 +529,28 @@ if (resposta.trim()) {
                 } catch (e) { isComplexResponse = false; }
             }
             if (!isComplexResponse) {
-                const parseInlineButtons = (rawText) => {
-                    if (typeof rawText !== 'string') return '';
-                    const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
-                    return rawText.replace(buttonRegex, (match, text, value) => {
-                        const escapedValue = value.trim().replace(/"/g, '&quot;');
-                        return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
-                    });
-                };
-                const textWithButtons = parseInlineButtons(text);
-                messageDiv.innerHTML = marked.parse(textWithButtons);
-            }
+    const parseInlineButtons = (rawText) => {
+        if (typeof rawText !== 'string') return '';
+        const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
+        return rawText.replace(buttonRegex, (match, text, value) => {
+            const escapedValue = value.trim().replace(/"/g, '&quot;');
+            return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
+        });
+    };
+
+    // --- NOVO BLOCO PARA FORMATAR MELHOR AS RESPOSTAS DA IA ---
+    let formattedText = text;
+
+    // Converte quebras de linha duplas em parágrafos
+    formattedText = formattedText.replace(/\n{2,}/g, "</p><p>");
+    // Converte quebras de linha simples em <br>
+    formattedText = formattedText.replace(/\n/g, "<br>");
+    // Garante que o texto fique dentro de <p>
+    formattedText = `<p>${formattedText}</p>`;
+
+    const textWithButtons = parseInlineButtons(formattedText);
+    messageDiv.innerHTML = marked.parse(textWithButtons);
+}
             messageContentDiv.appendChild(messageDiv);
             messageContainer.appendChild(avatar);
             messageContainer.appendChild(messageContentDiv);
