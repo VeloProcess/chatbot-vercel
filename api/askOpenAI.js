@@ -3,6 +3,13 @@ import fs from "fs/promises";
 import path from "path";
 import pdf from "pdf-parse"; // <-- nova lib para ler PDFs
 
+
+export async function extractTextFromPDF(filePath) {
+    const dataBuffer = fs.readFileSync(filePath);
+    const data = await pdf(dataBuffer);
+    return data.text; // texto puro
+}
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function lerPDF(caminho) {
@@ -14,6 +21,25 @@ async function lerPDF(caminho) {
     console.error(`Erro ao ler PDF ${caminho}:`, error.message);
     return "";
   }
+}
+
+function searchInChunks(pergunta) {
+    const lowerQuestion = pergunta.toLowerCase();
+    return documentChunks.filter(chunk => chunk.toLowerCase().includes(lowerQuestion));
+}
+
+    const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
+const produtos = await lerPDF(path.join(process.cwd(), "data/produtos.pdf"));
+
+// Cria os chunks (ex.: 500 caracteres cada)
+const documentText = regrasInternas + "\n\n" + produtos;
+const chunkSize = 500;
+const documentChunks = [];
+let start = 0;
+while (start < documentText.length) {
+    const chunk = documentText.slice(start, start + chunkSize);
+    documentChunks.push(chunk);
+    start += chunkSize; // ou chunkSize/2 se quiser sobreposição
 }
 
 export default async function handler(req, res) {
@@ -45,6 +71,9 @@ const historico = session[email].length
     // Carrega os PDFs e converte para texto
     const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
     const produtos = await lerPDF(path.join(process.cwd(), "data/produtos.pdf"));
+    const relevantChunks = searchInChunks(pergunta).join('\n\n');
+
+
 
         const prompt = `
 ### PERSONA
@@ -56,7 +85,7 @@ Sua função é ensinar o atendente como responder corretamente ao cliente.
 ${historico}
 
 ### CONTEXTO DA EMPRESA
-${contextoPlanilha}
+${relevantChunks || 'Nenhum conteúdo encontrado nos documentos.'}
 
 ### REGRAS DE RESPOSTA
 - Responda de forma clara e prática, em tom profissional.
@@ -79,7 +108,7 @@ ${contextoPlanilha}
     const resposta = completion.choices[0].message.content;
     res.status(200).send(resposta);
   } catch (error) {
-    console.error("🔥 ERRO no handler askOpenAI:", error);
+    console.error(" ERRO no handler askOpenAI:", error);
     res.status(500).json({ error: "Erro interno no servidor", details: error.message });
   }
 }

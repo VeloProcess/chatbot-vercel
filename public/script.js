@@ -777,57 +777,6 @@ messageDiv.innerHTML = marked.parse(textWithButtons);
             });
         }
 
-        if (sender === 'bot') {
-    const audioBtn = document.createElement('button');
-    audioBtn.textContent = "🔊 Ouvir";
-    audioBtn.onclick = () => tocarAudioElevenLabs(text);
-    messageDiv.appendChild(audioBtn);
-}
-    const activateBtn = document.getElementById("activate-elevenlabs-agent");
-
-activateBtn.addEventListener("click", async () => {
-    // Solicita permissão para usar microfone
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    let audioChunks = [];
-
-    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-    mediaRecorder.start();
-
-    alert("Grave sua pergunta e clique em OK quando terminar.");
-    mediaRecorder.stop();
-
-    mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-            const base64Audio = reader.result.split(",")[1]; // remove prefix data:
-            
-            try {
-                const response = await fetch("/api/elevenLabsAgent", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ audioBase64: base64Audio })
-                });
-
-                const data = await response.json();
-
-                if (data.respostaTexto) addMessage(data.respostaTexto, "bot", { source: "Agente11" });
-
-                if (data.respostaAudioUrl) {
-                    const audio = new Audio(data.respostaAudioUrl);
-                    audio.play();
-                }
-
-            } catch (err) {
-                console.error(err);
-                addMessage("Erro ao conectar com o Agente ElevenLabs.", "bot", { source: "Agente11" });
-            }
-        };
-    };
-});
-
         const primeiroNome = dadosAtendente.nome.split(' ')[0];
         addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot');
         setInitialTheme();
