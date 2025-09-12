@@ -38,6 +38,7 @@ export default async function handler(req, res) {
     // Busca nos chunks
     const relevantChunks = searchInChunks(pergunta).join("\n\n");
 
+    
     const prompt = `
 ### PERSONA
 Você é o **VeloBot**, assistente interno de suporte da Velotax.
