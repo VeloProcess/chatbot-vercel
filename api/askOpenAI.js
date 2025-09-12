@@ -1,17 +1,11 @@
 import OpenAI from "openai";
 import fs from "fs/promises";
 import path from "path";
-import pdf from "pdf-parse"; // <-- nova lib para ler PDFs
-
-
-export async function extractTextFromPDF(filePath) {
-    const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdf(dataBuffer);
-    return data.text; // texto puro
-}
+import pdf from "pdf-parse";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Função para ler PDF
 async function lerPDF(caminho) {
   try {
     const buffer = await fs.readFile(caminho);
@@ -23,59 +17,54 @@ async function lerPDF(caminho) {
   }
 }
 
-function searchInChunks(pergunta) {
-    const lowerQuestion = pergunta.toLowerCase();
-    return documentChunks.filter(chunk => chunk.toLowerCase().includes(lowerQuestion));
+// Função para criar chunks
+function chunkText(text, size = 500) {
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    chunks.push(text.slice(start, start + size));
+    start += size;
+  }
+  return chunks;
 }
 
-    const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
-const produtos = await lerPDF(path.join(process.cwd(), "data/produtos.pdf"));
-
-// Cria os chunks (ex.: 500 caracteres cada)
-const documentText = regrasInternas + "\n\n" + produtos;
-const chunkSize = 500;
-const documentChunks = [];
-let start = 0;
-while (start < documentText.length) {
-    const chunk = documentText.slice(start, start + chunkSize);
-    documentChunks.push(chunk);
-    start += chunkSize; // ou chunkSize/2 se quiser sobreposição
+// Função de busca nos chunks
+function searchInChunks(pergunta, chunks) {
+  const lowerQuestion = pergunta.toLowerCase();
+  return chunks.filter(chunk => chunk.toLowerCase().includes(lowerQuestion));
 }
+
+// 🔧 Pré-carrega os PDFs (fora do handler, para não ler em toda requisição)
+let documentChunks = [];
+(async () => {
+  const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
+  const produtos = await lerPDF(path.join(process.cwd(), "data/produtos.pdf"));
+  const documentText = regrasInternas + "\n\n" + produtos;
+  documentChunks = chunkText(documentText, 500);
+})();
 
 export default async function handler(req, res) {
   try {
-    const { pergunta, contextoPlanilha, email } = req.body;
+    const { pergunta, email } = req.body;
     if (!pergunta || !email) {
       return res.status(400).json({ error: "Faltando parâmetros" });
     }
-    
-   // Garante que o objeto de memória global existe
-if (!global.sessionMemory) {
-  global.sessionMemory = {};
-}
-const session = global.sessionMemory;
 
-// Garante que a sessão do atendente é sempre um array
-if (!Array.isArray(session[email])) {
-  session[email] = [];
-}
+    // Garante memória global
+    if (!global.sessionMemory) global.sessionMemory = {};
+    const session = global.sessionMemory;
 
-// Adiciona a pergunta ao histórico
-session[email].push({ role: "user", content: pergunta });
+    if (!Array.isArray(session[email])) session[email] = [];
+    session[email].push({ role: "user", content: pergunta });
 
-// Monta o histórico de forma segura
-const historico = session[email].length
-  ? session[email].map(h => `${h.role}: ${h.content}`).join("\n")
-  : "Nenhum histórico anterior.";
+    const historico = session[email].length
+      ? session[email].map(h => `${h.role}: ${h.content}`).join("\n")
+      : "Nenhum histórico anterior.";
 
-    // Carrega os PDFs e converte para texto
-    const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
-    const produtos = await lerPDF(path.join(process.cwd(), "data/produtos.pdf"));
-    const relevantChunks = searchInChunks(pergunta).join('\n\n');
+    // Busca nos chunks relevantes
+    const relevantChunks = searchInChunks(pergunta, documentChunks).join("\n\n");
 
-
-
-        const prompt = `
+    const prompt = `
 ### PERSONA
 Você é o **VeloBot**, assistente interno de suporte da Velotax.
 Seu público é o atendente da empresa, não o cliente final.
@@ -106,9 +95,11 @@ ${relevantChunks || 'Nenhum conteúdo encontrado nos documentos.'}
     });
 
     const resposta = completion.choices[0].message.content;
+    session[email].push({ role: "assistant", content: resposta });
+
     res.status(200).send(resposta);
   } catch (error) {
-    console.error(" ERRO no handler askOpenAI:", error);
+    console.error("ERRO no handler askOpenAI:", error);
     res.status(500).json({ error: "Erro interno no servidor", details: error.message });
   }
 }

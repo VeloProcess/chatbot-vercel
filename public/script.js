@@ -550,10 +550,10 @@ if (resposta.trim()) {
     formattedText = `<p>${formattedText}</p>`;
 
     const textWithButtons = parseInlineButtons(formattedText);
-    messageDiv.innerHTML = marked.parse(textWithButtons);
+    const html = marked.parse(textWithButtons);
+messageDiv.innerHTML = ""; // limpa antes
+messageDiv.insertAdjacentHTML("beforeend", html);
 
-        const markdown = "Olá, **Gabriel**!\n- Item 1\n- Item 2";
-const html = marked.parse(markdown);
 // html: <p>Olá, <strong>Gabriel</strong>!</p><ul><li>Item 1</li><li>Item 2</li></ul>
 
 messageDiv.innerHTML = marked.parse(textWithButtons);
