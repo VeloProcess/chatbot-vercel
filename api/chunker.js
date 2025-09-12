@@ -3,6 +3,8 @@ import path from "path";
 
 let documentChunks = [];
 
+module.exports = { loadDocuments, searchInChunks };
+
 export async function loadDocuments() {
     try {
         const regrasInternas = JSON.parse(await fs.readFile(path.join(process.cwd(), "data/regras-internas.json"), "utf8"));

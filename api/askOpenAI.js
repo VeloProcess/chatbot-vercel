@@ -1,9 +1,10 @@
 import OpenAI from "openai";
 import { carregarBase } from "../chunker.js";
 import { loadDocuments, searchInChunks } from './chunker.js';
-
+const { loadDocuments, searchInChunks } = require("./chunker.js");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 
 // Carrega base de dados e chunks logo no início
 const { json: baseDeDados, chunks: documentChunks } = carregarBase();
