@@ -63,7 +63,7 @@ ${contextoPlanilha}
 - Sempre descreva o passo a passo ou procedimento que o atendente deve seguir.
 - **Não se dirija ao cliente diretamente** (não use "Prezado cliente", "você" ou "seu").
 - Use uma linguagem de orientação interna, como "informe ao cliente que...", "explique que...", "siga este procedimento...".
-- Se não encontrar informação relevante, diga: "Não encontrei instrução para este caso. Escale para um analista."
+- Se não encontrar informação relevante, diga: "Não encontrei instrução para este caso. Se for algum procedimento interno, tente pesquisar com outras palavras para eu localizar em minha base."
 
 ### PERGUNTA
 "${pergunta}"
