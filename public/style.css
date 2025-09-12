@@ -1050,3 +1050,24 @@ body.dark-theme .inline-chat-button {
 body.dark-theme .inline-chat-button:hover {
     background-color: #1565C0;
 }
+#activate-elevenlabs-agent {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    background-color: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#activate-elevenlabs-agent:hover {
+    background-color: #4338ca;
+}
