@@ -23,10 +23,24 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Faltando parâmetros" });
     }
     
-    if (!global.sessionMemory) {
+   // Garante que o objeto de memória global existe
+if (!global.sessionMemory) {
   global.sessionMemory = {};
 }
 const session = global.sessionMemory;
+
+// Garante que a sessão do atendente é sempre um array
+if (!Array.isArray(session[email])) {
+  session[email] = [];
+}
+
+// Adiciona a pergunta ao histórico
+session[email].push({ role: "user", content: pergunta });
+
+// Monta o histórico de forma segura
+const historico = session[email].length
+  ? session[email].map(h => `${h.role}: ${h.content}`).join("\n")
+  : "Nenhum histórico anterior.";
 
     // Carrega os PDFs e converte para texto
     const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
@@ -39,7 +53,7 @@ Seu público é o atendente da empresa, não o cliente final.
 Sua função é ensinar o atendente como responder corretamente ao cliente.
 
 ### HISTÓRICO DA CONVERSA
-${session[email].map(h => `${h.role}: ${h.content}`).join("\n")}
+${historico}
 
 ### CONTEXTO DA EMPRESA
 ${contextoPlanilha}
@@ -53,7 +67,7 @@ ${contextoPlanilha}
 
 ### PERGUNTA
 "${pergunta}"
-    `;
+`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
