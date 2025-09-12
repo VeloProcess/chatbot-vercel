@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { carregarBase } from "../chunker.js";
+import { loadDocuments, searchInChunks } from './chunker.js';
+
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -36,7 +38,8 @@ export default async function handler(req, res) {
       : "Nenhum histórico anterior.";
 
     // Busca nos chunks
-    const relevantChunks = searchInChunks(pergunta).join("\n\n");
+        await loadDocuments();
+const relevantChunks = searchInChunks(pergunta).join('\n\n');
 
     
     const prompt = `
@@ -69,6 +72,7 @@ ${relevantChunks || "Nenhum conteúdo encontrado nos documentos."}
       temperature: 0.2,
       max_tokens: 1024,
     });
+
 
     const resposta = completion.choices[0].message.content;
     res.status(200).send(resposta);

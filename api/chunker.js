@@ -1,29 +1,31 @@
 import fs from "fs/promises";
 import path from "path";
 
-export function carregarBase() {
-  try {
-    // Caminho do JSON
-    const jsonPath = path.join(process.cwd(), "data/base.json");
-    const jsonData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+let documentChunks = [];
 
-    // Concatena todos os valores em um único texto
-    const fullText = Object.values(jsonData).join("\n\n");
+export async function loadDocuments() {
+    try {
+        const regrasInternas = JSON.parse(await fs.readFile(path.join(process.cwd(), "data/regras-internas.json"), "utf8"));
+        const produtos = JSON.parse(await fs.readFile(path.join(process.cwd(), "data/produtos.json"), "utf8"));
 
-    // Cria chunks de 500 caracteres (pode ajustar)
-    const chunkSize = 500;
-    const chunks = [];
-    let start = 0;
+        // Combine os textos em um único array de strings (chunks)
+        const combinedText = [...regrasInternas, ...produtos].join("\n\n");
 
-    while (start < fullText.length) {
-      const chunk = fullText.slice(start, start + chunkSize);
-      chunks.push(chunk);
-      start += chunkSize; // ou chunkSize / 2 para sobreposição
+        // Cria chunks de 500 caracteres
+        const chunkSize = 500;
+        let start = 0;
+        documentChunks = [];
+        while (start < combinedText.length) {
+            documentChunks.push(combinedText.slice(start, start + chunkSize));
+            start += chunkSize; // ou chunkSize/2 se quiser sobreposição
+        }
+        console.log("Documentos carregados e chunkados:", documentChunks.length);
+    } catch (err) {
+        console.error("Erro ao carregar documentos:", err);
     }
+}
 
-    return { json: jsonData, chunks };
-  } catch (err) {
-    console.error("Erro ao carregar base.json:", err.message);
-    return { json: {}, chunks: [] };
-  }
+export function searchInChunks(pergunta) {
+    const lowerQuestion = pergunta.toLowerCase();
+    return documentChunks.filter(chunk => chunk.toLowerCase().includes(lowerQuestion));
 }
