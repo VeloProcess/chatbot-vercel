@@ -1,19 +1,14 @@
-// api/logQuestion.js (Versão Atualizada com Histórico de Login/Logout)
-
 import { google } from "googleapis";
 import fs from "fs";
 
-// --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 
-// Mapeamento dos tipos de log para os nomes das abas
 const SHEET_NAMES = {
   question: "Log_Perguntas",
   error: "Log_Erros",
   access: "Log_Acessos"
 };
 
-// --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -21,23 +16,20 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: 'v4', auth });
 
-// --- FUNÇÃO PARA CONSULTAR HISTÓRICO E STATUS DE UM USUÁRIO ---
 async function getUserStatusAndHistory(email) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAMES.access}!A:D`, // Colunas: Timestamp, Email, Status, SessionID
+      range: `${SHEET_NAMES.access}!A:D`,
     });
-
     const rows = response.data.values || [];
     const now = new Date();
-    const onlineThreshold = 5 * 60 * 1000; // 5 minutos para considerar online
+    const onlineThreshold = 5 * 60 * 1000;
     let latestStatus = 'offline';
     let latestLogin = null;
     let latestLogout = null;
 
-    // Filtra entradas do usuário especificado
-    const userRows = rows.slice(1).filter(row => row[1] === email); // Ignora cabeçalho
+    const userRows = rows.slice(1).filter(row => row[1] === email);
     for (const row of userRows) {
       const [timestamp, , status] = row;
       const eventTime = new Date(timestamp);
@@ -49,7 +41,6 @@ async function getUserStatusAndHistory(email) {
       }
     }
 
-    // Verifica se o usuário está online (último login recente e sem logout posterior)
     if (latestLogin && (!latestLogout || new Date(latestLogin) > new Date(latestLogout))) {
       const loginTime = new Date(latestLogin);
       if (now - loginTime < onlineThreshold) {
@@ -74,39 +65,31 @@ async function getUserStatusAndHistory(email) {
   }
 }
 
-// --- A FUNÇÃO PRINCIPAL DA API (HANDLER) ---
-module.exports = async function handler(req, res) {
-  // --- CONFIGURAÇÃO CORS ---
-  res.setHeader('Access-Control-Allow-Origin', '*'); // TODO: Restrinja em produção
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
     if (req.method === 'GET') {
       const email = req.query.email;
       if (!email) {
-        // Retorna lista de usuários online (como na versão anterior)
         const response = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
           range: `${SHEET_NAMES.access}!A:D`,
         });
-
         const rows = response.data.values || [];
         const now = new Date();
-        const onlineThreshold = 5 * 60 * 1000; // 5 minutos
+        const onlineThreshold = 5 * 60 * 1000;
         const onlineUsers = {};
 
         for (const row of rows.slice(1)) {
           const [timestamp, email, status] = row;
           if (status !== 'online') continue;
           const loginTime = new Date(timestamp);
-          if (now - loginTime < onlineThreshold) {
-            onlineUsers[email] = { timestamp, status };
-          }
+          if (now - loginTime < onlineThreshold) onlineUsers[email] = { timestamp, status };
         }
 
         return res.status(200).json({
@@ -115,12 +98,8 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      // Retorna status e histórico para um e-mail específico
       const userData = await getUserStatusAndHistory(email);
-      return res.status(200).json({
-        status: 'sucesso',
-        user: userData
-      });
+      return res.status(200).json({ status: 'sucesso', user: userData });
     }
 
     if (req.method !== 'POST') {
@@ -128,21 +107,14 @@ module.exports = async function handler(req, res) {
     }
 
     const { type, payload } = req.body;
-
-    // Validação dos dados recebidos
     if (!type || !payload || !SHEET_NAMES[type]) {
       return res.status(400).json({ error: "Tipo de log ('type') inválido ou 'payload' ausente." });
     }
 
-    // --- CORREÇÃO DE FUSO HORÁRIO ---
-    const timestamp = new Date().toLocaleString('pt-BR', {
-      timeZone: 'America/Sao_Paulo'
-    });
-
+    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const sheetName = SHEET_NAMES[type];
     let newRow = [timestamp];
 
-    // Monta a linha com base no tipo de log
     switch (type) {
       case 'access':
         newRow.push(payload.email || 'nao_fornecido');
@@ -158,14 +130,11 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: `Tipo de log desconhecido: ${type}` });
     }
 
-    // Envia os dados para a planilha
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: sheetName,
       valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [newRow],
-      },
+      resource: { values: [newRow] },
     });
 
     return res.status(200).json({ status: 'sucesso', message: `Log do tipo '${type}' registrado.` });
@@ -174,4 +143,4 @@ module.exports = async function handler(req, res) {
     console.error(`ERRO NO ENDPOINT DE LOG (tipo: ${req.body?.type}):`, error);
     return res.status(500).json({ error: "Erro interno ao registrar o log.", details: error.message });
   }
-};
+}
