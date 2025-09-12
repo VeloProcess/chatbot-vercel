@@ -1,44 +1,60 @@
 import OpenAI from "openai";
-import { prepararContexto } from "./contexto.js";
-
-const contexto = await prepararContexto();
+import fs from "fs/promises";
+import path from "path";
+import pdf from "pdf-parse"; // <-- nova lib para ler PDFs
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export default async function handler(req, res) {
-  const { pergunta, contextoPlanilha, email } = req.body;
-  if (!pergunta || !email) return res.status(400).json({ error: "Faltando parâmetros" });
-
+async function lerPDF(caminho) {
   try {
-    const session = global.sessionMemory || {};
-    if (!session[email]) session[email] = [];
-    session[email].push({ role: "user", content: pergunta });
+    const buffer = await fs.readFile(caminho);
+    const data = await pdf(buffer);
+    return data.text;
+  } catch (error) {
+    console.error(`Erro ao ler PDF ${caminho}:`, error.message);
+    return "";
+  }
+}
+
+export default async function handler(req, res) {
+  try {
+    const { pergunta, contextoPlanilha, email } = req.body;
+    if (!pergunta || !email) {
+      return res.status(400).json({ error: "Faltando parâmetros" });
+    }
+
+    // Carrega os PDFs e converte para texto
+    const regrasInternas = await lerPDF(path.join(process.cwd(), "data/regras-internas.pdf"));
+    const produtos = await lerPDF(path.join(process.cwd(), "data/produtos.pdf"));
 
     const prompt = `
-Você é o VeloBot, assistente interno da Velotax.
-Use apenas informações dos arquivos e sites autorizados.
-Se não encontrar resposta, diga que não encontrou.
+### PERSONA
+Você é o VeloBot, assistente oficial da Velotax. 
+Responda sempre de forma formal, clara e objetiva.
 
-Pergunta do usuário:
+### HISTÓRICO
+${email} já perguntou: (histórico pode ser adicionado depois)
+
+### CONTEXTO INTERNO
+${contextoPlanilha || "Nenhum"}
+${regrasInternas}
+${produtos}
+
+### PERGUNTA ATUAL
 "${pergunta}"
-
-Contexto autorizado:
-${contexto}
 `;
 
-   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.2,
-    max_tokens: 1024
-});
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      max_tokens: 1024,
+    });
 
     const resposta = completion.choices[0].message.content;
     res.status(200).json({ resposta });
-
-    res.status(200).send(resposta);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Erro ao chamar OpenAI" });
+    console.error("🔥 ERRO no handler askOpenAI:", error);
+    res.status(500).json({ error: "Erro interno no servidor", details: error.message });
   }
 }
