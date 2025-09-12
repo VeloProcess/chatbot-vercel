@@ -62,6 +62,7 @@ ${relevantChunks || "Nenhum conteúdo encontrado nos documentos."}
 "${pergunta}"
 `;
 
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
