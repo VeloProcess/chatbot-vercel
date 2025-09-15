@@ -330,7 +330,7 @@ function buscarNaBaseLocal(pergunta, baseData) {
     console.log('Pergunta:', perguntaLower);
     console.log('Base de dados:', baseData);
     
-    // Procura por correspondência exata no title primeiro
+    // Primeiro: procura por correspondência exata no title
     for (const item of baseData) {
         if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
             console.log('Encontrou por title exato:', item.title);
@@ -338,59 +338,40 @@ function buscarNaBaseLocal(pergunta, baseData) {
         }
     }
     
-    // Procura por palavras-chave
+    // Segundo: procura por palavras-chave mais inteligente
     for (const item of baseData) {
         if (item.keywords && Array.isArray(item.keywords)) {
-            const palavrasChave = item.keywords.map(k => k.toLowerCase());
-            const perguntaPalavras = perguntaLower.split(' ');
-            
-            // Verifica se alguma palavra-chave está na pergunta
-            const palavrasEncontradas = palavrasChave.filter(palavra => 
-                perguntaPalavras.some(p => p.includes(palavra) || palavra.includes(p))
-            );
-            
-            if (palavrasEncontradas.length > 0) {
-                console.log('Encontrou por keywords:', palavrasEncontradas, 'em:', item.title);
-                return item.content;
+            for (const keyword of item.keywords) {
+                if (perguntaLower.includes(keyword.toLowerCase())) {
+                    console.log('Encontrou por keyword:', keyword);
+                    return item.content;
+                }
             }
         }
     }
     
-    // Procura por palavras-chave mais flexível
+    // Terceiro: procura por sinônimos
+    for (const item of baseData) {
+        if (item.sinonimos && Array.isArray(item.sinonimos)) {
+            for (const sinonimo of item.sinonimos) {
+                if (perguntaLower.includes(sinonimo.toLowerCase())) {
+                    console.log('Encontrou por sinônimo:', sinonimo);
+                    return item.content;
+                }
+            }
+        }
+    }
+    
+    // Quarto: busca por palavras individuais
+    const palavrasPergunta = perguntaLower.split(/\s+/);
     for (const item of baseData) {
         if (item.keywords && Array.isArray(item.keywords)) {
-            const palavrasChave = item.keywords.map(k => k.toLowerCase());
-            
-            // Verifica se alguma palavra-chave está contida na pergunta
-            const palavrasEncontradas = palavrasChave.filter(palavra => 
-                perguntaLower.includes(palavra)
-            );
-            
-            if (palavrasEncontradas.length > 0) {
-                console.log('Encontrou por keywords flexível:', palavrasEncontradas, 'em:', item.title);
-                return item.content;
-            }
-        }
-    }
-    
-    // Procura por similaridade no title
-    for (const item of baseData) {
-        if (item.title) {
-            const similaridade = calcularSimilaridade(perguntaLower, item.title.toLowerCase());
-            if (similaridade > 0.5) { // 50% de similaridade
-                console.log('Encontrou por similaridade no title:', similaridade, 'em:', item.title);
-                return item.content;
-            }
-        }
-    }
-    
-    // Procura por similaridade no content
-    for (const item of baseData) {
-        if (item.content) {
-            const similaridade = calcularSimilaridade(perguntaLower, item.content.toLowerCase());
-            if (similaridade > 0.5) { // 50% de similaridade
-                console.log('Encontrou por similaridade no content:', similaridade, 'em:', item.title);
-                return item.content;
+            for (const keyword of item.keywords) {
+                const palavrasKeyword = keyword.toLowerCase().split(/\s+/);
+                if (palavrasKeyword.some(palavra => palavrasPergunta.includes(palavra))) {
+                    console.log('Encontrou por palavra-chave parcial:', keyword);
+                    return item.content;
+                }
             }
         }
     }
