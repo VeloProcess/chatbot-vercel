@@ -12,6 +12,8 @@ let documentChunks = [];
 async function loadAndChunkJSON() {
   try {
     const filePath = path.join(process.cwd(), "data/base.json");
+    console.log("Tentando carregar base JSON em:", filePath);
+
     const fileContent = await fs.readFile(filePath, "utf-8");
     const jsonData = JSON.parse(fileContent);
 
@@ -22,19 +24,20 @@ async function loadAndChunkJSON() {
       }
     });
 
-    // cria chunks de 500 caracteres
     const chunkSize = 500;
     documentChunks = [];
     for (let start = 0; start < fullText.length; start += chunkSize) {
       documentChunks.push(fullText.slice(start, start + chunkSize));
     }
+
+    console.log(`Base carregada com ${documentChunks.length} chunks.`);
   } catch (err) {
-    console.error("Erro ao carregar JSON:", err.message);
-    documentChunks = [];
+    console.error("Falha ao carregar base.json:", err.message);
+    documentChunks = ["Base de conhecimento não encontrada no servidor."];
   }
 }
 
-// Função para buscar nos chunks
+// Busca simples na base
 function searchInChunks(pergunta) {
   const lowerQuestion = pergunta.toLowerCase();
   return documentChunks.filter(chunk =>
@@ -42,24 +45,24 @@ function searchInChunks(pergunta) {
   );
 }
 
-// ------------------- HANDLER STREAMING -------------------
+// ------------------- HANDLER -------------------
 export default async function handler(req, res) {
   try {
+    console.log("askOpenAI iniciado. Body recebido:", req.body);
     const { pergunta, email } = req.body || {};
     if (!pergunta || !email) {
+      console.warn("Requisição sem parâmetros obrigatórios:", req.body);
       return res.status(400).json({ error: "Faltando parâmetros" });
     }
 
-    // Inicializa memória de sessão global
+    // Sessão em memória
     if (!global.sessionMemory) global.sessionMemory = {};
     if (!Array.isArray(global.sessionMemory[email])) global.sessionMemory[email] = [];
     const session = global.sessionMemory;
 
     session[email].push({ role: "user", content: pergunta });
-
     const historico = session[email].map(h => `${h.role}: ${h.content}`).join("\n");
 
-    // Carrega base se necessário
     if (!documentChunks.length) await loadAndChunkJSON();
 
     const relevantChunks =
@@ -89,6 +92,8 @@ ${relevantChunks}
 "${pergunta}"
 `;
 
+    console.log("Prompt enviado para a OpenAI (primeiros 300 caracteres):", prompt.slice(0, 300) + "...");
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
@@ -97,7 +102,6 @@ ${relevantChunks}
       stream: true
     });
 
-    // Garante que existe body para streaming
     if (!completion.body) {
       console.error("Resposta da API não contém body.");
       return res.status(500).json({ error: "Falha ao iniciar streaming de resposta." });
