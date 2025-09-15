@@ -6,13 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function carregarConfig() {
         try {
-            const res = await fetch('/api/config.js');
+            const res = await fetch('/api/config');
             const config = await res.json();
             CLIENT_ID = config.clientId;
             DOMINIO_PERMITIDO = config.dominioPermitido;
-            iniciarBot(); // só inicia depois que pegar as configurações
+            // NÃO chama iniciarBot() aqui - só carrega as configurações
+            initGoogleSignIn(); // Inicia o processo de autenticação
         } catch (err) {
-            console.error('Erro ao carregar config.js:', err);
+            console.error('Erro ao carregar config:', err);
         }
     }
 
@@ -268,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 await logUserStatus('online');
                 hideOverlay();
-                iniciarBot();
+                iniciarBot(); // Agora chama iniciarBot() após autenticação
                 checkCurrentUserStatus();
 
             } else {
@@ -296,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dadosAtendente = dadosSalvos;
             logUserStatus('online');
             hideOverlay();
-            iniciarBot();
+            iniciarBot(); // Agora chama iniciarBot() após verificação
             checkCurrentUserStatus();
         } else {
             localStorage.removeItem('dadosAtendenteChatbot');
@@ -363,6 +364,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
     function iniciarBot() {
+        // Verificação de segurança
+        if (!dadosAtendente || !dadosAtendente.nome) {
+            console.error('dadosAtendente não está definido ou não tem nome');
+            return;
+        }
+
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
