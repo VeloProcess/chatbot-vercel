@@ -6,14 +6,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function carregarConfig() {
         try {
+            console.log('Iniciando carregamento de config...');
             const res = await fetch('/api/config');
+            console.log('Resposta da API:', res);
+            
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            
             const config = await res.json();
+            console.log('Config carregada:', config);
+            
             CLIENT_ID = config.clientId;
             DOMINIO_PERMITIDO = config.dominioPermitido;
-            // NÃO chama iniciarBot() aqui - só carrega as configurações
-            initGoogleSignIn(); // Inicia o processo de autenticação
+            
+            console.log('Variáveis definidas:', { CLIENT_ID, DOMINIO_PERMITIDO });
+            
+            // Só inicia o Google Sign-In após carregar as configurações
+            initGoogleSignIn();
         } catch (err) {
             console.error('Erro ao carregar config:', err);
+            // Em caso de erro, mostra mensagem de erro
+            const errorMsg = document.getElementById('identificacao-error');
+            if (errorMsg) {
+                errorMsg.textContent = 'Erro ao carregar configurações. Verifique sua conexão.';
+                errorMsg.classList.remove('hidden');
+            }
         }
     }
 
@@ -269,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 await logUserStatus('online');
                 hideOverlay();
-                iniciarBot(); // Agora chama iniciarBot() após autenticação
+                iniciarBot();
                 checkCurrentUserStatus();
 
             } else {
@@ -297,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dadosAtendente = dadosSalvos;
             logUserStatus('online');
             hideOverlay();
-            iniciarBot(); // Agora chama iniciarBot() após verificação
+            iniciarBot();
             checkCurrentUserStatus();
         } else {
             localStorage.removeItem('dadosAtendenteChatbot');
