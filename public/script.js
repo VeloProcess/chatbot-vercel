@@ -1,6 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // >>> INÍCIO DA CORREÇÃO - CARREGAMENTO ASSÍNCRONO DE CONFIGURAÇÕES <<<
+    // >>> DEBUG TEMPORÁRIO <<<
+    console.log('=== INICIANDO DEBUG ===');
     
+    // Teste direto da API
+    fetch('/api/config')
+        .then(res => res.json())
+        .then(config => {
+            console.log('Config da API:', config);
+            console.log('CLIENT_ID:', config.clientId);
+            console.log('DOMINIO_PERMITIDO:', config.dominioPermitido);
+        })
+        .catch(err => console.error('Erro na API:', err));
+
     let CLIENT_ID;
     let DOMINIO_PERMITIDO;
 
