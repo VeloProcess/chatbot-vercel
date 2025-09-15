@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
     const DOMINIO_PERMITIDO = '@velotax.com.br';
     
-    console.log('Configurações carregadas:', { CLIENT_ID, DOMINIO_PERMITIDO });
+    
 
     // ================== VARIÁVEIS DE ESTADO ==================
     let ultimaPergunta = '';
@@ -37,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Função addMessage movida para escopo global
-    // Função addMessage movida para escopo global
 function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
     const chatBox = document.getElementById('chat-box');
 
@@ -51,6 +50,9 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
     if (sender === 'bot' && source === 'IA') {
         avatar.textContent = '✦';
         avatar.title = 'Resposta gerada por IA';
+    } else if (sender === 'bot' && source === 'Base Local') {
+        avatar.textContent = '��';
+        avatar.title = 'Resposta da base de dados local';
     } else {
         avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
     }
@@ -117,18 +119,8 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
 
     // Se não for resposta complexa, aplica formatação normal
     if (!isComplexResponse) {
-        let textWithButtons;
-        
         if (html) {
-            // Se já é HTML, não processa markdown
-            textWithButtons = parseInlineButtons(text);
-        } else {
-            // Se é texto, processa markdown primeiro
-            const textWithButtons = parseInlineButtons(formatText(text));
-            messageDiv.innerHTML = marked.parse(textWithButtons);
-        }
-        
-        if (html) {
+            const textWithButtons = parseInlineButtons(text);
             messageDiv.innerHTML = textWithButtons;
         } else {
             const textWithButtons = parseInlineButtons(formatText(text));
@@ -260,7 +252,6 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
     }
 
     // Função para buscar resposta da IA normal (sem streaming)
-    // Função para buscar resposta da IA normal (sem streaming)
 async function buscarRespostaAI(pergunta) {
     if (!pergunta || !pergunta.trim()) {
         addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
@@ -272,6 +263,19 @@ async function buscarRespostaAI(pergunta) {
     }
 
     try {
+        // Primeiro tenta buscar na base local
+        const baseResponse = await fetch('/DATA/base.json');
+        if (baseResponse.ok) {
+            const baseData = await baseResponse.json();
+            const respostaLocal = buscarNaBaseLocal(pergunta, baseData);
+            
+            if (respostaLocal) {
+                addMessage(respostaLocal, "bot", { source: "Base Local" });
+                return;
+            }
+        }
+
+        // Se não encontrou na base local, usa a IA
         const response = await fetch("/api/askOpenAI", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -286,34 +290,27 @@ async function buscarRespostaAI(pergunta) {
         }
 
         const resposta = await response.text();
-        console.log('Resposta bruta da API:', resposta); // Debug
+        console.log('Resposta bruta da API:', resposta);
 
         if (resposta.trim()) {
             let conteudoFormatado;
             
             try {
-                // Tenta fazer parse do JSON
                 const respostaJson = JSON.parse(resposta);
                 if (respostaJson.resposta) {
-                    // Se tem propriedade 'resposta', usa ela
                     conteudoFormatado = respostaJson.resposta;
                 } else {
-                    // Se não tem, usa o texto direto
                     conteudoFormatado = resposta;
                 }
             } catch (e) {
-                // Se não conseguir fazer parse, usa o texto direto
                 conteudoFormatado = resposta;
             }
 
-            // Formata a resposta (markdown para HTML)
             const respostaFormatada = conteudoFormatado
-                .replace(/\n{2,}/g, "</p><p>") // quebras duplas viram parágrafo
-                .replace(/\n/g, "<br>");       // quebras simples viram <br>
+                .replace(/\n{2,}/g, "</p><p>")
+                .replace(/\n/g, "<br>");
 
-            // Adiciona no chat usando addMessage
             addMessage(`<p>${respostaFormatada}</p>`, "bot", { source: "IA", html: true });
-
         } else {
             addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
         }
@@ -322,6 +319,97 @@ async function buscarRespostaAI(pergunta) {
         console.error("Erro na requisição:", error);
         addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
     }
+}
+
+// Função para buscar na base local
+function buscarNaBaseLocal(pergunta, baseData) {
+    const perguntaLower = pergunta.toLowerCase().trim();
+    
+    // Procura por correspondência exata no title primeiro
+    for (const item of baseData) {
+        if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
+            return item.content;
+        }
+    }
+    
+    // Procura por palavras-chave
+    for (const item of baseData) {
+        if (item.keywords && Array.isArray(item.keywords)) {
+            const palavrasChave = item.keywords.map(k => k.toLowerCase());
+            const perguntaPalavras = perguntaLower.split(' ');
+            
+            // Verifica se alguma palavra-chave está na pergunta
+            const palavrasEncontradas = palavrasChave.filter(palavra => 
+                perguntaPalavras.some(p => p.includes(palavra) || palavra.includes(p))
+            );
+            
+            if (palavrasEncontradas.length > 0) {
+                return item.content;
+            }
+        }
+    }
+    
+    // Procura por similaridade no title
+    for (const item of baseData) {
+        if (item.title) {
+            const similaridade = calcularSimilaridade(perguntaLower, item.title.toLowerCase());
+            if (similaridade > 0.6) { // 60% de similaridade
+                return item.content;
+            }
+        }
+    }
+    
+    // Procura por similaridade no content
+    for (const item of baseData) {
+        if (item.content) {
+            const similaridade = calcularSimilaridade(perguntaLower, item.content.toLowerCase());
+            if (similaridade > 0.6) { // 60% de similaridade
+                return item.content;
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Função para calcular similaridade entre strings
+function calcularSimilaridade(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const distance = levenshteinDistance(longer, shorter);
+    return (longer.length - distance) / longer.length;
+}
+
+// Função para calcular distância de Levenshtein
+function levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
 }
 
     // Funções de scroll e typing
