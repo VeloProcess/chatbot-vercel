@@ -5,15 +5,12 @@ import path from "path";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ------------------- CHUNKER -------------------
 let documentChunks = [];
 
-// Função para carregar a base JSON e criar chunks
 async function loadAndChunkJSON() {
   try {
     const filePath = path.join(process.cwd(), "data/base.json");
     console.log("Tentando carregar base JSON em:", filePath);
-
     const fileContent = await fs.readFile(filePath, "utf-8");
     const jsonData = JSON.parse(fileContent);
 
@@ -32,12 +29,11 @@ async function loadAndChunkJSON() {
 
     console.log(`Base carregada com ${documentChunks.length} chunks.`);
   } catch (err) {
-    console.error("Falha ao carregar base.json:", err.message);
-    documentChunks = ["Base de conhecimento não encontrada no servidor."];
+    console.error("Falha ao carregar base.json:", err);
+    documentChunks = [];
   }
 }
 
-// Busca simples na base
 function searchInChunks(pergunta) {
   const lowerQuestion = pergunta.toLowerCase();
   return documentChunks.filter(chunk =>
@@ -45,22 +41,19 @@ function searchInChunks(pergunta) {
   );
 }
 
-// ------------------- HANDLER -------------------
 export default async function handler(req, res) {
   try {
     console.log("askOpenAI iniciado. Body recebido:", req.body);
     const { pergunta, email } = req.body || {};
     if (!pergunta || !email) {
-      console.warn("Requisição sem parâmetros obrigatórios:", req.body);
       return res.status(400).json({ error: "Faltando parâmetros" });
     }
 
-    // Sessão em memória
     if (!global.sessionMemory) global.sessionMemory = {};
     if (!Array.isArray(global.sessionMemory[email])) global.sessionMemory[email] = [];
     const session = global.sessionMemory;
-
     session[email].push({ role: "user", content: pergunta });
+
     const historico = session[email].map(h => `${h.role}: ${h.content}`).join("\n");
 
     if (!documentChunks.length) await loadAndChunkJSON();
@@ -92,20 +85,14 @@ ${relevantChunks}
 "${pergunta}"
 `;
 
-    console.log("Prompt enviado para a OpenAI (primeiros 300 caracteres):", prompt.slice(0, 300) + "...");
-
-    const completion = await openai.chat.completions.create({
+    // Novo método de streaming com for-await-of
+    const stream = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.2,
       max_tokens: 1024,
       stream: true
     });
-
-    if (!completion.body) {
-      console.error("Resposta da API não contém body.");
-      return res.status(500).json({ error: "Falha ao iniciar streaming de resposta." });
-    }
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -114,32 +101,22 @@ ${relevantChunks}
     });
 
     let respostaCompleta = "";
-    const reader = completion.body.getReader();
-    const decoder = new TextDecoder();
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
+    for await (const part of stream) {
+      const chunk = part.choices[0]?.delta?.content || "";
+      if (chunk) {
         respostaCompleta += chunk;
         res.write(`data: ${chunk}\n\n`);
       }
-
-      session[email].push({ role: "assistant", content: respostaCompleta });
-      res.write("data: [DONE]\n\n");
-    } catch (streamError) {
-      console.error("Erro durante o streaming:", streamError);
-      if (!res.headersSent) {
-        res.write(`data: Erro durante o streaming.\n\n`);
-      }
-    } finally {
-      res.end();
     }
+
+    session[email].push({ role: "assistant", content: respostaCompleta });
+    res.write("data: [DONE]\n\n");
+    res.end();
+
   } catch (error) {
     console.error("ERRO no handler askOpenAI:", error);
     if (!res.headersSent) {
-      return res.status(500).json({ error: "Erro interno no servidor", details: error.message });
+      res.status(500).json({ error: "Erro interno no servidor", details: error.message });
     }
   }
 }
