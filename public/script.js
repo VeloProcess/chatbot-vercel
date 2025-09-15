@@ -264,7 +264,7 @@ async function buscarRespostaAI(pergunta) {
 
     try {
         // Primeiro tenta buscar na base local
-        const baseResponse = await fetch('/Data/base.json');
+        const baseResponse = await fetch('/data/base.json');
         if (baseResponse.ok) {
             const baseData = await baseResponse.json();
             const respostaLocal = buscarNaBaseLocal(pergunta, baseData);
@@ -273,6 +273,8 @@ async function buscarRespostaAI(pergunta) {
                 addMessage(respostaLocal, "bot", { source: "Base Local" });
                 return;
             }
+        } else {
+            console.log('Erro ao carregar base.json:', baseResponse.status);
         }
 
         // Se não encontrou na base local, usa a IA
