@@ -1,50 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // >>> DEBUG TEMPORÁRIO <<<
-    console.log('=== INICIANDO DEBUG ===');
+    // >>> VARIÁVEIS DEFINIDAS NO FRONTEND <<<
+    const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
+    const DOMINIO_PERMITIDO = '@velotax.com.br';
     
-    // Teste direto da API
-    fetch('/api/config')
-        .then(res => res.json())
-        .then(config => {
-            console.log('Config da API:', config);
-            console.log('CLIENT_ID:', config.clientId);
-            console.log('DOMINIO_PERMITIDO:', config.dominioPermitido);
-        })
-        .catch(err => console.error('Erro na API:', err));
-
-    let CLIENT_ID;
-    let DOMINIO_PERMITIDO;
-
-    async function carregarConfig() {
-        try {
-            console.log('Iniciando carregamento de config...');
-            const res = await fetch('/api/config');
-            console.log('Resposta da API:', res);
-            
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
-            
-            const config = await res.json();
-            console.log('Config carregada:', config);
-            
-            CLIENT_ID = config.clientId;
-            DOMINIO_PERMITIDO = config.dominioPermitido;
-            
-            console.log('Variáveis definidas:', { CLIENT_ID, DOMINIO_PERMITIDO });
-            
-            // Só inicia o Google Sign-In após carregar as configurações
-            initGoogleSignIn();
-        } catch (err) {
-            console.error('Erro ao carregar config:', err);
-            // Em caso de erro, mostra mensagem de erro
-            const errorMsg = document.getElementById('identificacao-error');
-            if (errorMsg) {
-                errorMsg.textContent = 'Erro ao carregar configurações. Verifique sua conexão.';
-                errorMsg.classList.remove('hidden');
-            }
-        }
-    }
+    console.log('Configurações carregadas:', { CLIENT_ID, DOMINIO_PERMITIDO });
 
     // Função autônoma para definir o tema inicial
     function setInitialTheme() {
@@ -822,6 +781,6 @@ document.addEventListener('DOMContentLoaded', () => {
         carregarStatusProdutos();
     }
 
-    // Inicia o carregamento das configurações
-    carregarConfig();
+    // Inicia diretamente o Google Sign-In
+    initGoogleSignIn();
 });
