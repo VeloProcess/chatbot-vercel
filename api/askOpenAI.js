@@ -15,7 +15,6 @@ async function loadAndChunkJSON() {
     const fileContent = await fs.readFile(filePath, "utf-8");
     const jsonData = JSON.parse(fileContent);
 
-    // transforma todo o conteúdo em texto
     let fullText = "";
     jsonData.forEach(item => {
       if (item.title && item.content) {
@@ -26,11 +25,8 @@ async function loadAndChunkJSON() {
     // cria chunks de 500 caracteres
     const chunkSize = 500;
     documentChunks = [];
-    let start = 0;
-    while (start < fullText.length) {
-      const chunk = fullText.slice(start, start + chunkSize);
-      documentChunks.push(chunk);
-      start += chunkSize;
+    for (let start = 0; start < fullText.length; start += chunkSize) {
+      documentChunks.push(fullText.slice(start, start + chunkSize));
     }
   } catch (err) {
     console.error("Erro ao carregar JSON:", err.message);
@@ -49,7 +45,7 @@ function searchInChunks(pergunta) {
 // ------------------- HANDLER STREAMING -------------------
 export default async function handler(req, res) {
   try {
-    const { pergunta, email } = req.body;
+    const { pergunta, email } = req.body || {};
     if (!pergunta || !email) {
       return res.status(400).json({ error: "Faltando parâmetros" });
     }
@@ -59,20 +55,17 @@ export default async function handler(req, res) {
     if (!Array.isArray(global.sessionMemory[email])) global.sessionMemory[email] = [];
     const session = global.sessionMemory;
 
-    // Adiciona pergunta ao histórico
     session[email].push({ role: "user", content: pergunta });
 
-    // Monta histórico como texto
     const historico = session[email].map(h => `${h.role}: ${h.content}`).join("\n");
 
-    // Carrega a base JSON e gera chunks se ainda não foi feito
+    // Carrega base se necessário
     if (!documentChunks.length) await loadAndChunkJSON();
 
-    // Busca conteúdo relevante nos chunks
-    const relevantChunks = searchInChunks(pergunta).join("\n\n") || 
+    const relevantChunks =
+      searchInChunks(pergunta).join("\n\n") ||
       "Nenhum conteúdo encontrado na base de dados interna.";
 
-    // Prompt para a IA
     const prompt = `
 ### PERSONA
 Você é o VeloBot, assistente interno de suporte da Velotax.
@@ -96,7 +89,6 @@ ${relevantChunks}
 "${pergunta}"
 `;
 
-    // Configura streaming
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
@@ -105,30 +97,45 @@ ${relevantChunks}
       stream: true
     });
 
+    // Garante que existe body para streaming
+    if (!completion.body) {
+      console.error("Resposta da API não contém body.");
+      return res.status(500).json({ error: "Falha ao iniciar streaming de resposta." });
+    }
+
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive"
+      Connection: "keep-alive"
     });
 
     let respostaCompleta = "";
     const reader = completion.body.getReader();
     const decoder = new TextDecoder();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value);
-      respostaCompleta += chunk;
-      res.write(`data: ${chunk}\n\n`);
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        respostaCompleta += chunk;
+        res.write(`data: ${chunk}\n\n`);
+      }
+
+      session[email].push({ role: "assistant", content: respostaCompleta });
+      res.write("data: [DONE]\n\n");
+    } catch (streamError) {
+      console.error("Erro durante o streaming:", streamError);
+      if (!res.headersSent) {
+        res.write(`data: Erro durante o streaming.\n\n`);
+      }
+    } finally {
+      res.end();
     }
-
-    session[email].push({ role: "assistant", content: respostaCompleta });
-    res.write("data: [DONE]\n\n");
-    res.end();
-
   } catch (error) {
     console.error("ERRO no handler askOpenAI:", error);
-    res.status(500).json({ error: "Erro interno no servidor", details: error.message });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: "Erro interno no servidor", details: error.message });
+    }
   }
 }

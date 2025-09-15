@@ -266,7 +266,7 @@ if (resposta.trim()) {
                 checkCurrentUserStatus();
 
             } else {
-                errorMsg.textContent = 'Acesso permitido apenas para e-mails @velotax.com.br!';
+                errorMsg.textContent = 'Acesso permitido apenas para e-mails corporativos!!';
                 errorMsg.classList.remove('hidden');
             }
         } catch (error) {
