@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
     const DOMINIO_PERMITIDO = '@velotax.com.br';
     
-    console.log('Configurações carregadas:', { CLIENT_ID, DOMINIO_PERMITIDO });
 
     // Função autônoma para definir o tema inicial
     function setInitialTheme() {
@@ -592,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const negativeBtn = document.createElement('button');
                 negativeBtn.className = 'feedback-btn';
-                negativeBtn.innerHTML = '��';
+                negativeBtn.innerHTML = '👎';
                 negativeBtn.title = 'Resposta incorreta ou incompleta';
                 negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
 
