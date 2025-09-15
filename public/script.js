@@ -37,163 +37,179 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Função addMessage movida para escopo global
-    function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null } = {}) {
-        const chatBox = document.getElementById('chat-box');
+    // Função addMessage movida para escopo global
+function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
+    const chatBox = document.getElementById('chat-box');
 
-        // Container principal da mensagem
-        const messageContainer = document.createElement('div');
-        messageContainer.className = `message-container ${sender}`;
+    // Container principal da mensagem
+    const messageContainer = document.createElement('div');
+    messageContainer.className = `message-container ${sender}`;
 
-        // Avatar da mensagem
-        const avatar = document.createElement('div');
-        avatar.className = `avatar ${sender}`;
-        if (sender === 'bot' && source === 'IA') {
-            avatar.textContent = '✦';
-            avatar.title = 'Resposta gerada por IA';
-        } else {
-            avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
-        }
+    // Avatar da mensagem
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${sender}`;
+    if (sender === 'bot' && source === 'IA') {
+        avatar.textContent = '✦';
+        avatar.title = 'Resposta gerada por IA';
+    } else {
+        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
+    }
 
-        // Conteúdo da mensagem
-        const messageContentDiv = document.createElement('div');
-        messageContentDiv.className = 'message-content';
+    // Conteúdo da mensagem
+    const messageContentDiv = document.createElement('div');
+    messageContentDiv.className = 'message-content';
 
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message';
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
 
-        // Função para parse de botões inline
-        const parseInlineButtons = (rawText) => {
-            if (typeof rawText !== 'string') return '';
-            return rawText.replace(/\[button:(.*?)\|(.*?)\]/g, (match, text, value) => {
-                const escapedValue = value.trim().replace(/"/g, '&quot;');
-                return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
-            });
-        };
+    // Função para parse de botões inline
+    const parseInlineButtons = (rawText) => {
+        if (typeof rawText !== 'string') return '';
+        return rawText.replace(/\[button:(.*?)\|(.*?)\]/g, (match, text, value) => {
+            const escapedValue = value.trim().replace(/"/g, '&quot;');
+            return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
+        });
+    };
 
-        // Função para formatar texto com parágrafos e <br>
-        const formatText = (rawText) => {
-            let formatted = rawText.replace(/\n{2,}/g, "</p><p>");
-            formatted = formatted.replace(/\n/g, "<br>");
-            return `<p>${formatted}</p>`;
-        };
+    // Função para formatar texto com parágrafos e <br>
+    const formatText = (rawText) => {
+        let formatted = rawText.replace(/\n{2,}/g, "</p><p>");
+        formatted = formatted.replace(/\n/g, "<br>");
+        return `<p>${formatted}</p>`;
+    };
 
-        // Lógica para respostas complexas (accordion)
-        let isComplexResponse = false;
-        if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
-            try {
-                const items = JSON.parse(text);
-                if (Array.isArray(items) && items.every(item => item.title && item.content)) {
-                    isComplexResponse = true;
-                    const accordionContainer = document.createElement('div');
-                    accordionContainer.className = 'accordion-container';
+    // Lógica para respostas complexas (accordion)
+    let isComplexResponse = false;
+    if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
+        try {
+            const items = JSON.parse(text);
+            if (Array.isArray(items) && items.every(item => item.title && item.content)) {
+                isComplexResponse = true;
+                const accordionContainer = document.createElement('div');
+                accordionContainer.className = 'accordion-container';
 
-                    items.forEach(item => {
-                        const accordionItem = document.createElement('div');
-                        accordionItem.className = 'accordion-item';
+                items.forEach(item => {
+                    const accordionItem = document.createElement('div');
+                    accordionItem.className = 'accordion-item';
 
-                        const titleDiv = document.createElement('div');
-                        titleDiv.className = 'accordion-title';
-                        titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'accordion-title';
+                    titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
 
-                        const contentDiv = document.createElement('div');
-                        contentDiv.className = 'accordion-content';
-                        contentDiv.innerHTML = marked.parse(item.content);
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'accordion-content';
+                    contentDiv.innerHTML = marked.parse(item.content);
 
-                        titleDiv.addEventListener('click', () => {
-                            titleDiv.classList.toggle('active');
-                            contentDiv.classList.toggle('visible');
-                        });
-
-                        accordionItem.appendChild(titleDiv);
-                        accordionItem.appendChild(contentDiv);
-                        accordionContainer.appendChild(accordionItem);
+                    titleDiv.addEventListener('click', () => {
+                        titleDiv.classList.toggle('active');
+                        contentDiv.classList.toggle('visible');
                     });
 
-                    messageDiv.appendChild(accordionContainer);
-                }
-            } catch (e) { isComplexResponse = false; }
-        }
+                    accordionItem.appendChild(titleDiv);
+                    accordionItem.appendChild(contentDiv);
+                    accordionContainer.appendChild(accordionItem);
+                });
 
-        // Se não for resposta complexa, aplica formatação normal
-        if (!isComplexResponse) {
+                messageDiv.appendChild(accordionContainer);
+            }
+        } catch (e) { isComplexResponse = false; }
+    }
+
+    // Se não for resposta complexa, aplica formatação normal
+    if (!isComplexResponse) {
+        let textWithButtons;
+        
+        if (html) {
+            // Se já é HTML, não processa markdown
+            textWithButtons = parseInlineButtons(text);
+        } else {
+            // Se é texto, processa markdown primeiro
             const textWithButtons = parseInlineButtons(formatText(text));
             messageDiv.innerHTML = marked.parse(textWithButtons);
         }
-
-        messageContentDiv.appendChild(messageDiv);
-        messageContainer.appendChild(avatar);
-        messageContainer.appendChild(messageContentDiv);
-
-        // Botões inline
-        messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
-            button.addEventListener('click', () => {
-                const value = button.getAttribute('data-value');
-                if (value) handleSendMessage(value);
-            });
-        });
-
-        // Sugestões de tabulação
-        if (sender === 'bot' && tabulacoes) {
-            const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
-            if (sugestoes.length > 0) {
-                const tabulacaoTextContainer = document.createElement('div');
-                tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
-                tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${tabulacoes.replace(/;/g, '<br>')}`;
-
-                const triggerButton = document.createElement('button');
-                triggerButton.className = 'clarification-item';
-                triggerButton.textContent = 'Veja as tabulações';
-                triggerButton.style.marginTop = '10px';
-                triggerButton.onclick = () => {
-                    triggerButton.classList.add('hidden');
-                    tabulacaoTextContainer.classList.remove('hidden');
-                };
-
-                messageContentDiv.appendChild(triggerButton);
-                messageContentDiv.appendChild(tabulacaoTextContainer);
-            }
+        
+        if (html) {
+            messageDiv.innerHTML = textWithButtons;
+        } else {
+            const textWithButtons = parseInlineButtons(formatText(text));
+            messageDiv.innerHTML = marked.parse(textWithButtons);
         }
-
-        // Feedback do bot
-        if (sender === 'bot') {
-            ultimaLinhaDaFonte = sourceRow;
-            const feedbackContainer = document.createElement('div');
-            feedbackContainer.className = 'feedback-container';
-
-            const positiveBtn = document.createElement('button');
-            positiveBtn.className = 'feedback-btn';
-            positiveBtn.innerHTML = '👍';
-            positiveBtn.title = 'Resposta útil';
-            positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-
-            const negativeBtn = document.createElement('button');
-            negativeBtn.className = 'feedback-btn';
-            negativeBtn.innerHTML = '👎';
-            negativeBtn.title = 'Resposta incorreta ou incompleta';
-            negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-
-            feedbackContainer.appendChild(positiveBtn);
-            feedbackContainer.appendChild(negativeBtn);
-            messageContentDiv.appendChild(feedbackContainer);
-        }
-
-        // Opções de esclarecimento
-        if (sender === 'bot' && options.length > 0) {
-            const optionsContainer = document.createElement('div');
-            optionsContainer.className = 'clarification-container';
-            options.forEach(optionText => {
-                const button = document.createElement('button');
-                button.className = 'clarification-item';
-                button.textContent = optionText;
-                button.onclick = () => handleSendMessage(optionText);
-                optionsContainer.appendChild(button);
-            });
-            messageContentDiv.appendChild(optionsContainer);
-        }
-
-        chatBox.appendChild(messageContainer);
-        chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    messageContentDiv.appendChild(messageDiv);
+    messageContainer.appendChild(avatar);
+    messageContainer.appendChild(messageContentDiv);
+
+    // Botões inline
+    messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const value = button.getAttribute('data-value');
+            if (value) handleSendMessage(value);
+        });
+    });
+
+    // Sugestões de tabulação
+    if (sender === 'bot' && tabulacoes) {
+        const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
+        if (sugestoes.length > 0) {
+            const tabulacaoTextContainer = document.createElement('div');
+            tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
+            tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${tabulacoes.replace(/;/g, '<br>')}`;
+
+            const triggerButton = document.createElement('button');
+            triggerButton.className = 'clarification-item';
+            triggerButton.textContent = 'Veja as tabulações';
+            triggerButton.style.marginTop = '10px';
+            triggerButton.onclick = () => {
+                triggerButton.classList.add('hidden');
+                tabulacaoTextContainer.classList.remove('hidden');
+            };
+
+            messageContentDiv.appendChild(triggerButton);
+            messageContentDiv.appendChild(tabulacaoTextContainer);
+        }
+    }
+
+    // Feedback do bot
+    if (sender === 'bot') {
+        ultimaLinhaDaFonte = sourceRow;
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.className = 'feedback-container';
+
+        const positiveBtn = document.createElement('button');
+        positiveBtn.className = 'feedback-btn';
+        positiveBtn.innerHTML = '👍';
+        positiveBtn.title = 'Resposta útil';
+        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+
+        const negativeBtn = document.createElement('button');
+        negativeBtn.className = 'feedback-btn';
+        negativeBtn.innerHTML = '👎';
+        negativeBtn.title = 'Resposta incorreta ou incompleta';
+        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+
+        feedbackContainer.appendChild(positiveBtn);
+        feedbackContainer.appendChild(negativeBtn);
+        messageContentDiv.appendChild(feedbackContainer);
+    }
+
+    // Opções de esclarecimento
+    if (sender === 'bot' && options.length > 0) {
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'clarification-container';
+        options.forEach(optionText => {
+            const button = document.createElement('button');
+            button.className = 'clarification-item';
+            button.textContent = optionText;
+            button.onclick = () => handleSendMessage(optionText);
+            optionsContainer.appendChild(button);
+        });
+        messageContentDiv.appendChild(optionsContainer);
+    }
+
+    chatBox.appendChild(messageContainer);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
 
     // Função autônoma para definir o tema inicial
     function setInitialTheme() {
@@ -244,50 +260,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Função para buscar resposta da IA normal (sem streaming)
-    async function buscarRespostaAI(pergunta) {
-        if (!pergunta || !pergunta.trim()) {
-            addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
-            return;
-        }
-        if (!dadosAtendente || !dadosAtendente.email) {
-            addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
-            return;
-        }
-
-        try {
-            const response = await fetch("/api/askOpenAI", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
-            });
-
-            if (!response.ok) {
-                const text = await response.text();
-                console.error("Erro do backend:", response.status, text);
-                addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
-                return;
-            }
-
-            const resposta = await response.text();
-
-            if (resposta.trim()) {
-                // Formata a resposta
-                const respostaFormatada = resposta
-                    .replace(/\n{2,}/g, "</p><p>") // quebras duplas viram parágrafo
-                    .replace(/\n/g, "<br>");       // quebras simples viram <br>
-
-                // Adiciona no chat usando addMessage
-                addMessage(`<p>${respostaFormatada}</p>`, "bot", { source: "IA", html: true });
-
-            } else {
-                addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
-            }
-
-        } catch (error) {
-            console.error("Erro na requisição:", error);
-            addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
-        }
+    // Função para buscar resposta da IA normal (sem streaming)
+async function buscarRespostaAI(pergunta) {
+    if (!pergunta || !pergunta.trim()) {
+        addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
+        return;
     }
+    if (!dadosAtendente || !dadosAtendente.email) {
+        addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/askOpenAI", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error("Erro do backend:", response.status, text);
+            addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
+            return;
+        }
+
+        const resposta = await response.text();
+        console.log('Resposta bruta da API:', resposta); // Debug
+
+        if (resposta.trim()) {
+            let conteudoFormatado;
+            
+            try {
+                // Tenta fazer parse do JSON
+                const respostaJson = JSON.parse(resposta);
+                if (respostaJson.resposta) {
+                    // Se tem propriedade 'resposta', usa ela
+                    conteudoFormatado = respostaJson.resposta;
+                } else {
+                    // Se não tem, usa o texto direto
+                    conteudoFormatado = resposta;
+                }
+            } catch (e) {
+                // Se não conseguir fazer parse, usa o texto direto
+                conteudoFormatado = resposta;
+            }
+
+            // Formata a resposta (markdown para HTML)
+            const respostaFormatada = conteudoFormatado
+                .replace(/\n{2,}/g, "</p><p>") // quebras duplas viram parágrafo
+                .replace(/\n/g, "<br>");       // quebras simples viram <br>
+
+            // Adiciona no chat usando addMessage
+            addMessage(`<p>${respostaFormatada}</p>`, "bot", { source: "IA", html: true });
+
+        } else {
+            addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
+        }
+
+    } catch (error) {
+        console.error("Erro na requisição:", error);
+        addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
+    }
+}
 
     // Funções de scroll e typing
     function scrollToBottom() {
