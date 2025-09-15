@@ -51,7 +51,7 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
         avatar.textContent = '✦';
         avatar.title = 'Resposta gerada por IA';
     } else if (sender === 'bot' && source === 'Base Local') {
-        avatar.textContent = '��';
+        avatar.textContent = '🤖';
         avatar.title = 'Resposta da base de dados local';
     } else {
         avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
@@ -327,9 +327,13 @@ async function buscarRespostaAI(pergunta) {
 function buscarNaBaseLocal(pergunta, baseData) {
     const perguntaLower = pergunta.toLowerCase().trim();
     
+    console.log('Pergunta:', perguntaLower);
+    console.log('Base de dados:', baseData);
+    
     // Procura por correspondência exata no title primeiro
     for (const item of baseData) {
         if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
+            console.log('Encontrou por title exato:', item.title);
             return item.content;
         }
     }
@@ -346,6 +350,24 @@ function buscarNaBaseLocal(pergunta, baseData) {
             );
             
             if (palavrasEncontradas.length > 0) {
+                console.log('Encontrou por keywords:', palavrasEncontradas, 'em:', item.title);
+                return item.content;
+            }
+        }
+    }
+    
+    // Procura por palavras-chave mais flexível
+    for (const item of baseData) {
+        if (item.keywords && Array.isArray(item.keywords)) {
+            const palavrasChave = item.keywords.map(k => k.toLowerCase());
+            
+            // Verifica se alguma palavra-chave está contida na pergunta
+            const palavrasEncontradas = palavrasChave.filter(palavra => 
+                perguntaLower.includes(palavra)
+            );
+            
+            if (palavrasEncontradas.length > 0) {
+                console.log('Encontrou por keywords flexível:', palavrasEncontradas, 'em:', item.title);
                 return item.content;
             }
         }
@@ -355,7 +377,8 @@ function buscarNaBaseLocal(pergunta, baseData) {
     for (const item of baseData) {
         if (item.title) {
             const similaridade = calcularSimilaridade(perguntaLower, item.title.toLowerCase());
-            if (similaridade > 0.6) { // 60% de similaridade
+            if (similaridade > 0.5) { // 50% de similaridade
+                console.log('Encontrou por similaridade no title:', similaridade, 'em:', item.title);
                 return item.content;
             }
         }
@@ -365,12 +388,14 @@ function buscarNaBaseLocal(pergunta, baseData) {
     for (const item of baseData) {
         if (item.content) {
             const similaridade = calcularSimilaridade(perguntaLower, item.content.toLowerCase());
-            if (similaridade > 0.6) { // 60% de similaridade
+            if (similaridade > 0.5) { // 50% de similaridade
+                console.log('Encontrou por similaridade no content:', similaridade, 'em:', item.title);
                 return item.content;
             }
         }
     }
     
+    console.log('Nenhuma correspondência encontrada na base local');
     return null;
 }
 
@@ -383,6 +408,35 @@ function calcularSimilaridade(str1, str2) {
     
     const distance = levenshteinDistance(longer, shorter);
     return (longer.length - distance) / longer.length;
+}
+
+// Função para calcular distância de Levenshtein
+function levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
 }
 
 // Função para calcular distância de Levenshtein
