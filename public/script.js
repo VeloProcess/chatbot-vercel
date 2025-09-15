@@ -263,8 +263,8 @@ async function buscarRespostaAI(pergunta) {
     }
 
     try {
-        // Primeiro tenta buscar na base local
-        const baseResponse = await fetch('/data/base.json');
+        // Primeiro tenta buscar na base local via API
+        const baseResponse = await fetch('/api/base');
         if (baseResponse.ok) {
             const baseData = await baseResponse.json();
             const respostaLocal = buscarNaBaseLocal(pergunta, baseData);
