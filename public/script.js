@@ -73,14 +73,17 @@ document.addEventListener('DOMContentLoaded', () => {
             addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
             return;
         }
-    const respostaFormatada = resposta
-    .replace(/\n{2,}/g, "</p><p>") // quebra dupla vira novo parágrafo
-    .replace(/\n/g, "<br>");       // quebra simples vira <br>
+    
 
 
         const resposta = await response.text();
 if (resposta.trim()) {
     addMessage(`<p>${respostaFormatada}</p>`, "bot", { source: "IA", html: true });
+
+const respostaFormatada = resposta
+    .replace(/\n{2,}/g, "</p><p>") // quebra dupla vira novo parágrafo
+    .replace(/\n/g, "<br>");       // quebra simples vira <br>
+
 
             // Cria um novo container para cada resposta
             const chatBox = document.getElementById("chat-box");
@@ -544,7 +547,7 @@ if (resposta.trim()) {
 
     const textWithButtons = parseInlineButtons(formattedText);
     const html = marked.parse(textWithButtons);
-messageDiv.innerHTML = ""; // limpa antes
+
 messageDiv.insertAdjacentHTML("beforeend", html);
 
 // html: <p>Olá, <strong>Gabriel</strong>!</p><ul><li>Item 1</li><li>Item 2</li></ul>
@@ -680,13 +683,13 @@ messageDiv.innerHTML = marked.parse(textWithButtons);
         }
 
         function handleSendMessage(text) {
-            const trimmedText = text.trim();
-            if (!trimmedText) return;
-            addMessage(trimmedText, 'user');
-            logQuestionOnSheet(trimmedText, dadosAtendente.email);
-            buscarRespostaStreaming(trimmedText);
-            userInput.value = '';
-        }
+    const trimmedText = text.trim();
+    if (!trimmedText) return;
+    addMessage(trimmedText, 'user');
+    logQuestionOnSheet(trimmedText, dadosAtendente.email);
+    buscarRespostaAI(trimmedText); // <- use a versão sem streaming
+    userInput.value = '';
+}
 
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {

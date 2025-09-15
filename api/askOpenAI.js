@@ -12,10 +12,10 @@ let documentChunks = [];
 async function loadAndChunkJSON() {
   try {
     const filePath = path.join(process.cwd(), "data/base.json");
-    console.log("Tentando carregar base JSON em:", filePath);
-
     const fileContent = await fs.readFile(filePath, "utf-8");
     const jsonData = JSON.parse(fileContent);
+
+    console.log("Base JSON carregada:", filePath);
 
     let fullText = "";
     jsonData.forEach(item => {
@@ -24,13 +24,14 @@ async function loadAndChunkJSON() {
       }
     });
 
+    // cria chunks de 500 caracteres
     const chunkSize = 500;
     documentChunks = [];
     for (let start = 0; start < fullText.length; start += chunkSize) {
       documentChunks.push(fullText.slice(start, start + chunkSize));
     }
 
-    console.log("Base carregada com", documentChunks.length, "chunks.");
+    console.log(`Base dividida em ${documentChunks.length} chunks.`);
   } catch (err) {
     console.error("Falha ao carregar base.json:", err);
     documentChunks = [];
@@ -45,10 +46,9 @@ function searchInChunks(pergunta) {
   );
 }
 
-// ------------------- HANDLER STREAMING -------------------
+// ------------------- HANDLER -------------------
 export default async function handler(req, res) {
   try {
-    console.log("askOpenAI iniciado. Body recebido:", req.body);
     const { pergunta, email } = req.body || {};
     if (!pergunta || !email) {
       return res.status(400).json({ error: "Faltando parâmetros" });
@@ -59,8 +59,8 @@ export default async function handler(req, res) {
     if (!Array.isArray(global.sessionMemory[email])) global.sessionMemory[email] = [];
     const session = global.sessionMemory;
 
+    // Adiciona pergunta ao histórico
     session[email].push({ role: "user", content: pergunta });
-
     const historico = session[email].map(h => `${h.role}: ${h.content}`).join("\n");
 
     // Carrega base se necessário
@@ -93,67 +93,20 @@ ${relevantChunks}
 "${pergunta}"
 `;
 
-    // Cria a resposta em streaming
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.2,
-      max_tokens: 1024,
-      stream: true
+      max_tokens: 1024
     });
 
-    if (!completion.body) {
-      console.error("Resposta da API não contém body.");
-      return res.status(500).json({ error: "Falha ao iniciar streaming de resposta." });
-    }
+    const resposta = completion.choices[0].message.content;
+    session[email].push({ role: "assistant", content: resposta });
 
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive"
-    });
-
-    let respostaCompleta = "";
-    let buffer = "";
-    const reader = completion.body.getReader();
-    const decoder = new TextDecoder();
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        buffer += chunk;
-
-        // Envia apenas quando o buffer tiver conteúdo significativo
-        if (buffer.length > 20) {
-          res.write(`data: ${buffer}\n\n`);
-          respostaCompleta += buffer;
-          buffer = "";
-        }
-      }
-
-      // Envia o que sobrou no buffer
-      if (buffer.length) {
-        res.write(`data: ${buffer}\n\n`);
-        respostaCompleta += buffer;
-      }
-
-      session[email].push({ role: "assistant", content: respostaCompleta });
-      res.write("data: [DONE]\n\n");
-    } catch (streamError) {
-      console.error("Erro durante o streaming:", streamError);
-      if (!res.headersSent) {
-        res.write(`data: Erro durante o streaming.\n\n`);
-      }
-    } finally {
-      res.end();
-    }
+    return res.status(200).json({ resposta });
 
   } catch (error) {
     console.error("ERRO no handler askOpenAI:", error);
-    if (!res.headersSent) {
-      return res.status(500).json({ error: "Erro interno no servidor", details: error.message });
-    }
+    return res.status(500).json({ error: "Erro interno no servidor", details: error.message });
   }
 }
