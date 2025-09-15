@@ -901,8 +901,18 @@ function levenshteinDistance(str1, str2) {
             });
         }
 
-        const primeiroNome = dadosAtendente.nome.split(' ')[0];
-        addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot');
+        addMessage(
+    `Olá! Temos novidades: a nova plataforma de cursos <strong>Velo Academy</strong> já está disponível!`,
+    'bot'
+);
+
+const lastMessage = chatBox.lastElementChild;
+if (lastMessage) {
+    const button = document.createElement('button');
+    button.textContent = 'Acessar Velo Academy';
+    button.onclick = () => window.open('https://veloacademy.vercel.app/cursos.html', '_blank');
+    lastMessage.querySelector('.message-content')?.appendChild(button);
+}
         setInitialTheme();
         carregarNoticias();
         carregarStatusProdutos();
