@@ -6,13 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function carregarConfig() {
         try {
-            const res = await fetch('/api/config');
+            const res = await fetch('/api/config.js');
             const config = await res.json();
             CLIENT_ID = config.clientId;
             DOMINIO_PERMITIDO = config.dominioPermitido;
             iniciarBot(); // só inicia depois que pegar as configurações
         } catch (err) {
-            console.error('Erro ao carregar config:', err);
+            console.error('Erro ao carregar config.js:', err);
         }
     }
 
