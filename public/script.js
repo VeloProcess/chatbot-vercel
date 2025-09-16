@@ -1,51 +1,8 @@
-// Adicione este teste no seu script.js para debugar
-async function testarAPIDiretamente() {
-    console.log('=== TESTE DIRETO DA API ===');
-    
-    const testData = {
-        type: 'access',
-        payload: {
-            email: 'teste@velotax.com.br',
-            status: 'online',
-            sessionId: 'test-session-' + Date.now(),
-            timestamp: new Date().toLocaleString('pt-BR', {
-                timeZone: 'America/Sao_Paulo'
-            })
-        }
-    };
-    
-    console.log('Enviando dados de teste:', testData);
-    
-    try {
-        const response = await fetch('/api/logQuestion', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(testData)
-        });
-        
-        console.log('Status da resposta:', response.status);
-        const result = await response.json();
-        console.log('Resposta da API:', result);
-        
-        if (result.status === 'sucesso') {
-            console.log('✅ Teste da API passou!');
-        } else {
-            console.error('❌ Teste da API falhou:', result);
-        }
-    } catch (error) {
-        console.error('❌ Erro no teste da API:', error);
-    }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     // >>> VARIÁVEIS DEFINIDAS NO FRONTEND <<<
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
     const DOMINIO_PERMITIDO = '@velotax.com.br';
     
-    
-
     // ================== VARIÁVEIS DE ESTADO ==================
     let ultimaPergunta = '';
     let ultimaLinhaDaFonte = null;
@@ -78,171 +35,171 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Função addMessage movida para escopo global
-function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
-    const chatBox = document.getElementById('chat-box');
+    function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
+        const chatBox = document.getElementById('chat-box');
 
-    // Container principal da mensagem
-    const messageContainer = document.createElement('div');
-    messageContainer.className = `message-container ${sender}`;
+        // Container principal da mensagem
+        const messageContainer = document.createElement('div');
+        messageContainer.className = `message-container ${sender}`;
 
-    // Avatar da mensagem
-    const avatar = document.createElement('div');
-    avatar.className = `avatar ${sender}`;
-    if (sender === 'bot' && source === 'IA') {
-        avatar.textContent = '✦';
-        avatar.title = 'Resposta gerada por IA';
-    } else if (sender === 'bot' && source === 'Base Local') {
-        avatar.textContent = '🤖';
-        avatar.title = 'Resposta da base de dados local';
-    } else {
-        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
-    }
+        // Avatar da mensagem
+        const avatar = document.createElement('div');
+        avatar.className = `avatar ${sender}`;
+        if (sender === 'bot' && source === 'IA') {
+            avatar.textContent = '✦';
+            avatar.title = 'Resposta gerada por IA';
+        } else if (sender === 'bot' && source === 'Base Local') {
+            avatar.textContent = '🤖';
+            avatar.title = 'Resposta da base de dados local';
+        } else {
+            avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
+        }
 
-    // Conteúdo da mensagem
-    const messageContentDiv = document.createElement('div');
-    messageContentDiv.className = 'message-content';
+        // Conteúdo da mensagem
+        const messageContentDiv = document.createElement('div');
+        messageContentDiv.className = 'message-content';
 
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message';
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
 
-    // Função para parse de botões inline
-    const parseInlineButtons = (rawText) => {
-        if (typeof rawText !== 'string') return '';
-        return rawText.replace(/\[button:(.*?)\|(.*?)\]/g, (match, text, value) => {
-            const escapedValue = value.trim().replace(/"/g, '&quot;');
-            return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
-        });
-    };
+        // Função para parse de botões inline
+        const parseInlineButtons = (rawText) => {
+            if (typeof rawText !== 'string') return '';
+            return rawText.replace(/\[button:(.*?)\|(.*?)\]/g, (match, text, value) => {
+                const escapedValue = value.trim().replace(/"/g, '&quot;');
+                return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
+            });
+        };
 
-    // Função para formatar texto com parágrafos e <br>
-    const formatText = (rawText) => {
-        let formatted = rawText.replace(/\n{2,}/g, "</p><p>");
-        formatted = formatted.replace(/\n/g, "<br>");
-        return `<p>${formatted}</p>`;
-    };
+        // Função para formatar texto com parágrafos e <br>
+        const formatText = (rawText) => {
+            let formatted = rawText.replace(/\n{2,}/g, "</p><p>");
+            formatted = formatted.replace(/\n/g, "<br>");
+            return `<p>${formatted}</p>`;
+        };
 
-    // Lógica para respostas complexas (accordion)
-    let isComplexResponse = false;
-    if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
-        try {
-            const items = JSON.parse(text);
-            if (Array.isArray(items) && items.every(item => item.title && item.content)) {
-                isComplexResponse = true;
-                const accordionContainer = document.createElement('div');
-                accordionContainer.className = 'accordion-container';
+        // Lógica para respostas complexas (accordion)
+        let isComplexResponse = false;
+        if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
+            try {
+                const items = JSON.parse(text);
+                if (Array.isArray(items) && items.every(item => item.title && item.content)) {
+                    isComplexResponse = true;
+                    const accordionContainer = document.createElement('div');
+                    accordionContainer.className = 'accordion-container';
 
-                items.forEach(item => {
-                    const accordionItem = document.createElement('div');
-                    accordionItem.className = 'accordion-item';
+                    items.forEach(item => {
+                        const accordionItem = document.createElement('div');
+                        accordionItem.className = 'accordion-item';
 
-                    const titleDiv = document.createElement('div');
-                    titleDiv.className = 'accordion-title';
-                    titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
+                        const titleDiv = document.createElement('div');
+                        titleDiv.className = 'accordion-title';
+                        titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
 
-                    const contentDiv = document.createElement('div');
-                    contentDiv.className = 'accordion-content';
-                    contentDiv.innerHTML = marked.parse(item.content);
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'accordion-content';
+                        contentDiv.innerHTML = marked.parse(item.content);
 
-                    titleDiv.addEventListener('click', () => {
-                        titleDiv.classList.toggle('active');
-                        contentDiv.classList.toggle('visible');
+                        titleDiv.addEventListener('click', () => {
+                            titleDiv.classList.toggle('active');
+                            contentDiv.classList.toggle('visible');
+                        });
+
+                        accordionItem.appendChild(titleDiv);
+                        accordionItem.appendChild(contentDiv);
+                        accordionContainer.appendChild(accordionItem);
                     });
 
-                    accordionItem.appendChild(titleDiv);
-                    accordionItem.appendChild(contentDiv);
-                    accordionContainer.appendChild(accordionItem);
-                });
+                    messageDiv.appendChild(accordionContainer);
+                }
+            } catch (e) { isComplexResponse = false; }
+        }
 
-                messageDiv.appendChild(accordionContainer);
+        // Se não for resposta complexa, aplica formatação normal
+        if (!isComplexResponse) {
+            if (html) {
+                const textWithButtons = parseInlineButtons(text);
+                messageDiv.innerHTML = textWithButtons;
+            } else {
+                const textWithButtons = parseInlineButtons(formatText(text));
+                messageDiv.innerHTML = marked.parse(textWithButtons);
             }
-        } catch (e) { isComplexResponse = false; }
-    }
-
-    // Se não for resposta complexa, aplica formatação normal
-    if (!isComplexResponse) {
-        if (html) {
-            const textWithButtons = parseInlineButtons(text);
-            messageDiv.innerHTML = textWithButtons;
-        } else {
-            const textWithButtons = parseInlineButtons(formatText(text));
-            messageDiv.innerHTML = marked.parse(textWithButtons);
         }
-    }
 
-    messageContentDiv.appendChild(messageDiv);
-    messageContainer.appendChild(avatar);
-    messageContainer.appendChild(messageContentDiv);
+        messageContentDiv.appendChild(messageDiv);
+        messageContainer.appendChild(avatar);
+        messageContainer.appendChild(messageContentDiv);
 
-    // Botões inline
-    messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
-        button.addEventListener('click', () => {
-            const value = button.getAttribute('data-value');
-            if (value) handleSendMessage(value);
+        // Botões inline
+        messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const value = button.getAttribute('data-value');
+                if (value) handleSendMessage(value);
+            });
         });
-    });
 
-    // Sugestões de tabulação
-    if (sender === 'bot' && tabulacoes) {
-        const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
-        if (sugestoes.length > 0) {
-            const tabulacaoTextContainer = document.createElement('div');
-            tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
-            tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${tabulacoes.replace(/;/g, '<br>')}`;
+        // Sugestões de tabulação
+        if (sender === 'bot' && tabulacoes) {
+            const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
+            if (sugestoes.length > 0) {
+                const tabulacaoTextContainer = document.createElement('div');
+                tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
+                tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${tabulacoes.replace(/;/g, '<br>')}`;
 
-            const triggerButton = document.createElement('button');
-            triggerButton.className = 'clarification-item';
-            triggerButton.textContent = 'Veja as tabulações';
-            triggerButton.style.marginTop = '10px';
-            triggerButton.onclick = () => {
-                triggerButton.classList.add('hidden');
-                tabulacaoTextContainer.classList.remove('hidden');
-            };
+                const triggerButton = document.createElement('button');
+                triggerButton.className = 'clarification-item';
+                triggerButton.textContent = 'Veja as tabulações';
+                triggerButton.style.marginTop = '10px';
+                triggerButton.onclick = () => {
+                    triggerButton.classList.add('hidden');
+                    tabulacaoTextContainer.classList.remove('hidden');
+                };
 
-            messageContentDiv.appendChild(triggerButton);
-            messageContentDiv.appendChild(tabulacaoTextContainer);
+                messageContentDiv.appendChild(triggerButton);
+                messageContentDiv.appendChild(tabulacaoTextContainer);
+            }
         }
+
+        // Feedback do bot
+        if (sender === 'bot') {
+            ultimaLinhaDaFonte = sourceRow;
+            const feedbackContainer = document.createElement('div');
+            feedbackContainer.className = 'feedback-container';
+
+            const positiveBtn = document.createElement('button');
+            positiveBtn.className = 'feedback-btn';
+            positiveBtn.innerHTML = '👍';
+            positiveBtn.title = 'Resposta útil';
+            positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+
+            const negativeBtn = document.createElement('button');
+            negativeBtn.className = 'feedback-btn';
+            negativeBtn.innerHTML = '👎';
+            negativeBtn.title = 'Resposta incorreta ou incompleta';
+            negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+
+            feedbackContainer.appendChild(positiveBtn);
+            feedbackContainer.appendChild(negativeBtn);
+            messageContentDiv.appendChild(feedbackContainer);
+        }
+
+        // Opções de esclarecimento
+        if (sender === 'bot' && options.length > 0) {
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'clarification-container';
+            options.forEach(optionText => {
+                const button = document.createElement('button');
+                button.className = 'clarification-item';
+                button.textContent = optionText;
+                button.onclick = () => handleSendMessage(optionText);
+                optionsContainer.appendChild(button);
+            });
+            messageContentDiv.appendChild(optionsContainer);
+        }
+
+        chatBox.appendChild(messageContainer);
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    // Feedback do bot
-    if (sender === 'bot') {
-        ultimaLinhaDaFonte = sourceRow;
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.className = 'feedback-container';
-
-        const positiveBtn = document.createElement('button');
-        positiveBtn.className = 'feedback-btn';
-        positiveBtn.innerHTML = '👍';
-        positiveBtn.title = 'Resposta útil';
-        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-
-        const negativeBtn = document.createElement('button');
-        negativeBtn.className = 'feedback-btn';
-        negativeBtn.innerHTML = '👎';
-        negativeBtn.title = 'Resposta incorreta ou incompleta';
-        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-
-        feedbackContainer.appendChild(positiveBtn);
-        feedbackContainer.appendChild(negativeBtn);
-        messageContentDiv.appendChild(feedbackContainer);
-    }
-
-    // Opções de esclarecimento
-    if (sender === 'bot' && options.length > 0) {
-        const optionsContainer = document.createElement('div');
-        optionsContainer.className = 'clarification-container';
-        options.forEach(optionText => {
-            const button = document.createElement('button');
-            button.className = 'clarification-item';
-            button.textContent = optionText;
-            button.onclick = () => handleSendMessage(optionText);
-            optionsContainer.appendChild(button);
-        });
-        messageContentDiv.appendChild(optionsContainer);
-    }
-
-    chatBox.appendChild(messageContainer);
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
 
     // Função autônoma para definir o tema inicial
     function setInitialTheme() {
@@ -293,310 +250,310 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
     }
 
     // Função para buscar resposta da IA normal (sem streaming)
-async function buscarRespostaAI(pergunta) {
-    if (!pergunta || !pergunta.trim()) {
-        addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
-        return;
-    }
-    if (!dadosAtendente || !dadosAtendente.email) {
-        addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
-        return;
-    }
-
-    try {
-        // Primeiro tenta buscar na base local
-        const baseResponse = await fetch('/api/base');
-        if (baseResponse.ok) {
-            const baseData = await baseResponse.json();
-            const respostaLocal = buscarNaBaseLocal(pergunta, baseData);
-            
-            if (respostaLocal) {
-                console.log('✅ Resposta encontrada na base local');
-                addMessage(respostaLocal, "bot", { source: "Base Local" });
-                return;
-            }
+    async function buscarRespostaAI(pergunta) {
+        if (!pergunta || !pergunta.trim()) {
+            addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
+            return;
         }
-        
-        console.log('❌ Não encontrado na base local, buscando em sites externos...');
-        
-        // Se não encontrou na base local, busca em sites externos
-        const sitesAutorizados = [
-            "https://www.gov.br/receitafederal/pt-br",
-            "https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda", 
-            "https://velotax.com.br/"
-        ];
-        
-        const contextoExterno = `Consulte as seguintes fontes oficiais para responder à pergunta: ${sitesAutorizados.join(', ')}`;
-        
-        const response = await fetch("/api/askOpenAI", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                pergunta, 
-                contextoPlanilha: contextoExterno, 
-                email: dadosAtendente.email 
-            })
-        });
-
-        if (!response.ok) {
-            const text = await response.text();
-            console.error("Erro do backend:", response.status, text);
-            addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
+        if (!dadosAtendente || !dadosAtendente.email) {
+            addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
             return;
         }
 
-        const resposta = await response.text();
-        console.log("Resposta bruta da API:", resposta);
+        try {
+            // Primeiro tenta buscar na base local
+            const baseResponse = await fetch('/api/base');
+            if (baseResponse.ok) {
+                const baseData = await baseResponse.json();
+                const respostaLocal = buscarNaBaseLocal(pergunta, baseData);
+                
+                if (respostaLocal) {
+                    console.log('✅ Resposta encontrada na base local');
+                    addMessage(respostaLocal, "bot", { source: "Base Local" });
+                    return;
+                }
+            }
+            
+            console.log('❌ Não encontrado na base local, buscando em sites externos...');
+            
+            // Se não encontrou na base local, busca em sites externos
+            const sitesAutorizados = [
+                "https://www.gov.br/receitafederal/pt-br",
+                "https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda", 
+                "https://velotax.com.br/"
+            ];
+            
+            const contextoExterno = `Consulte as seguintes fontes oficiais para responder à pergunta: ${sitesAutorizados.join(', ')}`;
+            
+            const response = await fetch("/api/askOpenAI", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    pergunta, 
+                    contextoPlanilha: contextoExterno, 
+                    email: dadosAtendente.email 
+                })
+            });
 
-        if (resposta.trim()) {
-            try {
-                // Tenta fazer parse como JSON
-                const respostaJson = JSON.parse(resposta);
-                if (respostaJson.resposta) {
-                    addMessage(respostaJson.resposta, "bot", { source: "Sites Externos" });
-                } else {
+            if (!response.ok) {
+                const text = await response.text();
+                console.error("Erro do backend:", response.status, text);
+                addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
+                return;
+            }
+
+            const resposta = await response.text();
+            console.log("Resposta bruta da API:", resposta);
+
+            if (resposta.trim()) {
+                try {
+                    // Tenta fazer parse como JSON
+                    const respostaJson = JSON.parse(resposta);
+                    if (respostaJson.resposta) {
+                        addMessage(respostaJson.resposta, "bot", { source: "Sites Externos" });
+                    } else {
+                        addMessage(resposta, "bot", { source: "Sites Externos" });
+                    }
+                } catch (e) {
+                    // Se não for JSON, usa a resposta direta
                     addMessage(resposta, "bot", { source: "Sites Externos" });
                 }
-            } catch (e) {
-                // Se não for JSON, usa a resposta direta
-                addMessage(resposta, "bot", { source: "Sites Externos" });
+            } else {
+                addMessage("Desculpe, não consegui encontrar uma resposta adequada para sua pergunta.", "bot", { source: "IA" });
             }
-        } else {
-            addMessage("Desculpe, não consegui encontrar uma resposta adequada para sua pergunta.", "bot", { source: "IA" });
+        } catch (err) {
+            console.error("Erro na requisição:", err);
+            addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
         }
-    } catch (err) {
-        console.error("Erro na requisição:", err);
-        addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
     }
-}
 
-    // Função para buscar na base local com IA inteligente - SUBSTITUI A VERSÃO ATUAL
-function buscarNaBaseLocal(pergunta, baseData) {
-    const perguntaLower = pergunta.toLowerCase().trim();
-    
-    console.log('=== BUSCA IA INTELIGENTE ===');
-    console.log('Pergunta:', pergunta);
-    console.log('Total de entradas:', baseData.length);
-    
-    const resultados = [];
-    
-    // 1. BUSCA EXATA NO TÍTULO (pontuação máxima)
-    for (const item of baseData) {
-        if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
-            console.log('✅ TÍTULO EXATO:', item.title);
-            return item.content;
+    // Função para buscar na base local com IA inteligente
+    function buscarNaBaseLocal(pergunta, baseData) {
+        const perguntaLower = pergunta.toLowerCase().trim();
+        
+        console.log('=== BUSCA IA INTELIGENTE ===');
+        console.log('Pergunta:', pergunta);
+        console.log('Total de entradas:', baseData.length);
+        
+        const resultados = [];
+        
+        // 1. BUSCA EXATA NO TÍTULO (pontuação máxima)
+        for (const item of baseData) {
+            if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
+                console.log('✅ TÍTULO EXATO:', item.title);
+                return item.content;
+            }
         }
-    }
-    
-    // 2. BUSCA POR SIMILARIDADE NO TÍTULO
-    for (const item of baseData) {
-        if (item.title) {
-            const similaridade = calcularSimilaridade(perguntaLower, item.title.toLowerCase());
-            if (similaridade > 0.6) {
+        
+        // 2. BUSCA POR SIMILARIDADE NO TÍTULO
+        for (const item of baseData) {
+            if (item.title) {
+                const similaridade = calcularSimilaridade(perguntaLower, item.title.toLowerCase());
+                if (similaridade > 0.6) {
+                    resultados.push({
+                        item,
+                        score: similaridade * 0.9,
+                        source: 'Título Similar',
+                        match: item.title
+                    });
+                }
+            }
+        }
+        
+        // 3. BUSCA POR PALAVRAS-CHAVE COM SIMILARIDADE
+        for (const item of baseData) {
+            if (item.keywords && Array.isArray(item.keywords)) {
+                for (const keyword of item.keywords) {
+                    if (keyword && keyword.trim() !== '') {
+                        const similaridade = calcularSimilaridade(perguntaLower, keyword.toLowerCase());
+                        if (similaridade > 0.5) {
+                            resultados.push({
+                                item,
+                                score: similaridade * 0.8,
+                                source: 'Keyword Similar',
+                                match: keyword
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 4. BUSCA POR SINÔNIMOS COM SIMILARIDADE
+        for (const item of baseData) {
+            if (item.sinonimos && Array.isArray(item.sinonimos)) {
+                for (const sinonimo of item.sinonimos) {
+                    if (sinonimo && sinonimo.trim() !== '') {
+                        const similaridade = calcularSimilaridade(perguntaLower, sinonimo.toLowerCase());
+                        if (similaridade > 0.5) {
+                            resultados.push({
+                                item,
+                                score: similaridade * 0.7,
+                                source: 'Sinônimo Similar',
+                                match: sinonimo
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 5. BUSCA POR PALAVRAS INDIVIDUAIS
+        const palavrasPergunta = perguntaLower.split(/\s+/).filter(p => p.length > 2);
+        for (const item of baseData) {
+            let scorePalavras = 0;
+            let palavrasEncontradas = 0;
+            
+            // Verifica no título
+            if (item.title) {
+                const tituloLower = item.title.toLowerCase();
+                for (const palavra of palavrasPergunta) {
+                    if (tituloLower.includes(palavra)) {
+                        scorePalavras += 0.3;
+                        palavrasEncontradas++;
+                    }
+                }
+            }
+            
+            // Verifica nas keywords
+            if (item.keywords && Array.isArray(item.keywords)) {
+                for (const keyword of item.keywords) {
+                    if (keyword && keyword.trim() !== '') {
+                        const keywordLower = keyword.toLowerCase();
+                        for (const palavra of palavrasPergunta) {
+                            if (keywordLower.includes(palavra)) {
+                                scorePalavras += 0.2;
+                                palavrasEncontradas++;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Verifica nos sinônimos
+            if (item.sinonimos && Array.isArray(item.sinonimos)) {
+                for (const sinonimo of item.sinonimos) {
+                    if (sinonimo && sinonimo.trim() !== '') {
+                        const sinonimoLower = sinonimo.toLowerCase();
+                        for (const palavra of palavrasPergunta) {
+                            if (sinonimoLower.includes(palavra)) {
+                                scorePalavras += 0.1;
+                                palavrasEncontradas++;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (scorePalavras > 0.3) {
                 resultados.push({
                     item,
-                    score: similaridade * 0.9,
-                    source: 'Título Similar',
-                    match: item.title
+                    score: scorePalavras,
+                    source: 'Palavras Chave',
+                    match: `${palavrasEncontradas} palavras encontradas`
                 });
             }
         }
-    }
-    
-    // 3. BUSCA POR PALAVRAS-CHAVE COM SIMILARIDADE
-    for (const item of baseData) {
-        if (item.keywords && Array.isArray(item.keywords)) {
-            for (const keyword of item.keywords) {
-                if (keyword && keyword.trim() !== '') {
-                    const similaridade = calcularSimilaridade(perguntaLower, keyword.toLowerCase());
-                    if (similaridade > 0.5) {
-                        resultados.push({
-                            item,
-                            score: similaridade * 0.8,
-                            source: 'Keyword Similar',
-                            match: keyword
-                        });
-                    }
-                }
-            }
-        }
-    }
-    
-    // 4. BUSCA POR SINÔNIMOS COM SIMILARIDADE
-    for (const item of baseData) {
-        if (item.sinonimos && Array.isArray(item.sinonimos)) {
-            for (const sinonimo of item.sinonimos) {
-                if (sinonimo && sinonimo.trim() !== '') {
-                    const similaridade = calcularSimilaridade(perguntaLower, sinonimo.toLowerCase());
-                    if (similaridade > 0.5) {
-                        resultados.push({
-                            item,
-                            score: similaridade * 0.7,
-                            source: 'Sinônimo Similar',
-                            match: sinonimo
-                        });
-                    }
-                }
-            }
-        }
-    }
-    
-    // 5. BUSCA POR PALAVRAS INDIVIDUAIS
-    const palavrasPergunta = perguntaLower.split(/\s+/).filter(p => p.length > 2);
-    for (const item of baseData) {
-        let scorePalavras = 0;
-        let palavrasEncontradas = 0;
         
-        // Verifica no título
-        if (item.title) {
-            const tituloLower = item.title.toLowerCase();
-            for (const palavra of palavrasPergunta) {
-                if (tituloLower.includes(palavra)) {
-                    scorePalavras += 0.3;
-                    palavrasEncontradas++;
-                }
+        // Ordena por pontuação
+        resultados.sort((a, b) => b.score - a.score);
+        
+        console.log('Resultados encontrados:', resultados.length);
+        resultados.forEach((r, i) => {
+            console.log(`${i + 1}. ${r.item.title} (${r.score.toFixed(2)}) - ${r.source}`);
+        });
+        
+        // Se encontrou resultados
+        if (resultados.length > 0) {
+            const melhor = resultados[0];
+            
+            // Se a pontuação é muito alta, retorna direto
+            if (melhor.score > 0.8) {
+                console.log('✅ RESPOSTA CONFIÁVEL:', melhor.item.title);
+                return melhor.item.content;
             }
-        }
-        
-        // Verifica nas keywords
-        if (item.keywords && Array.isArray(item.keywords)) {
-            for (const keyword of item.keywords) {
-                if (keyword && keyword.trim() !== '') {
-                    const keywordLower = keyword.toLowerCase();
-                    for (const palavra of palavrasPergunta) {
-                        if (keywordLower.includes(palavra)) {
-                            scorePalavras += 0.2;
-                            palavrasEncontradas++;
-                        }
-                    }
-                }
+            
+            // Se há múltiplas opções com pontuação similar, oferece sugestões
+            if (resultados.length > 1 && resultados[0].score > 0.4) {
+                const top3 = resultados.slice(0, 3);
+                const sugestoes = top3.map(r => r.item.title).join('", "');
+                
+                const resposta = `Encontrei ${resultados.length} tópicos relacionados na minha base de dados. Poderia ser mais específico?\n\n**Sugestões:**\n• "${sugestoes}"\n\n**Ou me diga qual desses tópicos você quer saber mais:**`;
+                
+                return resposta;
             }
-        }
-        
-        // Verifica nos sinônimos
-        if (item.sinonimos && Array.isArray(item.sinonimos)) {
-            for (const sinonimo of item.sinonimos) {
-                if (sinonimo && sinonimo.trim() !== '') {
-                    const sinonimoLower = sinonimo.toLowerCase();
-                    for (const palavra of palavrasPergunta) {
-                        if (sinonimoLower.includes(palavra)) {
-                            scorePalavras += 0.1;
-                            palavrasEncontradas++;
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (scorePalavras > 0.3) {
-            resultados.push({
-                item,
-                score: scorePalavras,
-                source: 'Palavras Chave',
-                match: `${palavrasEncontradas} palavras encontradas`
-            });
-        }
-    }
-    
-    // Ordena por pontuação
-    resultados.sort((a, b) => b.score - a.score);
-    
-    console.log('Resultados encontrados:', resultados.length);
-    resultados.forEach((r, i) => {
-        console.log(`${i + 1}. ${r.item.title} (${r.score.toFixed(2)}) - ${r.source}`);
-    });
-    
-    // Se encontrou resultados
-    if (resultados.length > 0) {
-        const melhor = resultados[0];
-        
-        // Se a pontuação é muito alta, retorna direto
-        if (melhor.score > 0.8) {
-            console.log('✅ RESPOSTA CONFIÁVEL:', melhor.item.title);
+            
+            // Retorna a melhor opção mesmo com baixa confiança
+            console.log('✅ RESPOSTA PROVÁVEL:', melhor.item.title);
             return melhor.item.content;
         }
         
-        // Se há múltiplas opções com pontuação similar, oferece sugestões
-        if (resultados.length > 1 && resultados[0].score > 0.4) {
-            const top3 = resultados.slice(0, 3);
-            const sugestoes = top3.map(r => r.item.title).join('", "');
-            
-            const resposta = `Encontrei ${resultados.length} tópicos relacionados na minha base de dados. Poderia ser mais específico?\n\n**Sugestões:**\n• "${sugestoes}"\n\n**Ou me diga qual desses tópicos você quer saber mais:**`;
-            
-            return resposta;
+        console.log('❌ Nenhuma correspondência encontrada');
+        return null;
+    }
+
+    // Função para calcular similaridade entre strings (tolerante a erros)
+    function calcularSimilaridade(str1, str2) {
+        const s1 = str1.toLowerCase();
+        const s2 = str2.toLowerCase();
+        
+        if (s1 === s2) return 1.0;
+        if (s1.length === 0) return s2.length === 0 ? 1.0 : 0.0;
+        if (s2.length === 0) return 0.0;
+        
+        const matrix = [];
+        for (let i = 0; i <= s2.length; i++) {
+            matrix[i] = [i];
+        }
+        for (let j = 0; j <= s1.length; j++) {
+            matrix[0][j] = j;
         }
         
-        // Retorna a melhor opção mesmo com baixa confiança
-        console.log('✅ RESPOSTA PROVÁVEL:', melhor.item.title);
-        return melhor.item.content;
-    }
-    
-    console.log('❌ Nenhuma correspondência encontrada');
-    return null;
-}
-
-// Função para calcular similaridade entre strings (tolerante a erros)
-function calcularSimilaridade(str1, str2) {
-    const s1 = str1.toLowerCase();
-    const s2 = str2.toLowerCase();
-    
-    if (s1 === s2) return 1.0;
-    if (s1.length === 0) return s2.length === 0 ? 1.0 : 0.0;
-    if (s2.length === 0) return 0.0;
-    
-    const matrix = [];
-    for (let i = 0; i <= s2.length; i++) {
-        matrix[i] = [i];
-    }
-    for (let j = 0; j <= s1.length; j++) {
-        matrix[0][j] = j;
-    }
-    
-    for (let i = 1; i <= s2.length; i++) {
-        for (let j = 1; j <= s1.length; j++) {
-            if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
-                matrix[i][j] = matrix[i - 1][j - 1];
-            } else {
-                matrix[i][j] = Math.min(
-                    matrix[i - 1][j - 1] + 1,
-                    matrix[i][j - 1] + 1,
-                    matrix[i - 1][j] + 1
-                );
+        for (let i = 1; i <= s2.length; i++) {
+            for (let j = 1; j <= s1.length; j++) {
+                if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    );
+                }
             }
         }
+        
+        return 1 - (matrix[s2.length][s1.length] / Math.max(s1.length, s2.length));
     }
-    
-    return 1 - (matrix[s2.length][s1.length] / Math.max(s1.length, s2.length));
-}
 
-// Função para calcular distância de Levenshtein (REMOVER A DUPLICADA)
-function levenshteinDistance(str1, str2) {
-    const matrix = [];
-    
-    for (let i = 0; i <= str2.length; i++) {
-        matrix[i] = [i];
-    }
-    
-    for (let j = 0; j <= str1.length; j++) {
-        matrix[0][j] = j;
-    }
-    
-    for (let i = 1; i <= str2.length; i++) {
-        for (let j = 1; j <= str1.length; j++) {
-            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-                matrix[i][j] = matrix[i - 1][j - 1];
-            } else {
-                matrix[i][j] = Math.min(
-                    matrix[i - 1][j - 1] + 1,
-                    matrix[i][j - 1] + 1,
-                    matrix[i - 1][j] + 1
-                );
+    // Função para calcular distância de Levenshtein
+    function levenshteinDistance(str1, str2) {
+        const matrix = [];
+        
+        for (let i = 0; i <= str2.length; i++) {
+            matrix[i] = [i];
+        }
+        
+        for (let j = 0; j <= str1.length; j++) {
+            matrix[0][j] = j;
+        }
+        
+        for (let i = 1; i <= str2.length; i++) {
+            for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    );
+                }
             }
         }
+        
+        return matrix[str2.length][str1.length];
     }
-    
-    return matrix[str2.length][str1.length];
-}
 
     // Funções de scroll e typing
     function scrollToBottom() {
@@ -618,64 +575,62 @@ function levenshteinDistance(str1, str2) {
     const errorMsg = document.getElementById('identificacao-error');
     const userStatusContainer = document.getElementById('user-status-container');
 
-    // Função para registrar status de login/logout no backend - VERSÃO CORRIGIDA
-// Função para registrar status de login/logout - VERSÃO CORRIGIDA
-function logUserStatus(status) {
-    if (!dadosAtendente?.email) {
-        console.error('❌ ERRO: dadosAtendente.email não definido');
-        return;
+    // Função para registrar status de login/logout no backend
+    function logUserStatus(status) {
+        if (!dadosAtendente?.email) {
+            console.error('❌ ERRO: dadosAtendente.email não definido');
+            return;
+        }
+        
+        const url = '/api/logQuestion';
+        const data = {
+            type: 'access',
+            payload: {
+                email: dadosAtendente.email,
+                status: status,
+                sessionId: sessionId,
+                timestamp: new Date().toLocaleString('pt-BR', {
+                    timeZone: 'America/Sao_Paulo',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                })
+            }
+        };
+
+        console.log('=== LOG USER STATUS ===');
+        console.log('Status:', status);
+        console.log('Email:', dadosAtendente.email);
+        console.log('SessionId:', sessionId);
+        console.log('Timestamp:', data.payload.timestamp);
+
+        fetch(url, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data),
+            keepalive: true
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
+        .then(json => {
+            console.log('Response JSON:', json);
+            if (json.status === 'sucesso') {
+                console.log(`✅ Status ${status} registrado com sucesso`);
+            } else {
+                console.error('❌ Erro na resposta da API:', json);
+            }
+        })
+        .catch(error => {
+            console.error(`❌ ERRO ao registrar status ${status}:`, error);
+        });
     }
-    
-    const url = '/api/logQuestion';
-    const data = {
-        type: 'access',
-        payload: {
-            email: dadosAtendente.email,
-            status: status,
-            sessionId: sessionId,
-            timestamp: new Date().toLocaleString('pt-BR', {
-                timeZone: 'America/Sao_Paulo',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            })
-        }
-    };
-
-    console.log('=== LOG USER STATUS ===');
-    console.log('Status:', status);
-    console.log('Email:', dadosAtendente.email);
-    console.log('SessionId:', sessionId);
-    console.log('Timestamp:', data.payload.timestamp);
-
-    fetch(url, {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data),
-        keepalive: true
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json();
-    })
-    .then(json => {
-        console.log('Response JSON:', json);
-        if (json.status === 'sucesso') {
-            console.log(`✅ Status ${status} registrado com sucesso`);
-        } else {
-            console.error('❌ Erro na resposta da API:', json);
-        }
-    })
-    .catch(error => {
-        console.error(`❌ ERRO ao registrar status ${status}:`, error);
-    });
-}
-
 
     // Função para consultar e exibir status/histórico de um usuário
     async function updateUserStatus(email) {
@@ -747,71 +702,71 @@ function logUserStatus(status) {
     }
 
     async function handleGoogleSignIn(response) {
-    try {
-        const googleResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${response.access_token}` }
-        });
-        const user = await googleResponse.json();
+        try {
+            const googleResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${response.access_token}` }
+            });
+            const user = await googleResponse.json();
 
-        if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
-            const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
-            if (!profileResponse.ok) throw new Error('Falha ao buscar perfil do usuário.');
+            if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
+                const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
+                if (!profileResponse.ok) throw new Error('Falha ao buscar perfil do usuário.');
+                
+                const userProfile = await profileResponse.json();
+
+                dadosAtendente = {
+                    nome: user.name,
+                    email: user.email,
+                    timestamp: Date.now(),
+                    funcao: userProfile.funcao
+                };
+
+                localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
+                
+                // LOG DE LOGIN - GARANTE QUE SEJA CHAMADO
+                console.log('Usuário logado, registrando status online...');
+                logUserStatus('online');
+                
+                hideOverlay();
+                iniciarBot();
+                checkCurrentUserStatus();
+
+            } else {
+                errorMsg.textContent = 'Acesso permitido apenas para e-mails corporativos!!';
+                errorMsg.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error("Erro no fluxo de login:", error);
+            errorMsg.textContent = 'Erro ao verificar login ou permissões. Tente novamente.';
+            errorMsg.classList.remove('hidden');
+        }
+    }
+
+    function verificarIdentificacao() {
+        const umDiaEmMs = 24 * 60 * 60 * 1000;
+        let dadosSalvos = null;
+        try {
+            const dadosSalvosString = localStorage.getItem('dadosAtendenteChatbot');
+            if (dadosSalvosString) dadosSalvos = JSON.parse(dadosSalvosString);
+        } catch (e) {
+            localStorage.removeItem('dadosAtendenteChatbot');
+        }
+
+        if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
+            dadosAtendente = dadosSalvos;
             
-            const userProfile = await profileResponse.json();
-
-            dadosAtendente = {
-                nome: user.name,
-                email: user.email,
-                timestamp: Date.now(),
-                funcao: userProfile.funcao
-            };
-
-            localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
-            
-            // LOG DE LOGIN - GARANTE QUE SEJA CHAMADO
-            console.log('Usuário logado, registrando status online...');
-            await logUserStatus('online');
+            // LOG DE LOGIN AUTOMÁTICO
+            console.log('Usuário reautenticado automaticamente, registrando status online...');
+            logUserStatus('online');
             
             hideOverlay();
             iniciarBot();
             checkCurrentUserStatus();
-
         } else {
-            errorMsg.textContent = 'Acesso permitido apenas para e-mails corporativos!!';
-            errorMsg.classList.remove('hidden');
+            localStorage.removeItem('dadosAtendenteChatbot');
+            showOverlay();
         }
-    } catch (error) {
-        console.error("Erro no fluxo de login:", error);
-        errorMsg.textContent = 'Erro ao verificar login ou permissões. Tente novamente.';
-        errorMsg.classList.remove('hidden');
     }
-}
-
-   function verificarIdentificacao() {
-    const umDiaEmMs = 24 * 60 * 60 * 1000;
-    let dadosSalvos = null;
-    try {
-        const dadosSalvosString = localStorage.getItem('dadosAtendenteChatbot');
-        if (dadosSalvosString) dadosSalvos = JSON.parse(dadosSalvosString);
-    } catch (e) {
-        localStorage.removeItem('dadosAtendenteChatbot');
-    }
-
-    if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
-        dadosAtendente = dadosSalvos;
-        
-        // LOG DE LOGIN AUTOMÁTICO
-        console.log('Usuário reautenticado automaticamente, registrando status online...');
-        logUserStatus('online');
-        
-        hideOverlay();
-        iniciarBot();
-        checkCurrentUserStatus();
-    } else {
-        localStorage.removeItem('dadosAtendenteChatbot');
-        showOverlay();
-    }
-}
 
     window.addEventListener('beforeunload', () => {
         if (dadosAtendente) {
@@ -854,6 +809,12 @@ function logUserStatus(status) {
         }
     }
 
+    // Função para verificar atualizações (placeholder)
+    function verificarAtualizacao() {
+        console.log('Verificando atualizações...');
+        // Implementar lógica de verificação de atualizações
+    }
+
     document.getElementById('notification-button')?.addEventListener('click', () => verificarAtualizacao());
 
     // ================== FUNÇÃO PRINCIPAL DO BOT ==================
@@ -880,6 +841,7 @@ function logUserStatus(status) {
                 expandableHeader.classList.toggle('expanded');
             });
         }
+        
         document.addEventListener('visibilitychange', () => {
             if (!dadosAtendente) return;
             if (document.visibilityState === 'visible') {
@@ -1096,25 +1058,17 @@ function logUserStatus(status) {
             }
         }
 
-        
-
         async function handleLogout() {
-    console.log('Usuário fazendo logout, registrando status offline...');
-    await logUserStatus('offline');
-    localStorage.removeItem('dadosAtendenteChatbot');
-    dadosAtendente = null;
-    location.reload();
-}
+            console.log('Usuário fazendo logout, registrando status offline...');
+            logUserStatus('offline');
+            localStorage.removeItem('dadosAtendenteChatbot');
+            dadosAtendente = null;
+            location.reload();
+        }
 
         if (logoutButton) {
             logoutButton.addEventListener('click', handleLogout);
         }
-
-        // REMOVIDO: Botão do Gemini conforme solicitado
-        // const geminiButton = document.getElementById('gemini-button');
-        // if (geminiButton) {
-        //     geminiButton.addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
-        // }
 
         if (themeSwitcher) {
             themeSwitcher.addEventListener('click', () => {
@@ -1126,17 +1080,18 @@ function logUserStatus(status) {
         }
 
         addMessage(
-    `Olá! Temos novidades: a nova plataforma de cursos <strong>Velo Academy</strong> já está disponível!`,
-    'bot'
-);
+            `Olá! Temos novidades: a nova plataforma de cursos <strong>Velo Academy</strong> já está disponível!`,
+            'bot'
+        );
 
-const lastMessage = chatBox.lastElementChild;
-if (lastMessage) {
-    const button = document.createElement('button');
-    button.textContent = 'Acessar Velo Academy';
-    button.onclick = () => window.open('https://veloacademy.vercel.app/cursos.html', '_blank');
-    lastMessage.querySelector('.message-content')?.appendChild(button);
-}
+        const lastMessage = chatBox.lastElementChild;
+        if (lastMessage) {
+            const button = document.createElement('button');
+            button.textContent = 'Acessar Velo Academy';
+            button.onclick = () => window.open('https://veloacademy.vercel.app/cursos.html', '_blank');
+            lastMessage.querySelector('.message-content')?.appendChild(button);
+        }
+        
         setInitialTheme();
         carregarNoticias();
         carregarStatusProdutos();
@@ -1144,21 +1099,4 @@ if (lastMessage) {
 
     // Inicia diretamente o Google Sign-In
     initGoogleSignIn();
-
-    const testButton = document.createElement('button');
-    testButton.textContent = '🧪 Testar API';
-    testButton.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        z-index: 9999;
-        background: #007bff;
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 5px;
-        cursor: pointer;
-    `;
-    testButton.onclick = testarAPIDiretamente;
-    document.body.appendChild(testButton);
 });
