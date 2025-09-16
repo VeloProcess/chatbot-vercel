@@ -323,66 +323,42 @@ async function buscarRespostaAI(pergunta) {
     }
 }
 
-// Função para buscar na base local - VERSÃO COM DEBUG COMPLETO
+// Função para buscar na base local - VERSÃO CORRIGIDA
 function buscarNaBaseLocal(pergunta, baseData) {
     const perguntaLower = pergunta.toLowerCase().trim();
     
-    console.log('=== DEBUG COMPLETO DA BUSCA ===');
-    console.log('Pergunta original:', pergunta);
-    console.log('Pergunta processada:', perguntaLower);
-    console.log('Tipo de baseData:', typeof baseData);
-    console.log('É array?', Array.isArray(baseData));
-    console.log('Total de entradas:', baseData ? baseData.length : 'undefined');
-    
-    if (!baseData || !Array.isArray(baseData)) {
-        console.log('❌ ERRO: baseData não é um array válido');
-        return null;
-    }
-    
-    // Mostra as primeiras 3 entradas para debug
-    console.log('=== PRIMEIRAS 3 ENTRADAS ===');
-    for (let i = 0; i < Math.min(3, baseData.length); i++) {
-        console.log(`Entrada ${i}:`, {
-            title: baseData[i].title,
-            keywords: baseData[i].keywords,
-            sinonimos: baseData[i].sinonimos
-        });
-    }
+    console.log('=== BUSCA NA BASE LOCAL ===');
+    console.log('Pergunta:', pergunta);
+    console.log('Total de entradas:', baseData.length);
     
     // 1. BUSCA EXATA NO TÍTULO
-    console.log('=== BUSCANDO TÍTULO EXATO ===');
-    for (let i = 0; i < baseData.length; i++) {
-        const item = baseData[i];
+    for (const item of baseData) {
         if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
-            console.log(`✅ TÍTULO EXATO encontrado na posição ${i}:`, item.title);
+            console.log('✅ TÍTULO EXATO:', item.title);
             return item.content;
         }
     }
     
-    // 2. BUSCA POR PALAVRAS-CHAVE
-    console.log('=== BUSCANDO KEYWORDS ===');
-    for (let i = 0; i < baseData.length; i++) {
-        const item = baseData[i];
+    // 2. BUSCA POR PALAVRAS-CHAVE (FILTRANDO VAZIAS)
+    for (const item of baseData) {
         if (item.keywords && Array.isArray(item.keywords)) {
-            for (let j = 0; j < item.keywords.length; j++) {
-                const keyword = item.keywords[j];
-                if (perguntaLower.includes(keyword.toLowerCase())) {
-                    console.log(`✅ KEYWORD encontrado na posição ${i}:`, keyword, 'em:', item.title);
+            for (const keyword of item.keywords) {
+                // Filtra keywords vazias ou só com espaços
+                if (keyword && keyword.trim() !== '' && perguntaLower.includes(keyword.toLowerCase().trim())) {
+                    console.log('✅ KEYWORD:', keyword, 'em:', item.title);
                     return item.content;
                 }
             }
         }
     }
     
-    // 3. BUSCA POR SINÔNIMOS
-    console.log('=== BUSCANDO SINÔNIMOS ===');
-    for (let i = 0; i < baseData.length; i++) {
-        const item = baseData[i];
+    // 3. BUSCA POR SINÔNIMOS (FILTRANDO VAZIOS)
+    for (const item of baseData) {
         if (item.sinonimos && Array.isArray(item.sinonimos)) {
-            for (let j = 0; j < item.sinonimos.length; j++) {
-                const sinonimo = item.sinonimos[j];
-                if (perguntaLower.includes(sinonimo.toLowerCase())) {
-                    console.log(`✅ SINÔNIMO encontrado na posição ${i}:`, sinonimo, 'em:', item.title);
+            for (const sinonimo of item.sinonimos) {
+                // Filtra sinônimos vazios ou só com espaços
+                if (sinonimo && sinonimo.trim() !== '' && perguntaLower.includes(sinonimo.toLowerCase().trim())) {
+                    console.log('✅ SINÔNIMO:', sinonimo, 'em:', item.title);
                     return item.content;
                 }
             }
@@ -390,11 +366,9 @@ function buscarNaBaseLocal(pergunta, baseData) {
     }
     
     // 4. BUSCA PARCIAL NO TÍTULO
-    console.log('=== BUSCANDO TÍTULO PARCIAL ===');
-    for (let i = 0; i < baseData.length; i++) {
-        const item = baseData[i];
+    for (const item of baseData) {
         if (item.title && item.title.toLowerCase().includes(perguntaLower)) {
-            console.log(`✅ TÍTULO PARCIAL encontrado na posição ${i}:`, item.title);
+            console.log('✅ TÍTULO PARCIAL:', item.title);
             return item.content;
         }
     }
