@@ -45,7 +45,7 @@ export default async function handler(req, res) {
         const baseFormatada = baseData.map(item => ({
             id: item.id || item._id,
             title: item.pergunta || item.titulo || 'Sem título',
-            content: item.resposta || item.conteudo || 'Sem conteúdo',
+            content: item.palavras_chave || item.resposta || item.conteudo || 'Sem conteúdo',
             keywords: item.palavras_chave ? item.palavras_chave.split(/\s+/).filter(k => k.length > 2) : [],
             sinonimos: [], // Pode ser expandido no futuro
             categoria: item.categoria || 'geral',

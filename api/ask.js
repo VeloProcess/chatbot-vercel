@@ -290,7 +290,7 @@ export default async function handler(req, res) {
       
       return res.status(200).json({
         status: "sucesso",
-        resposta: resultado.resposta,
+        resposta: resultado.palavras_chave || resultado.resposta,
         source: "MongoDB",
         sourceRow: resultado._id,
         score: resultado.scoreFinal,
