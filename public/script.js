@@ -249,30 +249,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Função para buscar resposta da IA normal (sem streaming)
-    async function buscarRespostaAI(pergunta) {
-        if (!pergunta || !pergunta.trim()) {
-            addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
-            return;
-        }
-        if (!dadosAtendente || !dadosAtendente.email) {
-            addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
-            return;
-        }
+    // ATUALIZE a função buscarRespostaAI para usar a nova estrutura
+async function buscarRespostaAI(pergunta) {
+    if (!pergunta || !pergunta.trim()) {
+        addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
+        return;
+    }
+    if (!dadosAtendente || !dadosAtendente.email) {
+        addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
+        return;
+    }
 
-        try {
-            // Primeiro tenta buscar na base local
-            const baseResponse = await fetch('/api/base');
-            if (baseResponse.ok) {
-                const baseData = await baseResponse.json();
-                const respostaLocal = buscarNaBaseLocal(pergunta, baseData);
-                
-                if (respostaLocal) {
-                    console.log('✅ Resposta encontrada na base local');
-                    addMessage(respostaLocal, "bot", { source: "Base Local" });
-                    return;
-                }
+    try {
+        // Primeiro tenta buscar na base local
+        const baseResponse = await fetch('/api/base');
+        if (baseResponse.ok) {
+            const data = await baseResponse.json();
+            const baseData = data.base || data; // Compatibilidade com versão antiga
+            const categorias = data.categorias || null;
+            const tags = data.tags || null;
+            
+            const respostaLocal = buscarNaBaseLocal(pergunta, baseData, categorias, tags);
+            
+            if (respostaLocal) {
+                console.log('✅ Resposta encontrada na base local');
+                addMessage(respostaLocal, "bot", { source: "Base Local" });
+                return;
             }
+        }
             
             console.log('❌ Não encontrado na base local, buscando em sites externos...');
             
@@ -322,175 +326,244 @@ document.addEventListener('DOMContentLoaded', () => {
                 addMessage("Desculpe, não consegui encontrar uma resposta adequada para sua pergunta.", "bot", { source: "IA" });
             }
         } catch (err) {
-            console.error("Erro na requisição:", err);
-            addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
+        console.error("Erro na requisição:", err);
+        addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
+    }
+}
+    
+    // Adicione estas funções ANTES da função buscarNaBaseLocal no seu script.js
+
+// Função para detectar categoria
+function detectarCategoria(pergunta, categorias) {
+    for (const [id, categoria] of Object.entries(categorias)) {
+        for (const keyword of categoria.keywords_principais) {
+            if (pergunta.includes(keyword.toLowerCase())) {
+                return { id, ...categoria };
+            }
         }
     }
+    return null;
+}
 
-    // Função para buscar na base local com IA inteligente
-    function buscarNaBaseLocal(pergunta, baseData) {
-        const perguntaLower = pergunta.toLowerCase().trim();
-        
-        console.log('=== BUSCA IA INTELIGENTE ===');
-        console.log('Pergunta:', pergunta);
-        console.log('Total de entradas:', baseData.length);
-        
-        const resultados = [];
-        
-        // 1. BUSCA EXATA NO TÍTULO (pontuação máxima)
-        for (const item of baseData) {
-            if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
-                console.log('✅ TÍTULO EXATO:', item.title);
-                return item.content;
+// Função para detectar tags
+function detectarTags(pergunta, tags) {
+    const tagsEncontradas = [];
+    
+    for (const [categoria, subcategorias] of Object.entries(tags.tags_contexto)) {
+        for (const [subcategoria, valores] of Object.entries(subcategorias)) {
+            for (const valor of valores) {
+                if (pergunta.includes(valor.toLowerCase())) {
+                    tagsEncontradas.push(valor);
+                }
             }
         }
+    }
+    
+    return tagsEncontradas;
+}
+
+// Função para remover duplicatas
+function removerDuplicatas(resultados) {
+    const unicos = [];
+    const ids = new Set();
+    
+    for (const resultado of resultados) {
+        if (!ids.has(resultado.item.id)) {
+            ids.add(resultado.item.id);
+            unicos.push(resultado);
+        }
+    }
+    
+    return unicos;
+}
+
+    // Função para buscar na base local com IA ultra-inteligente
+function buscarNaBaseLocal(pergunta, baseData) {
+    const perguntaLower = pergunta.toLowerCase().trim();
+    console.log('=== BUSCA IA ULTRA-INTELIGENTE ===');
+    console.log('Pergunta:', pergunta);
+    console.log('Total de entradas:', baseData.length);
+    
+    const resultados = [];
+    
+    // 1. BUSCA EXATA NO TÍTULO (pontuação máxima)
+    for (const item of baseData) {
+        if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
+            console.log('✅ TÍTULO EXATO:', item.title);
+            return item.content;
+        }
+    }
+    
+    // 2. BUSCA POR SIMILARIDADE NO TÍTULO
+    for (const item of baseData) {
+        if (item.title) {
+            const similaridade = calcularSimilaridade(perguntaLower, item.title.toLowerCase());
+            if (similaridade > 0.6) {
+                resultados.push({ item, score: similaridade * 0.9, source: 'Título Similar', match: item.title });
+            }
+        }
+    }
+    
+    // 3. BUSCA POR PALAVRAS-CHAVE COM SIMILARIDADE
+    for (const item of baseData) {
+        if (item.keywords && Array.isArray(item.keywords)) {
+            for (const keyword of item.keywords) {
+                if (keyword && keyword.trim() !== '') {
+                    const similaridade = calcularSimilaridade(perguntaLower, keyword.toLowerCase());
+                    if (similaridade > 0.5) {
+                        resultados.push({ item, score: similaridade * 0.8, source: 'Keyword Similar', match: keyword });
+                    }
+                }
+            }
+        }
+    }
+    
+    // 4. BUSCA POR SINÔNIMOS COM SIMILARIDADE
+    for (const item of baseData) {
+        if (item.sinonimos && Array.isArray(item.sinonimos)) {
+            for (const sinonimo of item.sinonimos) {
+                if (sinonimo && sinonimo.trim() !== '') {
+                    const similaridade = calcularSimilaridade(perguntaLower, sinonimo.toLowerCase());
+                    if (similaridade > 0.5) {
+                        resultados.push({ item, score: similaridade * 0.7, source: 'Sinônimo Similar', match: sinonimo });
+                    }
+                }
+            }
+        }
+    }
+    
+    // 5. BUSCA POR TAGS COM SIMILARIDADE
+    for (const item of baseData) {
+        if (item.tags && Array.isArray(item.tags)) {
+            for (const tag of item.tags) {
+                if (tag && tag.trim() !== '') {
+                    const similaridade = calcularSimilaridade(perguntaLower, tag.toLowerCase());
+                    if (similaridade > 0.5) {
+                        resultados.push({ item, score: similaridade * 0.6, source: 'Tag Similar', match: tag });
+                    }
+                }
+            }
+        }
+    }
+    
+    // 6. BUSCA POR CATEGORIA E SUBCATEGORIA
+    for (const item of baseData) {
+        if (item.categoria) {
+            const similaridade = calcularSimilaridade(perguntaLower, item.categoria.toLowerCase());
+            if (similaridade > 0.4) {
+                resultados.push({ item, score: similaridade * 0.5, source: 'Categoria Similar', match: item.categoria });
+            }
+        }
+        if (item.subcategoria) {
+            const similaridade = calcularSimilaridade(perguntaLower, item.subcategoria.toLowerCase());
+            if (similaridade > 0.4) {
+                resultados.push({ item, score: similaridade * 0.5, source: 'Subcategoria Similar', match: item.subcategoria });
+            }
+        }
+    }
+    
+    // 7. BUSCA POR PALAVRAS INDIVIDUAIS
+    const palavrasPergunta = perguntaLower.split(/\s+/).filter(p => p.length > 2);
+    for (const item of baseData) {
+        let scorePalavras = 0;
+        let palavrasEncontradas = 0;
         
-        // 2. BUSCA POR SIMILARIDADE NO TÍTULO
-        for (const item of baseData) {
-            if (item.title) {
-                const similaridade = calcularSimilaridade(perguntaLower, item.title.toLowerCase());
-                if (similaridade > 0.6) {
-                    resultados.push({
-                        item,
-                        score: similaridade * 0.9,
-                        source: 'Título Similar',
-                        match: item.title
-                    });
+        // Verifica no título
+        if (item.title) {
+            const tituloLower = item.title.toLowerCase();
+            for (const palavra of palavrasPergunta) {
+                if (tituloLower.includes(palavra)) {
+                    scorePalavras += 0.3;
+                    palavrasEncontradas++;
                 }
             }
         }
         
-        // 3. BUSCA POR PALAVRAS-CHAVE COM SIMILARIDADE
-        for (const item of baseData) {
-            if (item.keywords && Array.isArray(item.keywords)) {
-                for (const keyword of item.keywords) {
-                    if (keyword && keyword.trim() !== '') {
-                        const similaridade = calcularSimilaridade(perguntaLower, keyword.toLowerCase());
-                        if (similaridade > 0.5) {
-                            resultados.push({
-                                item,
-                                score: similaridade * 0.8,
-                                source: 'Keyword Similar',
-                                match: keyword
-                            });
+        // Verifica nas keywords
+        if (item.keywords && Array.isArray(item.keywords)) {
+            for (const keyword of item.keywords) {
+                if (keyword && keyword.trim() !== '') {
+                    const keywordLower = keyword.toLowerCase();
+                    for (const palavra of palavrasPergunta) {
+                        if (keywordLower.includes(palavra)) {
+                            scorePalavras += 0.2;
+                            palavrasEncontradas++;
                         }
                     }
                 }
             }
         }
         
-        // 4. BUSCA POR SINÔNIMOS COM SIMILARIDADE
-        for (const item of baseData) {
-            if (item.sinonimos && Array.isArray(item.sinonimos)) {
-                for (const sinonimo of item.sinonimos) {
-                    if (sinonimo && sinonimo.trim() !== '') {
-                        const similaridade = calcularSimilaridade(perguntaLower, sinonimo.toLowerCase());
-                        if (similaridade > 0.5) {
-                            resultados.push({
-                                item,
-                                score: similaridade * 0.7,
-                                source: 'Sinônimo Similar',
-                                match: sinonimo
-                            });
+        // Verifica nos sinônimos
+        if (item.sinonimos && Array.isArray(item.sinonimos)) {
+            for (const sinonimo of item.sinonimos) {
+                if (sinonimo && sinonimo.trim() !== '') {
+                    const sinonimoLower = sinonimo.toLowerCase();
+                    for (const palavra of palavrasPergunta) {
+                        if (sinonimoLower.includes(palavra)) {
+                            scorePalavras += 0.1;
+                            palavrasEncontradas++;
                         }
                     }
                 }
             }
         }
         
-        // 5. BUSCA POR PALAVRAS INDIVIDUAIS
-        const palavrasPergunta = perguntaLower.split(/\s+/).filter(p => p.length > 2);
-        for (const item of baseData) {
-            let scorePalavras = 0;
-            let palavrasEncontradas = 0;
-            
-            // Verifica no título
-            if (item.title) {
-                const tituloLower = item.title.toLowerCase();
-                for (const palavra of palavrasPergunta) {
-                    if (tituloLower.includes(palavra)) {
-                        scorePalavras += 0.3;
-                        palavrasEncontradas++;
-                    }
-                }
-            }
-            
-            // Verifica nas keywords
-            if (item.keywords && Array.isArray(item.keywords)) {
-                for (const keyword of item.keywords) {
-                    if (keyword && keyword.trim() !== '') {
-                        const keywordLower = keyword.toLowerCase();
-                        for (const palavra of palavrasPergunta) {
-                            if (keywordLower.includes(palavra)) {
-                                scorePalavras += 0.2;
-                                palavrasEncontradas++;
-                            }
+        // Verifica nas tags
+        if (item.tags && Array.isArray(item.tags)) {
+            for (const tag of item.tags) {
+                if (tag && tag.trim() !== '') {
+                    const tagLower = tag.toLowerCase();
+                    for (const palavra of palavrasPergunta) {
+                        if (tagLower.includes(palavra)) {
+                            scorePalavras += 0.1;
+                            palavrasEncontradas++;
                         }
                     }
                 }
-            }
-            
-            // Verifica nos sinônimos
-            if (item.sinonimos && Array.isArray(item.sinonimos)) {
-                for (const sinonimo of item.sinonimos) {
-                    if (sinonimo && sinonimo.trim() !== '') {
-                        const sinonimoLower = sinonimo.toLowerCase();
-                        for (const palavra of palavrasPergunta) {
-                            if (sinonimoLower.includes(palavra)) {
-                                scorePalavras += 0.1;
-                                palavrasEncontradas++;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            if (scorePalavras > 0.3) {
-                resultados.push({
-                    item,
-                    score: scorePalavras,
-                    source: 'Palavras Chave',
-                    match: `${palavrasEncontradas} palavras encontradas`
-                });
             }
         }
         
-        // Ordena por pontuação
-        resultados.sort((a, b) => b.score - a.score);
+        if (scorePalavras > 0.3) {
+            resultados.push({ item, score: scorePalavras, source: 'Palavras Chave', match: `${palavrasEncontradas} palavras encontradas` });
+        }
+    }
+    
+    // Ordena por pontuação
+    resultados.sort((a, b) => b.score - a.score);
+    
+    console.log('Resultados encontrados:', resultados.length);
+    resultados.forEach((r, i) => {
+        console.log(`${i + 1}. ${r.item.title} (${r.score.toFixed(2)}) - ${r.source}`);
+    });
+    
+    // Se encontrou resultados
+    if (resultados.length > 0) {
+        const melhor = resultados[0];
         
-        console.log('Resultados encontrados:', resultados.length);
-        resultados.forEach((r, i) => {
-            console.log(`${i + 1}. ${r.item.title} (${r.score.toFixed(2)}) - ${r.source}`);
-        });
-        
-        // Se encontrou resultados
-        if (resultados.length > 0) {
-            const melhor = resultados[0];
-            
-            // Se a pontuação é muito alta, retorna direto
-            if (melhor.score > 0.8) {
-                console.log('✅ RESPOSTA CONFIÁVEL:', melhor.item.title);
-                return melhor.item.content;
-            }
-            
-            // Se há múltiplas opções com pontuação similar, oferece sugestões
-            if (resultados.length > 1 && resultados[0].score > 0.4) {
-                const top3 = resultados.slice(0, 3);
-                const sugestoes = top3.map(r => r.item.title).join('", "');
-                
-                const resposta = `Encontrei ${resultados.length} tópicos relacionados na minha base de dados. Poderia ser mais específico?\n\n**Sugestões:**\n• "${sugestoes}"\n\n**Ou me diga qual desses tópicos você quer saber mais:**`;
-                
-                return resposta;
-            }
-            
-            // Retorna a melhor opção mesmo com baixa confiança
-            console.log('✅ RESPOSTA PROVÁVEL:', melhor.item.title);
+        // Se a pontuação é muito alta, retorna direto
+        if (melhor.score > 0.8) {
+            console.log('✅ RESPOSTA CONFIÁVEL:', melhor.item.title);
             return melhor.item.content;
         }
         
-        console.log('❌ Nenhuma correspondência encontrada');
-        return null;
+        // Se há múltiplas opções com pontuação similar, oferece sugestões
+        if (resultados.length > 1 && resultados[0].score > 0.4) {
+            const top3 = resultados.slice(0, 3);
+            const sugestoes = top3.map(r => r.item.title).join('", "');
+            const resposta = `Encontrei ${resultados.length} tópicos relacionados na minha base de dados. Poderia ser mais específico?\n\n**Sugestões:**\n• "${sugestoes}"\n\n**Ou me diga qual desses tópicos você quer saber mais:**`;
+            return resposta;
+        }
+        
+        // Retorna a melhor opção mesmo com baixa confiança
+        console.log('✅ RESPOSTA PROVÁVEL:', melhor.item.title);
+        return melhor.item.content;
     }
+    
+    // Se não encontrou nada, retorna null para buscar em sites externos
+    console.log('❌ Nenhum resultado encontrado na base local');
+    return null;
+}
 
     // Função para calcular similaridade entre strings (tolerante a erros)
     function calcularSimilaridade(str1, str2) {

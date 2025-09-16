@@ -1,0 +1,29 @@
+{
+  "contas_cadastros": {
+    "nome": "Contas e Cadastros",
+    "descricao": "Processos relacionados à abertura, alteração e gerenciamento de contas",
+    "keywords_principais": ["conta", "cadastro", "abrir", "criar", "celcoin", "alterar", "dados"],
+    "subcategorias": {
+      "abertura_conta": "Abertura de contas",
+      "alteracao_dados": "Alteração de dados pessoais",
+      "validacao_identidade": "Validação de identidade",
+      "bloqueio_desbloqueio": "Bloqueio e desbloqueio de contas"
+    },
+    "prioridade": "alta",
+    "cor": "#007bff"
+  },
+  "antecipacao": {
+    "nome": "Antecipação de Restituição",
+    "descricao": "Processos relacionados à antecipação da restituição do IR",
+    "keywords_principais": ["antecipação", "restituição", "pix", "cpf", "receita", "imposto"],
+    "subcategorias": {
+      "contratacao": "Contratação da antecipação",
+      "pagamento": "Processo de pagamento",
+      "juros": "Cálculo de juros e taxas",
+      "bloqueio_conta": "Bloqueios e erros",
+      "quitacao": "Quitação antecipada"
+    },
+    "prioridade": "critica",
+    "cor": "#dc3545"
+  }
+}

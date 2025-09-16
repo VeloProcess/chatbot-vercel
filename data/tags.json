@@ -1,0 +1,22 @@
+{
+  "tags_contexto": {
+    "urgencia": {
+      "critica": ["bloqueio", "erro_critico", "emergencia", "nao_funciona"],
+      "alta": ["urgente", "importante", "prioritario"],
+      "media": ["normal", "rotina"],
+      "baixa": ["duvida", "informacao", "dica"]
+    },
+    "processo": {
+      "abertura": ["abrir", "criar", "cadastrar", "iniciar"],
+      "alteracao": ["alterar", "modificar", "trocar", "atualizar"],
+      "cancelamento": ["cancelar", "excluir", "remover"],
+      "consulta": ["consultar", "verificar", "checar", "buscar"]
+    },
+    "produto": {
+      "celcoin": ["celcoin", "conta", "digital"],
+      "antecipacao": ["antecipacao", "restituicao", "pix", "cpf"],
+      "credito": ["credito", "emprestimo", "pessoal", "trabalhador"],
+      "veloprime": ["veloprime", "seguro", "protecao"]
+    }
+  }
+}
