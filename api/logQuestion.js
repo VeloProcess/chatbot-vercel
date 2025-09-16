@@ -65,6 +65,7 @@ async function getUserStatusAndHistory(email) {
   }
 }
 
+// Adicione este debug na sua API logQuestion.js
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
@@ -73,33 +74,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    console.log('=== LOG QUESTION API DEBUG ===');
+    console.log('Method:', req.method);
+    console.log('Body:', req.body);
+    
     if (req.method === 'GET') {
-      const email = req.query.email;
-      if (!email) {
-        const response = await sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `${SHEET_NAMES.access}!A:D`,
-        });
-        const rows = response.data.values || [];
-        const now = new Date();
-        const onlineThreshold = 5 * 60 * 1000;
-        const onlineUsers = {};
-
-        for (const row of rows.slice(1)) {
-          const [timestamp, email, status] = row;
-          if (status !== 'online') continue;
-          const loginTime = new Date(timestamp);
-          if (now - loginTime < onlineThreshold) onlineUsers[email] = { timestamp, status };
-        }
-
-        return res.status(200).json({
-          status: 'sucesso',
-          onlineUsers: Object.keys(onlineUsers)
-        });
-      }
-
-      const userData = await getUserStatusAndHistory(email);
-      return res.status(200).json({ status: 'sucesso', user: userData });
+      // ... seu código GET existente ...
     }
 
     if (req.method !== 'POST') {
@@ -107,7 +87,11 @@ export default async function handler(req, res) {
     }
 
     const { type, payload } = req.body;
+    console.log('Type:', type);
+    console.log('Payload:', payload);
+    
     if (!type || !payload || !SHEET_NAMES[type]) {
+      console.error('❌ Dados inválidos:', { type, payload, validTypes: Object.keys(SHEET_NAMES) });
       return res.status(400).json({ error: "Tipo de log ('type') inválido ou 'payload' ausente." });
     }
 
@@ -130,17 +114,47 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: `Tipo de log desconhecido: ${type}` });
     }
 
-    await sheets.spreadsheets.values.append({
+    console.log('Nova linha a ser adicionada:', newRow);
+    console.log('Sheet name:', sheetName);
+
+    // Testa se as credenciais estão funcionando
+    try {
+      const testResponse = await sheets.spreadsheets.get({
+        spreadsheetId: SPREADSHEET_ID,
+      });
+      console.log('✅ Acesso à planilha OK:', testResponse.data.properties.title);
+    } catch (authError) {
+      console.error('❌ ERRO DE AUTENTICAÇÃO:', authError);
+      return res.status(500).json({ 
+        error: "Erro de autenticação com Google Sheets", 
+        details: authError.message 
+      });
+    }
+
+    const appendResult = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: sheetName,
       valueInputOption: 'USER_ENTERED',
       resource: { values: [newRow] },
     });
 
-    return res.status(200).json({ status: 'sucesso', message: `Log do tipo '${type}' registrado.` });
+    console.log('✅ Dados salvos com sucesso:', appendResult.data);
+    return res.status(200).json({ 
+      status: 'sucesso', 
+      message: `Log do tipo '${type}' registrado.`,
+      details: {
+        sheetName,
+        newRow,
+        updatedRows: appendResult.data.updates?.updatedRows
+      }
+    });
 
   } catch (error) {
-    console.error(`ERRO NO ENDPOINT DE LOG (tipo: ${req.body?.type}):`, error);
-    return res.status(500).json({ error: "Erro interno ao registrar o log.", details: error.message });
+    console.error(`❌ ERRO NO ENDPOINT DE LOG (tipo: ${req.body?.type}):`, error);
+    console.error('Stack trace:', error.stack);
+    return res.status(500).json({ 
+      error: "Erro interno ao registrar o log.", 
+      details: error.message 
+    });
   }
 }

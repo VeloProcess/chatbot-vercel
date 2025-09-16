@@ -578,9 +578,10 @@ function levenshteinDistance(str1, str2) {
     const userStatusContainer = document.getElementById('user-status-container');
 
     // Função para registrar status de login/logout no backend - VERSÃO CORRIGIDA
+// Função para registrar status de login/logout no backend - VERSÃO COM DEBUG
 function logUserStatus(status) {
     if (!dadosAtendente?.email) {
-        console.error('Erro: dadosAtendente.email não definido');
+        console.error('❌ ERRO: dadosAtendente.email não definido');
         return;
     }
     
@@ -603,9 +604,10 @@ function logUserStatus(status) {
         }
     };
 
-    console.log('Enviando log de status:', data);
+    console.log('=== LOG USER STATUS ===');
+    console.log('URL:', url);
+    console.log('Data:', data);
 
-    // Usa fetch com keepalive para garantir envio
     fetch(url, {
         method: 'POST',
         headers: { 
@@ -615,13 +617,23 @@ function logUserStatus(status) {
         keepalive: true
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        return response.json();
+    })
+    .then(json => {
+        console.log('Response JSON:', json);
+        if (json.status === 'sucesso') {
+            console.log(`✅ Status ${status} registrado com sucesso`);
+            if (json.details) {
+                console.log('Detalhes:', json.details);
+            }
+        } else {
+            console.error('❌ Erro na resposta da API:', json);
         }
-        console.log(`Status ${status} registrado com sucesso`);
     })
     .catch(error => {
-        console.error(`Erro ao registrar status ${status}:`, error);
+        console.error(`❌ ERRO ao registrar status ${status}:`, error);
     });
 }
 
