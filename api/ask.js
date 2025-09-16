@@ -77,6 +77,32 @@ function buscarNoCache(pergunta) {
 
 // --- FUNÇÕES DE APOIO ---
 async function getFaqData() {
+  try {
+    // Tentar usar base local primeiro (mais rápido)
+    const fs = require('fs');
+    const path = require('path');
+    const basePath = path.join(process.cwd(), 'data', 'base_atualizada.json');
+    
+    if (fs.existsSync(basePath)) {
+      const baseData = JSON.parse(fs.readFileSync(basePath, 'utf8'));
+      console.log(`📊 Usando base local: ${baseData.length} itens`);
+      
+      // Converter para formato da planilha
+      return [
+        ['Pergunta', 'Palavras-chave', 'Resposta', 'Tabulacoes'],
+        ...baseData.map(item => [
+          item.pergunta,
+          item.palavras_chave,
+          item.resposta,
+          item.tabulacoes
+        ])
+      ];
+    }
+  } catch (error) {
+    console.log('⚠️ Erro ao carregar base local, usando planilha...');
+  }
+  
+  // Fallback para planilha Google Sheets
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: FAQ_SHEET_NAME,
@@ -138,7 +164,11 @@ function findMatches(pergunta, faqData) {
     else if (textoPalavrasChave.includes(perguntaNormalizada)) {
       score = 90;
     }
-    // 3. BUSCA PARCIAL nas palavras-chave
+    // 3. BUSCA PARCIAL na pergunta original (mais flexível)
+    else if (perguntaOriginal.toLowerCase().includes(perguntaLower.split(' ')[0])) {
+      score = 80;
+    }
+    // 4. BUSCA PARCIAL nas palavras-chave
     else {
       const palavrasPergunta = perguntaNormalizada.split(' ').filter(p => p.length > 2);
       const palavrasChave = textoPalavrasChave.split(' ');
@@ -307,6 +337,12 @@ module.exports = async function handler(req, res) {
 
     const faqData = await getFaqData();
     const correspondencias = findMatches(pergunta, faqData);
+    
+    console.log(`🔍 Busca para: "${pergunta}"`);
+    console.log(`📊 Encontradas: ${correspondencias.length} correspondências`);
+    if (correspondencias.length > 0) {
+      console.log(`🎯 Melhor match: "${correspondencias[0].perguntaOriginal}" (score: ${correspondencias[0].score})`);
+    }
 
     // --- SEM CORRESPONDÊNCIAS NA PLANILHA ---
     if (correspondencias.length === 0) {
@@ -330,7 +366,7 @@ module.exports = async function handler(req, res) {
 }
 
     // --- SE HOUVER CORRESPONDÊNCIAS ---
-    if (correspondencias.length === 1 || correspondencias[0].score >= 90) {
+    if (correspondencias.length === 1 || correspondencias[0].score >= 60) {
       const resposta = correspondencias[0].resposta;
       
       // Adiciona resposta da planilha ao cache
