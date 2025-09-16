@@ -168,6 +168,12 @@ function findMatches(pergunta, faqData) {
     else if (perguntaOriginal.toLowerCase().includes(perguntaLower.split(' ')[0])) {
       score = 80;
     }
+    // 4. BUSCA POR PALAVRAS-CHAVE INDIVIDUAIS (mais permissiva)
+    else if (perguntaLower.split(' ').some(palavra => 
+      palavra.length > 2 && perguntaOriginal.toLowerCase().includes(palavra)
+    )) {
+      score = 70;
+    }
     // 4. BUSCA PARCIAL nas palavras-chave
     else {
       const palavrasPergunta = perguntaNormalizada.split(' ').filter(p => p.length > 2);
@@ -366,7 +372,7 @@ module.exports = async function handler(req, res) {
 }
 
     // --- SE HOUVER CORRESPONDÊNCIAS ---
-    if (correspondencias.length === 1 || correspondencias[0].score >= 60) {
+    if (correspondencias.length === 1 || correspondencias[0].score >= 70) {
       const resposta = correspondencias[0].resposta;
       
       // Adiciona resposta da planilha ao cache
