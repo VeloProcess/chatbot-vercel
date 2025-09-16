@@ -263,25 +263,38 @@ async function buscarRespostaAI(pergunta) {
     }
 
     try {
-        // Primeiro tenta buscar na base local via API
+        // Primeiro tenta buscar na base local
         const baseResponse = await fetch('/api/base');
         if (baseResponse.ok) {
             const baseData = await baseResponse.json();
             const respostaLocal = buscarNaBaseLocal(pergunta, baseData);
             
             if (respostaLocal) {
+                console.log('✅ Resposta encontrada na base local');
                 addMessage(respostaLocal, "bot", { source: "Base Local" });
                 return;
             }
-        } else {
-            console.log('Erro ao carregar base.json:', baseResponse.status);
         }
-
-        // Se não encontrou na base local, usa a IA
+        
+        console.log('❌ Não encontrado na base local, buscando em sites externos...');
+        
+        // Se não encontrou na base local, busca em sites externos
+        const sitesAutorizados = [
+            "https://www.gov.br/receitafederal/pt-br",
+            "https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda", 
+            "https://velotax.com.br/"
+        ];
+        
+        const contextoExterno = `Consulte as seguintes fontes oficiais para responder à pergunta: ${sitesAutorizados.join(', ')}`;
+        
         const response = await fetch("/api/askOpenAI", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pergunta, contextoPlanilha: "", email: dadosAtendente.email })
+            body: JSON.stringify({ 
+                pergunta, 
+                contextoPlanilha: contextoExterno, 
+                email: dadosAtendente.email 
+            })
         });
 
         if (!response.ok) {
@@ -292,38 +305,31 @@ async function buscarRespostaAI(pergunta) {
         }
 
         const resposta = await response.text();
-        console.log('Resposta bruta da API:', resposta);
+        console.log("Resposta bruta da API:", resposta);
 
         if (resposta.trim()) {
-            let conteudoFormatado;
-            
             try {
+                // Tenta fazer parse como JSON
                 const respostaJson = JSON.parse(resposta);
                 if (respostaJson.resposta) {
-                    conteudoFormatado = respostaJson.resposta;
+                    addMessage(respostaJson.resposta, "bot", { source: "Sites Externos" });
                 } else {
-                    conteudoFormatado = resposta;
+                    addMessage(resposta, "bot", { source: "Sites Externos" });
                 }
             } catch (e) {
-                conteudoFormatado = resposta;
+                // Se não for JSON, usa a resposta direta
+                addMessage(resposta, "bot", { source: "Sites Externos" });
             }
-
-            const respostaFormatada = conteudoFormatado
-                .replace(/\n{2,}/g, "</p><p>")
-                .replace(/\n/g, "<br>");
-
-            addMessage(`<p>${respostaFormatada}</p>`, "bot", { source: "IA", html: true });
         } else {
-            addMessage("Não consegui gerar uma resposta para essa pergunta.", "bot", { source: "IA" });
+            addMessage("Desculpe, não consegui encontrar uma resposta adequada para sua pergunta.", "bot", { source: "IA" });
         }
-
-    } catch (error) {
-        console.error("Erro na requisição:", error);
-        addMessage("Erro de conexão. Verifique sua internet ou tente novamente.", "bot", { source: "IA" });
+    } catch (err) {
+        console.error("Erro na requisição:", err);
+        addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
     }
 }
 
-// Função para buscar na base local - VERSÃO CORRIGIDA
+    // Função para buscar na base local - VERSÃO CORRIGIDA
 function buscarNaBaseLocal(pergunta, baseData) {
     const perguntaLower = pergunta.toLowerCase().trim();
     
@@ -343,7 +349,6 @@ function buscarNaBaseLocal(pergunta, baseData) {
     for (const item of baseData) {
         if (item.keywords && Array.isArray(item.keywords)) {
             for (const keyword of item.keywords) {
-                // Filtra keywords vazias ou só com espaços
                 if (keyword && keyword.trim() !== '' && perguntaLower.includes(keyword.toLowerCase().trim())) {
                     console.log('✅ KEYWORD:', keyword, 'em:', item.title);
                     return item.content;
@@ -356,7 +361,6 @@ function buscarNaBaseLocal(pergunta, baseData) {
     for (const item of baseData) {
         if (item.sinonimos && Array.isArray(item.sinonimos)) {
             for (const sinonimo of item.sinonimos) {
-                // Filtra sinônimos vazios ou só com espaços
                 if (sinonimo && sinonimo.trim() !== '' && perguntaLower.includes(sinonimo.toLowerCase().trim())) {
                     console.log('✅ SINÔNIMO:', sinonimo, 'em:', item.title);
                     return item.content;
@@ -373,7 +377,7 @@ function buscarNaBaseLocal(pergunta, baseData) {
         }
     }
     
-    console.log('❌ Nenhuma correspondência encontrada');
+    console.log('❌ Nenhuma correspondência encontrada na base local');
     return null;
 }
 
