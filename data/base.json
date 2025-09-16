@@ -847,5 +847,18 @@
     "Fechar conta Velotax",
     "Desativar conta Velotax"
   ]
+},
+{
+  "title": "App - Excluir conta Velotax",
+  "content": "Para excluir a conta Velotax completamente:\n\n1. Acesse o aplicativo Velotax\n2. Vá para 'Configurações' > 'Conta'\n3. Procure por 'Excluir Conta' ou 'Deletar Conta'\n4. Leia os termos e consequências\n5. Confirme a exclusão\n\n**Atenção:** Esta ação é irreversível e pode afetar:\n- Acesso a antecipações\n- Histórico de declarações\n- Dados de investimentos\n\nOriente o cliente a considerar todas as implicações antes de prosseguir.",
+  "keywords": ["excluir", "conta", "velotax", "deletar", "remover"],
+  "sinonimos": [
+    "Como excluir conta Velotax",
+    "Como deletar conta Velotax", 
+    "Como remover conta Velotax",
+    "Fechar conta Velotax",
+    "Desativar conta Velotax",
+    "Cancelar conta Velotax"
+  ]
 }
 ]
