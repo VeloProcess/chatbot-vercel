@@ -323,114 +323,83 @@ async function buscarRespostaAI(pergunta) {
     }
 }
 
-// Função para buscar na base local - VERSÃO MELHORADA
+// Função para buscar na base local - VERSÃO COM DEBUG COMPLETO
 function buscarNaBaseLocal(pergunta, baseData) {
     const perguntaLower = pergunta.toLowerCase().trim();
     
-    console.log('=== BUSCA NA BASE LOCAL ===');
+    console.log('=== DEBUG COMPLETO DA BUSCA ===');
     console.log('Pergunta original:', pergunta);
     console.log('Pergunta processada:', perguntaLower);
-    console.log('Total de entradas na base:', baseData.length);
+    console.log('Tipo de baseData:', typeof baseData);
+    console.log('É array?', Array.isArray(baseData));
+    console.log('Total de entradas:', baseData ? baseData.length : 'undefined');
     
-    // 1. BUSCA EXATA NO TÍTULO (maior prioridade)
-    for (const item of baseData) {
+    if (!baseData || !Array.isArray(baseData)) {
+        console.log('❌ ERRO: baseData não é um array válido');
+        return null;
+    }
+    
+    // Mostra as primeiras 3 entradas para debug
+    console.log('=== PRIMEIRAS 3 ENTRADAS ===');
+    for (let i = 0; i < Math.min(3, baseData.length); i++) {
+        console.log(`Entrada ${i}:`, {
+            title: baseData[i].title,
+            keywords: baseData[i].keywords,
+            sinonimos: baseData[i].sinonimos
+        });
+    }
+    
+    // 1. BUSCA EXATA NO TÍTULO
+    console.log('=== BUSCANDO TÍTULO EXATO ===');
+    for (let i = 0; i < baseData.length; i++) {
+        const item = baseData[i];
         if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
-            console.log('✅ Encontrou por TÍTULO EXATO:', item.title);
+            console.log(`✅ TÍTULO EXATO encontrado na posição ${i}:`, item.title);
             return item.content;
         }
     }
     
-    // 2. BUSCA POR PALAVRAS-CHAVE (segunda prioridade)
-    for (const item of baseData) {
+    // 2. BUSCA POR PALAVRAS-CHAVE
+    console.log('=== BUSCANDO KEYWORDS ===');
+    for (let i = 0; i < baseData.length; i++) {
+        const item = baseData[i];
         if (item.keywords && Array.isArray(item.keywords)) {
-            for (const keyword of item.keywords) {
-                const keywordLower = keyword.toLowerCase().trim();
-                
-                // Busca exata da palavra-chave
-                if (perguntaLower.includes(keywordLower)) {
-                    console.log('✅ Encontrou por KEYWORD EXATA:', keyword);
-                    return item.content;
-                }
-                
-                // Busca por palavras individuais da palavra-chave
-                const palavrasKeyword = keywordLower.split(/\s+/);
-                const palavrasPergunta = perguntaLower.split(/\s+/);
-                
-                let matches = 0;
-                for (const palavra of palavrasKeyword) {
-                    if (palavrasPergunta.includes(palavra)) {
-                        matches++;
-                    }
-                }
-                
-                // Se pelo menos 70% das palavras da keyword estão na pergunta
-                if (matches >= Math.ceil(palavrasKeyword.length * 0.7)) {
-                    console.log('✅ Encontrou por KEYWORD PARCIAL:', keyword, `(${matches}/${palavrasKeyword.length} palavras)`);
+            for (let j = 0; j < item.keywords.length; j++) {
+                const keyword = item.keywords[j];
+                if (perguntaLower.includes(keyword.toLowerCase())) {
+                    console.log(`✅ KEYWORD encontrado na posição ${i}:`, keyword, 'em:', item.title);
                     return item.content;
                 }
             }
         }
     }
     
-    // 3. BUSCA POR SINÔNIMOS (terceira prioridade)
-    for (const item of baseData) {
+    // 3. BUSCA POR SINÔNIMOS
+    console.log('=== BUSCANDO SINÔNIMOS ===');
+    for (let i = 0; i < baseData.length; i++) {
+        const item = baseData[i];
         if (item.sinonimos && Array.isArray(item.sinonimos)) {
-            for (const sinonimo of item.sinonimos) {
-                const sinonimoLower = sinonimo.toLowerCase().trim();
-                
-                // Busca exata do sinônimo
-                if (perguntaLower.includes(sinonimoLower)) {
-                    console.log('✅ Encontrou por SINÔNIMO EXATO:', sinonimo);
-                    return item.content;
-                }
-                
-                // Busca por palavras individuais do sinônimo
-                const palavrasSinonimo = sinonimoLower.split(/\s+/);
-                const palavrasPergunta = perguntaLower.split(/\s+/);
-                
-                let matches = 0;
-                for (const palavra of palavrasSinonimo) {
-                    if (palavrasPergunta.includes(palavra)) {
-                        matches++;
-                    }
-                }
-                
-                // Se pelo menos 60% das palavras do sinônimo estão na pergunta
-                if (matches >= Math.ceil(palavrasSinonimo.length * 0.6)) {
-                    console.log('✅ Encontrou por SINÔNIMO PARCIAL:', sinonimo, `(${matches}/${palavrasSinonimo.length} palavras)`);
+            for (let j = 0; j < item.sinonimos.length; j++) {
+                const sinonimo = item.sinonimos[j];
+                if (perguntaLower.includes(sinonimo.toLowerCase())) {
+                    console.log(`✅ SINÔNIMO encontrado na posição ${i}:`, sinonimo, 'em:', item.title);
                     return item.content;
                 }
             }
         }
     }
     
-    // 4. BUSCA POR PALAVRAS INDIVIDUAIS (menor prioridade)
-    const palavrasPergunta = perguntaLower.split(/\s+/).filter(palavra => palavra.length > 2);
-    let melhorMatch = null;
-    let maiorScore = 0;
-    
-    for (const item of baseData) {
-        let score = 0;
-        const textoCompleto = `${item.title} ${item.keywords?.join(' ')} ${item.sinonimos?.join(' ')}`.toLowerCase();
-        
-        for (const palavra of palavrasPergunta) {
-            if (textoCompleto.includes(palavra)) {
-                score++;
-            }
-        }
-        
-        if (score > maiorScore && score >= Math.ceil(palavrasPergunta.length * 0.3)) {
-            maiorScore = score;
-            melhorMatch = item;
+    // 4. BUSCA PARCIAL NO TÍTULO
+    console.log('=== BUSCANDO TÍTULO PARCIAL ===');
+    for (let i = 0; i < baseData.length; i++) {
+        const item = baseData[i];
+        if (item.title && item.title.toLowerCase().includes(perguntaLower)) {
+            console.log(`✅ TÍTULO PARCIAL encontrado na posição ${i}:`, item.title);
+            return item.content;
         }
     }
     
-    if (melhorMatch) {
-        console.log('✅ Encontrou por BUSCA INDIVIDUAL:', melhorMatch.title, `(score: ${maiorScore})`);
-        return melhorMatch.content;
-    }
-    
-    console.log('❌ Nenhuma correspondência encontrada na base local');
+    console.log('❌ Nenhuma correspondência encontrada');
     return null;
 }
 
