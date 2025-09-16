@@ -822,5 +822,30 @@
     "content": "<ul><li><strong>EK01:</strong> Que pena! No momento não temos crédito disponível para você. Tente novamente em X dias.</li><li><strong>EO01:</strong> Opa! Houve um erro ao conectar ao open finance. Tente novamente.</li><li><strong>EO02:</strong> Opa! Houve um erro ao conectar ao open finance. Tente novamente.</li><li><strong>EO03:</strong> Opa! Houve um erro ao conectar ao open finance. Tente novamente.</li><li><strong>EO04:</strong> Que pena! No momento não temos crédito disponível para você. Tente novamente em X dias.</li><li><strong>EB05:</strong> Que pena! No momento não temos crédito disponível para você. Tente novamente em X dias.</li><li><strong>ES07:</strong> Que pena! No momento não temos crédito disponível para você. Tente novamente em X dias.</li><li><strong>ED01:</strong> Que pena! Seu vínculo empregatício está inativo ou é muito recente. Tente novamente em alguns meses.</li><li><strong>ED03:</strong> Que pena! Seu vínculo empregatício está inativo ou é muito recente. Tente novamente em alguns meses.</li><li><strong>ED02:</strong> Que pena! Você não atende aos requisitos de idade para o crédito. Que tal ver nossos outros produtos?</li><li><strong>ED05:</strong> Que pena! Não fornecemos este produto para pessoas expostas politicamente. Que tal ver nossos outros produtos?</li><li><strong>ED06:</strong> Que pena! Não fornecemos este produto para pessoas estrangeiras. Que tal ver nossos outros produtos?</li><li><strong>ED07:</strong> Que pena! Você não atende aos requisitos de renda para o crédito. Que tal ver nossos outros produtos?</li><li><strong>EO05:</strong> Opa! O nome cadastrado em sua conta Velotax não corresponde ao nome do proprietário da conta. Tente conectar outra conta.</li><li><strong>EO06:</strong> Opa! Não foi possível validar o nome do proprietário da conta. Tente conectar outra conta.</li><li><strong>EO07:</strong> Opa! A conta informada é muito nova. Tente conectar outra conta.</li><li><strong>EO08:</strong> Opa! A conta informada tem poucas transações. Tente conectar outra conta.</li><li><strong>EO09:</strong> Opa! Houve um erro ao conectar ao open finance. Tente novamente.</li><li><strong>EB01:</strong> Que pena! Você possui atrasos acima de 30 dias no SCR BACEN. Tente novamente após quitar suas dívidas.</li><li><strong>EB02:</strong> Que pena! Você possui prejuízo recente no SCR BACEN. Tente novamente após quitar suas dívidas.</li><li><strong>EB03:</strong> Que pena! Você não possui relacionamento com SCR BACEN há pelo menos 12 meses. Tente novamente em alguns meses.</li><li><strong>EB04:</strong> Que pena! Você não possui créditos com pelo menos outras 2 instituições no SCR BACEN. Tente novamente após ter créditos com pelo menos outras 2 instituições no SCR BACEN.</li><li><strong>ES01:</strong> Que pena! Você possui registro no SPC. Tente novamente após quitar suas dívidas.</li><li><strong>ES02:</strong> Que pena! Você possui registro de protesto em seu nome. Tente novamente após quitar suas dívidas.</li><li><strong>ES03:</strong> Que pena! Você possui registro de cheque sem fundo. Tente novamente em alguns meses.</li><li><strong>ES04:</strong> Que pena! Você possui registro de cheque sem fundo. Tente novamente em alguns meses.</li><li><strong>ES05:</strong> Que pena! Você possui apontamentos no SPC. Tente novamente após quitar suas dívidas.</li><li><strong>ES06:</strong> Que pena! Você possui score do Cadastro Positivo baixo. Tente novamente após melhorar seu score.</li></ul>",
     "keywords": ["erros", "empréstimo pessoal", "open finance", "vínculo empregatício", "idade", "renda", "nome conta", "SCR BACEN", "SPC", "protesto", "cheque sem fundo", "Cadastro Positivo"],
     "sinonimos": ["Erros de Empréstimo Pessoal", "Falhas na Contratação de Crédito", "Problemas com Open Finance", "Restrições de Empréstimo"]
-  }
+  },
+  {
+  "title": "App - Cancelamento de conta Celcoin",
+  "content": "Para cancelar a conta Celcoin, o cliente deve:\n\n1. Acessar o aplicativo Velotax\n2. Ir para 'Configurações' ou 'Perfil'\n3. Procurar por 'Gerenciar Conta' ou 'Cancelar Conta'\n4. Seguir as instruções na tela\n5. Confirmar o cancelamento\n\n**Importante:** O cancelamento da conta Celcoin pode afetar a capacidade de fazer antecipações. Oriente o cliente sobre as consequências antes de prosseguir.",
+  "keywords": ["cancelar", "conta", "celcoin", "excluir", "deletar"],
+  "sinonimos": [
+    "Como excluir conta Celcoin",
+    "Como deletar conta Celcoin", 
+    "Como cancelar conta Celcoin",
+    "Remover conta Celcoin",
+    "Fechar conta Celcoin",
+    "Desativar conta Celcoin"
+  ]
+  },
+  {
+  "title": "App - Excluir conta Velotax",
+  "content": "Para excluir a conta Velotax completamente:\n\n1. Acesse o aplicativo Velotax\n2. Vá para 'Configurações' > 'Conta'\n3. Procure por 'Excluir Conta' ou 'Deletar Conta'\n4. Leia os termos e consequências\n5. Confirme a exclusão\n\n**Atenção:** Esta ação é irreversível e pode afetar:\n- Acesso a antecipações\n- Histórico de declarações\n- Dados de investimentos\n\nOriente o cliente a considerar todas as implicações antes de prosseguir.",
+  "keywords": ["excluir", "conta", "velotax", "deletar", "remover"],
+  "sinonimos": [
+    "Como excluir conta Velotax",
+    "Como deletar conta Velotax",
+    "Como remover conta Velotax",
+    "Fechar conta Velotax",
+    "Desativar conta Velotax"
+  ]
+}
 ]
