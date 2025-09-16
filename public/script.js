@@ -329,15 +329,17 @@ async function buscarRespostaAI(pergunta) {
     }
 }
 
-    // Função para buscar na base local - VERSÃO CORRIGIDA
+    // Função para buscar na base local com IA inteligente - SUBSTITUI A VERSÃO ATUAL
 function buscarNaBaseLocal(pergunta, baseData) {
     const perguntaLower = pergunta.toLowerCase().trim();
     
-    console.log('=== BUSCA NA BASE LOCAL ===');
+    console.log('=== BUSCA IA INTELIGENTE ===');
     console.log('Pergunta:', pergunta);
     console.log('Total de entradas:', baseData.length);
     
-    // 1. BUSCA EXATA NO TÍTULO
+    const resultados = [];
+    
+    // 1. BUSCA EXATA NO TÍTULO (pontuação máxima)
     for (const item of baseData) {
         if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
             console.log('✅ TÍTULO EXATO:', item.title);
@@ -345,68 +347,173 @@ function buscarNaBaseLocal(pergunta, baseData) {
         }
     }
     
-    // 2. BUSCA POR PALAVRAS-CHAVE (FILTRANDO VAZIAS)
+    // 2. BUSCA POR SIMILARIDADE NO TÍTULO
+    for (const item of baseData) {
+        if (item.title) {
+            const similaridade = calcularSimilaridade(perguntaLower, item.title.toLowerCase());
+            if (similaridade > 0.6) {
+                resultados.push({
+                    item,
+                    score: similaridade * 0.9,
+                    source: 'Título Similar',
+                    match: item.title
+                });
+            }
+        }
+    }
+    
+    // 3. BUSCA POR PALAVRAS-CHAVE COM SIMILARIDADE
     for (const item of baseData) {
         if (item.keywords && Array.isArray(item.keywords)) {
             for (const keyword of item.keywords) {
-                if (keyword && keyword.trim() !== '' && perguntaLower.includes(keyword.toLowerCase().trim())) {
-                    console.log('✅ KEYWORD:', keyword, 'em:', item.title);
-                    return item.content;
+                if (keyword && keyword.trim() !== '') {
+                    const similaridade = calcularSimilaridade(perguntaLower, keyword.toLowerCase());
+                    if (similaridade > 0.5) {
+                        resultados.push({
+                            item,
+                            score: similaridade * 0.8,
+                            source: 'Keyword Similar',
+                            match: keyword
+                        });
+                    }
                 }
             }
         }
     }
     
-    // 3. BUSCA POR SINÔNIMOS (FILTRANDO VAZIOS)
+    // 4. BUSCA POR SINÔNIMOS COM SIMILARIDADE
     for (const item of baseData) {
         if (item.sinonimos && Array.isArray(item.sinonimos)) {
             for (const sinonimo of item.sinonimos) {
-                if (sinonimo && sinonimo.trim() !== '' && perguntaLower.includes(sinonimo.toLowerCase().trim())) {
-                    console.log('✅ SINÔNIMO:', sinonimo, 'em:', item.title);
-                    return item.content;
+                if (sinonimo && sinonimo.trim() !== '') {
+                    const similaridade = calcularSimilaridade(perguntaLower, sinonimo.toLowerCase());
+                    if (similaridade > 0.5) {
+                        resultados.push({
+                            item,
+                            score: similaridade * 0.7,
+                            source: 'Sinônimo Similar',
+                            match: sinonimo
+                        });
+                    }
                 }
             }
         }
     }
     
-    // 4. BUSCA PARCIAL NO TÍTULO
+    // 5. BUSCA POR PALAVRAS INDIVIDUAIS
+    const palavrasPergunta = perguntaLower.split(/\s+/).filter(p => p.length > 2);
     for (const item of baseData) {
-        if (item.title && item.title.toLowerCase().includes(perguntaLower)) {
-            console.log('✅ TÍTULO PARCIAL:', item.title);
-            return item.content;
+        let scorePalavras = 0;
+        let palavrasEncontradas = 0;
+        
+        // Verifica no título
+        if (item.title) {
+            const tituloLower = item.title.toLowerCase();
+            for (const palavra of palavrasPergunta) {
+                if (tituloLower.includes(palavra)) {
+                    scorePalavras += 0.3;
+                    palavrasEncontradas++;
+                }
+            }
+        }
+        
+        // Verifica nas keywords
+        if (item.keywords && Array.isArray(item.keywords)) {
+            for (const keyword of item.keywords) {
+                if (keyword && keyword.trim() !== '') {
+                    const keywordLower = keyword.toLowerCase();
+                    for (const palavra of palavrasPergunta) {
+                        if (keywordLower.includes(palavra)) {
+                            scorePalavras += 0.2;
+                            palavrasEncontradas++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Verifica nos sinônimos
+        if (item.sinonimos && Array.isArray(item.sinonimos)) {
+            for (const sinonimo of item.sinonimos) {
+                if (sinonimo && sinonimo.trim() !== '') {
+                    const sinonimoLower = sinonimo.toLowerCase();
+                    for (const palavra of palavrasPergunta) {
+                        if (sinonimoLower.includes(palavra)) {
+                            scorePalavras += 0.1;
+                            palavrasEncontradas++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (scorePalavras > 0.3) {
+            resultados.push({
+                item,
+                score: scorePalavras,
+                source: 'Palavras Chave',
+                match: `${palavrasEncontradas} palavras encontradas`
+            });
         }
     }
     
-    console.log('❌ Nenhuma correspondência encontrada na base local');
+    // Ordena por pontuação
+    resultados.sort((a, b) => b.score - a.score);
+    
+    console.log('Resultados encontrados:', resultados.length);
+    resultados.forEach((r, i) => {
+        console.log(`${i + 1}. ${r.item.title} (${r.score.toFixed(2)}) - ${r.source}`);
+    });
+    
+    // Se encontrou resultados
+    if (resultados.length > 0) {
+        const melhor = resultados[0];
+        
+        // Se a pontuação é muito alta, retorna direto
+        if (melhor.score > 0.8) {
+            console.log('✅ RESPOSTA CONFIÁVEL:', melhor.item.title);
+            return melhor.item.content;
+        }
+        
+        // Se há múltiplas opções com pontuação similar, oferece sugestões
+        if (resultados.length > 1 && resultados[0].score > 0.4) {
+            const top3 = resultados.slice(0, 3);
+            const sugestoes = top3.map(r => r.item.title).join('", "');
+            
+            const resposta = `Encontrei ${resultados.length} tópicos relacionados na minha base de dados. Poderia ser mais específico?\n\n**Sugestões:**\n• "${sugestoes}"\n\n**Ou me diga qual desses tópicos você quer saber mais:**`;
+            
+            return resposta;
+        }
+        
+        // Retorna a melhor opção mesmo com baixa confiança
+        console.log('✅ RESPOSTA PROVÁVEL:', melhor.item.title);
+        return melhor.item.content;
+    }
+    
+    console.log('❌ Nenhuma correspondência encontrada');
     return null;
 }
 
-// Função para calcular similaridade entre strings
+// Função para calcular similaridade entre strings (tolerante a erros)
 function calcularSimilaridade(str1, str2) {
-    const longer = str1.length > str2.length ? str1 : str2;
-    const shorter = str1.length > str2.length ? str2 : str1;
+    const s1 = str1.toLowerCase();
+    const s2 = str2.toLowerCase();
     
-    if (longer.length === 0) return 1.0;
+    if (s1 === s2) return 1.0;
+    if (s1.length === 0) return s2.length === 0 ? 1.0 : 0.0;
+    if (s2.length === 0) return 0.0;
     
-    const distance = levenshteinDistance(longer, shorter);
-    return (longer.length - distance) / longer.length;
-}
-
-// Função para calcular distância de Levenshtein
-function levenshteinDistance(str1, str2) {
     const matrix = [];
-    
-    for (let i = 0; i <= str2.length; i++) {
+    for (let i = 0; i <= s2.length; i++) {
         matrix[i] = [i];
     }
-    
-    for (let j = 0; j <= str1.length; j++) {
+    for (let j = 0; j <= s1.length; j++) {
         matrix[0][j] = j;
     }
     
-    for (let i = 1; i <= str2.length; i++) {
-        for (let j = 1; j <= str1.length; j++) {
-            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+    for (let i = 1; i <= s2.length; i++) {
+        for (let j = 1; j <= s1.length; j++) {
+            if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
                 matrix[i][j] = matrix[i - 1][j - 1];
             } else {
                 matrix[i][j] = Math.min(
@@ -418,10 +525,10 @@ function levenshteinDistance(str1, str2) {
         }
     }
     
-    return matrix[str2.length][str1.length];
+    return 1 - (matrix[s2.length][s1.length] / Math.max(s1.length, s2.length));
 }
 
-// Função para calcular distância de Levenshtein
+// Função para calcular distância de Levenshtein (REMOVER A DUPLICADA)
 function levenshteinDistance(str1, str2) {
     const matrix = [];
     
