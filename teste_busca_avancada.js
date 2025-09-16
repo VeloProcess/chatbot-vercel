@@ -1,3 +1,4 @@
+
 // Teste do sistema de busca ULTRA-AVANÇADO
 import { MongoClient } from 'mongodb';
 

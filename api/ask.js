@@ -28,11 +28,13 @@ const SINONIMOS = {
   'prazo': ['tempo', 'quanto tempo', 'quando', 'data'],
   'documento': ['documentação', 'papel', 'comprovante'],
   'aprovação': ['aprovado', 'aprovar', 'aceito', 'aceitar'],
-  'negado': ['negado', 'rejeitado', 'recusado', 'não aprovado']
+  'negado': ['negado', 'rejeitado', 'recusado', 'não aprovado'],
+  'pix': ['pix', 'transferência instantânea', 'pagamento instantâneo']
 };
 
 // Função para normalizar texto
 function normalizarTexto(texto) {
+  if (!texto) return '';
   return texto
     .toLowerCase()
     .trim()
@@ -43,6 +45,8 @@ function normalizarTexto(texto) {
 
 // Função para calcular similaridade (Levenshtein)
 function calcularSimilaridade(str1, str2) {
+  if (!str1 || !str2) return 0;
+  
   const matrix = [];
   const len1 = str1.length;
   const len2 = str2.length;
@@ -75,6 +79,8 @@ function calcularSimilaridade(str1, str2) {
 
 // Função para expandir sinônimos
 function expandirSinonimos(texto) {
+  if (!texto) return [];
+  
   const palavras = texto.split(' ');
   const palavrasExpandidas = [...palavras];
   
@@ -154,98 +160,69 @@ async function buscarFAQ(pergunta) {
     }
     
     const perguntaNormalizada = normalizarTexto(pergunta);
-    const palavrasPergunta = perguntaNormalizada.split(' ');
+    const palavrasPergunta = perguntaNormalizada.split(' ').filter(p => p.length > 2);
     const sinonimos = expandirSinonimos(perguntaNormalizada);
     
     console.log(`🔍 Buscando: "${pergunta}"`);
     console.log(`📝 Palavras: [${palavrasPergunta.join(', ')}]`);
     console.log(`🔄 Sinônimos: [${sinonimos.join(', ')}]`);
     
-    // Busca ultra-avançada com múltiplas técnicas
-    const resultados = await collection.aggregate([
-      {
-        $addFields: {
-          score: {
-            $add: [
-              // 1. MATCH EXATO na pergunta (score máximo)
-              {
-                $cond: [
-                  { $regexMatch: { input: { $toLower: "$pergunta" }, regex: perguntaNormalizada } },
-                  1000,
-                  0
-                ]
-              },
-              
-              // 2. MATCH EXATO nas palavras-chave
-              {
-                $cond: [
-                  { $regexMatch: { input: { $toLower: "$palavras_chave" }, regex: perguntaNormalizada } },
-                  900,
-                  0
-                ]
-              },
-              
-              // 3. MATCH EXATO na resposta
-              {
-                $cond: [
-                  { $regexMatch: { input: { $toLower: "$resposta" }, regex: perguntaNormalizada } },
-                  800,
-                  0
-                ]
-              }
-            ]
-          }
-        }
-      },
-      {
-        $match: {
-          score: { $gt: 0 }
-        }
-      },
-      {
-        $sort: { score: -1 }
-      },
-      {
-        $limit: 10 // Pegar top 10 para análise
-      }
-    ]).toArray();
+    // Busca no MongoDB com query simples
+    const resultados = await collection.find({
+      $or: [
+        { pergunta: { $regex: perguntaNormalizada, $options: 'i' } },
+        { palavras_chave: { $regex: perguntaNormalizada, $options: 'i' } },
+        { resposta: { $regex: perguntaNormalizada, $options: 'i' } }
+      ]
+    }).limit(10).toArray();
     
     if (resultados.length === 0) {
-      console.log('❌ Nenhum resultado encontrado');
+      console.log('❌ Nenhum resultado encontrado no MongoDB');
       return null;
     }
     
-    // Aplicar busca por palavras individuais e sinônimos
-    const resultadosComSimilaridade = resultados.map(item => {
-      let scoreAdicional = 0;
+    // Aplicar scoring avançado no JavaScript
+    const resultadosComScore = resultados.map(item => {
+      let score = 0;
+      
+      // Match exato na pergunta
+      if (normalizarTexto(item.pergunta).includes(perguntaNormalizada)) {
+        score += 1000;
+      }
+      
+      // Match exato nas palavras-chave
+      if (normalizarTexto(item.palavras_chave || '').includes(perguntaNormalizada)) {
+        score += 900;
+      }
+      
+      // Match exato na resposta
+      if (normalizarTexto(item.resposta || '').includes(perguntaNormalizada)) {
+        score += 800;
+      }
       
       // Busca por palavras individuais
       palavrasPergunta.forEach(palavra => {
-        if (palavra.length > 2) { // Ignorar palavras muito curtas
-          if (normalizarTexto(item.pergunta).includes(palavra)) {
-            scoreAdicional += 100;
-          }
-          if (normalizarTexto(item.palavras_chave || '').includes(palavra)) {
-            scoreAdicional += 80;
-          }
-          if (normalizarTexto(item.resposta || '').includes(palavra)) {
-            scoreAdicional += 60;
-          }
+        if (normalizarTexto(item.pergunta).includes(palavra)) {
+          score += 100;
+        }
+        if (normalizarTexto(item.palavras_chave || '').includes(palavra)) {
+          score += 80;
+        }
+        if (normalizarTexto(item.resposta || '').includes(palavra)) {
+          score += 60;
         }
       });
       
       // Busca por sinônimos
       sinonimos.forEach(sinonimo => {
-        if (sinonimo.length > 2) {
-          if (normalizarTexto(item.pergunta).includes(sinonimo)) {
-            scoreAdicional += 70;
-          }
-          if (normalizarTexto(item.palavras_chave || '').includes(sinonimo)) {
-            scoreAdicional += 50;
-          }
-          if (normalizarTexto(item.resposta || '').includes(sinonimo)) {
-            scoreAdicional += 40;
-          }
+        if (normalizarTexto(item.pergunta).includes(sinonimo)) {
+          score += 70;
+        }
+        if (normalizarTexto(item.palavras_chave || '').includes(sinonimo)) {
+          score += 50;
+        }
+        if (normalizarTexto(item.resposta || '').includes(sinonimo)) {
+          score += 40;
         }
       });
       
@@ -258,7 +235,7 @@ async function buscarFAQ(pergunta) {
       
       return {
         ...item,
-        scoreFinal: item.score + scoreAdicional + scoreSimilaridade,
+        scoreFinal: score + scoreSimilaridade,
         similaridade: {
           pergunta: similaridadePergunta,
           palavras: similaridadePalavras,
@@ -268,9 +245,9 @@ async function buscarFAQ(pergunta) {
     });
     
     // Ordenar por score final
-    resultadosComSimilaridade.sort((a, b) => b.scoreFinal - a.scoreFinal);
+    resultadosComScore.sort((a, b) => b.scoreFinal - a.scoreFinal);
     
-    const melhorResultado = resultadosComSimilaridade[0];
+    const melhorResultado = resultadosComScore[0];
     
     console.log(`✅ Melhor resultado: "${melhorResultado.pergunta}" (score: ${melhorResultado.scoreFinal})`);
     console.log(`📊 Similaridade: P=${melhorResultado.similaridade.pergunta.toFixed(2)}, K=${melhorResultado.similaridade.palavras.toFixed(2)}, R=${melhorResultado.similaridade.resposta.toFixed(2)}`);
@@ -296,7 +273,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { pergunta, email } = req.query;
+    const { pergunta } = req.query;
     
     if (!pergunta) {
       return res.status(400).json({ 
