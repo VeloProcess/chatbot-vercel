@@ -192,6 +192,126 @@ async function buscarFAQ(pergunta) {
                   800,
                   0
                 ]
+              },
+              
+              // 4. MATCH PARCIAL na pergunta (palavras individuais)
+              {
+                $reduce: {
+                  input: palavrasPergunta,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$pergunta" }, regex: "$$this" } },
+                          100,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 5. MATCH PARCIAL nas palavras-chave
+              {
+                $reduce: {
+                  input: palavrasPergunta,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$palavras_chave" }, regex: "$$this" } },
+                          80,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 6. MATCH PARCIAL na resposta
+              {
+                $reduce: {
+                  input: palavrasPergunta,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$resposta" }, regex: "$$this" } },
+                          60,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 7. MATCH com sinônimos na pergunta
+              {
+                $reduce: {
+                  input: sinonimos,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$pergunta" }, regex: "$$this" } },
+                          70,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 8. MATCH com sinônimos nas palavras-chave
+              {
+                $reduce: {
+                  input: sinonimos,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$palavras_chave" }, regex: "$$this" } },
+                          50,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 9. MATCH com sinônimos na resposta
+              {
+                $reduce: {
+                  input: sinonimos,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$resposta" }, regex: "$$this" } },
+                          40,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
               }
             ]
           }
@@ -206,7 +326,7 @@ async function buscarFAQ(pergunta) {
         $sort: { score: -1 }
       },
       {
-        $limit: 10 // Pegar top 10 para análise
+        $limit: 5 // Pegar top 5 para análise
       }
     ]).toArray();
     
@@ -215,41 +335,8 @@ async function buscarFAQ(pergunta) {
       return null;
     }
     
-    // Aplicar busca por palavras individuais e sinônimos
+    // Aplicar similaridade de texto para refinamento
     const resultadosComSimilaridade = resultados.map(item => {
-      let scoreAdicional = 0;
-      
-      // Busca por palavras individuais
-      palavrasPergunta.forEach(palavra => {
-        if (palavra.length > 2) { // Ignorar palavras muito curtas
-          if (normalizarTexto(item.pergunta).includes(palavra)) {
-            scoreAdicional += 100;
-          }
-          if (normalizarTexto(item.palavras_chave || '').includes(palavra)) {
-            scoreAdicional += 80;
-          }
-          if (normalizarTexto(item.resposta || '').includes(palavra)) {
-            scoreAdicional += 60;
-          }
-        }
-      });
-      
-      // Busca por sinônimos
-      sinonimos.forEach(sinonimo => {
-        if (sinonimo.length > 2) {
-          if (normalizarTexto(item.pergunta).includes(sinonimo)) {
-            scoreAdicional += 70;
-          }
-          if (normalizarTexto(item.palavras_chave || '').includes(sinonimo)) {
-            scoreAdicional += 50;
-          }
-          if (normalizarTexto(item.resposta || '').includes(sinonimo)) {
-            scoreAdicional += 40;
-          }
-        }
-      });
-      
-      // Similaridade de texto
       const similaridadePergunta = calcularSimilaridade(perguntaNormalizada, normalizarTexto(item.pergunta));
       const similaridadePalavras = calcularSimilaridade(perguntaNormalizada, normalizarTexto(item.palavras_chave || ''));
       const similaridadeResposta = calcularSimilaridade(perguntaNormalizada, normalizarTexto(item.resposta || ''));
@@ -258,7 +345,7 @@ async function buscarFAQ(pergunta) {
       
       return {
         ...item,
-        scoreFinal: item.score + scoreAdicional + scoreSimilaridade,
+        scoreFinal: item.score + scoreSimilaridade,
         similaridade: {
           pergunta: similaridadePergunta,
           palavras: similaridadePalavras,
