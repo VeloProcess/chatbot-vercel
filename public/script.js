@@ -34,6 +34,60 @@ document.addEventListener('DOMContentLoaded', () => {
         return assinaturaFormatada;
     }
 
+    // === SISTEMA DE FEEDBACK INTELIGENTE ===
+    
+    // Função para enviar feedback com análise ML
+    async function enviarFeedback(action, question, sourceRow, sugestao = '') {
+        try {
+            const feedbackData = {
+                action: action,
+                email: dadosAtendente?.email || 'anônimo',
+                question: question,
+                sourceRow: sourceRow,
+                sugestao: sugestao
+            };
+
+            console.log('Enviando feedback:', feedbackData);
+
+            const response = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(feedbackData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ Feedback enviado com sucesso:', result);
+                
+                // Análise ML interna (só para logs)
+                if (action === 'logFeedbackNegativo') {
+                    console.log('🔍 ANÁLISE ML: Feedback negativo detectado');
+                    console.log('📊 Pergunta problemática:', question);
+                    console.log('�� Fonte:', sourceRow);
+                    console.log('📊 Sugestão do usuário:', sugestao);
+                    
+                    // Aqui você pode adicionar lógica para melhorar a base de dados
+                    // baseada nos feedbacks negativos
+                }
+            } else {
+                console.error('❌ Erro ao enviar feedback:', response.status);
+            }
+        } catch (error) {
+            console.error('❌ Erro na requisição de feedback:', error);
+        }
+    }
+
+    // Função para abrir modal de feedback negativo
+    function abrirModalFeedback(container) {
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const feedbackText = document.getElementById('feedback-comment');
+        
+        if (feedbackOverlay) {
+            feedbackOverlay.classList.remove('hidden');
+            if (feedbackText) feedbackText.focus();
+        }
+    }
+
     // Função addMessage movida para escopo global
     function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
         const chatBox = document.getElementById('chat-box');
@@ -160,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Feedback do bot
+        // Feedback do bot com sistema inteligente
         if (sender === 'bot') {
             ultimaLinhaDaFonte = sourceRow;
             const feedbackContainer = document.createElement('div');
@@ -170,7 +224,11 @@ document.addEventListener('DOMContentLoaded', () => {
             positiveBtn.className = 'feedback-btn';
             positiveBtn.innerHTML = '👍';
             positiveBtn.title = 'Resposta útil';
-            positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+            positiveBtn.onclick = () => {
+                enviarFeedback('logFeedbackPositivo', ultimaPergunta, sourceRow);
+                positiveBtn.textContent = 'Obrigado!';
+                positiveBtn.disabled = true;
+            };
 
             const negativeBtn = document.createElement('button');
             negativeBtn.className = 'feedback-btn';
@@ -250,269 +308,223 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Função para buscar resposta da IA com debug
-async function buscarRespostaAI(pergunta) {
-    if (!pergunta || !pergunta.trim()) {
-        addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
-        return;
-    }
-
-    if (!dadosAtendente || !dadosAtendente.email) {
-        addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
-        return;
-    }
-
-    try {
-        console.log('=== INICIANDO BUSCA ===');
-        console.log('Pergunta:', pergunta);
-        
-        // Primeiro tenta buscar na base local
-        console.log('🔍 Buscando na base local...');
-        const baseResponse = await fetch('/api/base');
-        console.log('Status da resposta da API:', baseResponse.status);
-        
-        if (baseResponse.ok) {
-            const baseData = await baseResponse.json();
-            console.log('✅ Base carregada com sucesso');
-            console.log('Tipo de dados:', typeof baseData);
-            console.log('Estrutura:', Object.keys(baseData));
-            
-            if (baseData.base && Array.isArray(baseData.base)) {
-                console.log('📊 Total de itens na base:', baseData.base.length);
-                console.log('�� Primeiros 3 títulos:', baseData.base.slice(0, 3).map(item => item.title));
-                
-                const respostaLocal = buscarNaBaseLocal(pergunta, baseData.base);
-                if (respostaLocal) {
-                    console.log('✅ Resposta encontrada na base local');
-                    addMessage(respostaLocal, "bot", { source: "Base Local" });
-                    return;
-                } else {
-                    console.log('❌ Nenhuma resposta encontrada na base local');
-                }
-            } else {
-                console.log('❌ Estrutura da base inválida:', baseData);
-            }
-        } else {
-            console.log('❌ Erro ao carregar base:', baseResponse.status);
-        }
-
-        console.log('�� Buscando em sites externos...');
-        // Se não encontrou na base local, busca em sites externos
-        const sitesAutorizados = [
-            "https://www.gov.br/receitafederal/pt-br",
-            "https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda",
-            "https://velotax.com.br/"
-        ];
-        
-        const contextoExterno = `Consulte as seguintes fontes oficiais para responder à pergunta: ${sitesAutorizados.join(', ')}`;
-        
-        const response = await fetch("/api/askOpenAI", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                pergunta, 
-                contextoPlanilha: contextoExterno, 
-                email: dadosAtendente.email 
-            })
-        });
-
-        if (!response.ok) {
-            const text = await response.text();
-            console.error("Erro do backend:", response.status, text);
-            addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
+    async function buscarRespostaAI(pergunta) {
+        if (!pergunta || !pergunta.trim()) {
+            addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
             return;
         }
 
-        const resposta = await response.text();
-        console.log("Resposta bruta da API:", resposta);
-        
-        if (resposta.trim()) {
-            try {
-                const respostaJson = JSON.parse(resposta);
-                if (respostaJson.resposta) {
-                    addMessage(respostaJson.resposta, "bot", { source: "Sites Externos" });
+        if (!dadosAtendente || !dadosAtendente.email) {
+            addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
+            return;
+        }
+
+        try {
+            console.log('=== INICIANDO BUSCA ===');
+            console.log('Pergunta:', pergunta);
+            
+            // Primeiro tenta buscar na base local
+            console.log('🔍 Buscando na base local...');
+            const baseResponse = await fetch('/api/base');
+            console.log('Status da resposta da API:', baseResponse.status);
+            
+            if (baseResponse.ok) {
+                const baseData = await baseResponse.json();
+                console.log('✅ Base carregada com sucesso');
+                console.log('Tipo de dados:', typeof baseData);
+                console.log('Estrutura:', Object.keys(baseData));
+                
+                if (baseData.base && Array.isArray(baseData.base)) {
+                    console.log('📊 Total de itens na base:', baseData.base.length);
+                    console.log('�� Primeiros 3 títulos:', baseData.base.slice(0, 3).map(item => item.title));
+                    
+                    const respostaLocal = buscarNaBaseLocal(pergunta, baseData.base);
+                    if (respostaLocal) {
+                        console.log('✅ Resposta encontrada na base local');
+                        addMessage(respostaLocal, "bot", { source: "Base Local" });
+                        return;
+                    } else {
+                        console.log('❌ Nenhuma resposta encontrada na base local');
+                    }
                 } else {
+                    console.log('❌ Estrutura da base inválida:', baseData);
+                }
+            } else {
+                console.log('❌ Erro ao carregar base:', baseResponse.status);
+            }
+
+            console.log('🌐 Buscando em sites externos...');
+            // Se não encontrou na base local, busca em sites externos
+            const sitesAutorizados = [
+                "https://www.gov.br/receitafederal/pt-br",
+                "https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda",
+                "https://velotax.com.br/"
+            ];
+            
+            const contextoExterno = `Consulte as seguintes fontes oficiais para responder à pergunta: ${sitesAutorizados.join(', ')}`;
+            
+            const response = await fetch("/api/askOpenAI", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    pergunta, 
+                    contextoPlanilha: contextoExterno, 
+                    email: dadosAtendente.email 
+                })
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                console.error("Erro do backend:", response.status, text);
+                addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
+                return;
+            }
+
+            const resposta = await response.text();
+            console.log("Resposta bruta da API:", resposta);
+            
+            if (resposta.trim()) {
+                try {
+                    const respostaJson = JSON.parse(resposta);
+                    if (respostaJson.resposta) {
+                        addMessage(respostaJson.resposta, "bot", { source: "Sites Externos" });
+                    } else {
+                        addMessage(resposta, "bot", { source: "Sites Externos" });
+                    }
+                } catch (e) {
                     addMessage(resposta, "bot", { source: "Sites Externos" });
                 }
-            } catch (e) {
-                addMessage(resposta, "bot", { source: "Sites Externos" });
+            } else {
+                addMessage("Desculpe, não consegui encontrar uma resposta adequada para sua pergunta.", "bot", { source: "IA" });
             }
-        } else {
-            addMessage("Desculpe, não consegui encontrar uma resposta adequada para sua pergunta.", "bot", { source: "IA" });
-        }
-    } catch (err) {
-        console.error("Erro na requisição:", err);
-        addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
-    }
-}
-    
-    // Adicione estas funções ANTES da função buscarNaBaseLocal no seu script.js
-
-// Função para detectar categoria
-function detectarCategoria(pergunta, categorias) {
-    for (const [id, categoria] of Object.entries(categorias)) {
-        for (const keyword of categoria.keywords_principais) {
-            if (pergunta.includes(keyword.toLowerCase())) {
-                return { id, ...categoria };
-            }
+        } catch (err) {
+            console.error("Erro na requisição:", err);
+            addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
         }
     }
-    return null;
-}
-
-// Função para detectar tags
-function detectarTags(pergunta, tags) {
-    const tagsEncontradas = [];
     
-    for (const [categoria, subcategorias] of Object.entries(tags.tags_contexto)) {
-        for (const [subcategoria, valores] of Object.entries(subcategorias)) {
-            for (const valor of valores) {
-                if (pergunta.includes(valor.toLowerCase())) {
-                    tagsEncontradas.push(valor);
+    // Função para buscar na base local com debug completo
+    function buscarNaBaseLocal(pergunta, baseData) {
+        const perguntaLower = pergunta.toLowerCase().trim();
+        console.log('=== BUSCA NA BASE LOCAL ===');
+        console.log('Pergunta:', pergunta);
+        console.log('Base data type:', typeof baseData);
+        console.log('É array?', Array.isArray(baseData));
+        console.log('Total de itens:', baseData ? baseData.length : 'UNDEFINED');
+        
+        if (!baseData || !Array.isArray(baseData)) {
+            console.log('❌ ERRO: baseData inválido');
+            return null;
+        }
+        
+        const resultados = [];
+        
+        // 1. BUSCA EXATA NO TÍTULO
+        for (const item of baseData) {
+            if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
+                console.log('✅ TÍTULO EXATO:', item.title);
+                return item.content;
+            }
+        }
+        
+        // 2. BUSCA POR PALAVRAS-CHAVE
+        for (const item of baseData) {
+            if (item.keywords && Array.isArray(item.keywords)) {
+                for (const keyword of item.keywords) {
+                    if (keyword && keyword.toLowerCase().includes(perguntaLower)) {
+                        console.log('✅ KEYWORD encontrado:', keyword);
+                        resultados.push({ item, score: 0.9, source: 'Keyword' });
+                    }
                 }
             }
         }
-    }
-    
-    return tagsEncontradas;
-}
-
-// Função para remover duplicatas
-function removerDuplicatas(resultados) {
-    const unicos = [];
-    const ids = new Set();
-    
-    for (const resultado of resultados) {
-        if (!ids.has(resultado.item.id)) {
-            ids.add(resultado.item.id);
-            unicos.push(resultado);
+        
+        // 3. BUSCA POR SINÔNIMOS
+        for (const item of baseData) {
+            if (item.sinonimos && Array.isArray(item.sinonimos)) {
+                for (const sinonimo of item.sinonimos) {
+                    if (sinonimo && sinonimo.toLowerCase().includes(perguntaLower)) {
+                        console.log('✅ SINÔNIMO encontrado:', sinonimo);
+                        resultados.push({ item, score: 0.8, source: 'Sinônimo' });
+                    }
+                }
+            }
         }
-    }
-    
-    return unicos;
-}
-
-    // Função para buscar na base local com debug completo
-function buscarNaBaseLocal(pergunta, baseData) {
-    const perguntaLower = pergunta.toLowerCase().trim();
-    console.log('=== BUSCA NA BASE LOCAL ===');
-    console.log('Pergunta:', pergunta);
-    console.log('Base data type:', typeof baseData);
-    console.log('É array?', Array.isArray(baseData));
-    console.log('Total de itens:', baseData ? baseData.length : 'UNDEFINED');
-    
-    if (!baseData || !Array.isArray(baseData)) {
-        console.log('❌ ERRO: baseData inválido');
+        
+        // 4. BUSCA POR PALAVRAS INDIVIDUAIS
+        const palavrasPergunta = perguntaLower.split(/\s+/).filter(p => p.length > 2);
+        console.log('Palavras da pergunta:', palavrasPergunta);
+        
+        for (const item of baseData) {
+            let score = 0;
+            let palavrasEncontradas = 0;
+            
+            // Verifica no título
+            if (item.title) {
+                const tituloLower = item.title.toLowerCase();
+                for (const palavra of palavrasPergunta) {
+                    if (tituloLower.includes(palavra)) {
+                        score += 0.3;
+                        palavrasEncontradas++;
+                        console.log(`✅ Palavra "${palavra}" no título:`, item.title);
+                    }
+                }
+            }
+            
+            // Verifica nas keywords
+            if (item.keywords && Array.isArray(item.keywords)) {
+                for (const keyword of item.keywords) {
+                    if (keyword) {
+                        const keywordLower = keyword.toLowerCase();
+                        for (const palavra of palavrasPergunta) {
+                            if (keywordLower.includes(palavra)) {
+                                score += 0.2;
+                                palavrasEncontradas++;
+                                console.log(`✅ Palavra "${palavra}" na keyword:`, keyword);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Verifica nos sinônimos
+            if (item.sinonimos && Array.isArray(item.sinonimos)) {
+                for (const sinonimo of item.sinonimos) {
+                    if (sinonimo) {
+                        const sinonimoLower = sinonimo.toLowerCase();
+                        for (const palavra of palavrasPergunta) {
+                            if (sinonimoLower.includes(palavra)) {
+                                score += 0.1;
+                                palavrasEncontradas++;
+                                console.log(`✅ Palavra "${palavra}" no sinônimo:`, sinonimo);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (score > 0.3) {
+                resultados.push({ item, score, source: 'Palavras', match: `${palavrasEncontradas} palavras` });
+            }
+        }
+        
+        // Ordena por pontuação
+        resultados.sort((a, b) => b.score - a.score);
+        
+        console.log('Resultados encontrados:', resultados.length);
+        resultados.forEach((r, i) => {
+            console.log(`${i + 1}. ${r.item.title} (${r.score.toFixed(2)}) - ${r.source}`);
+        });
+        
+        if (resultados.length > 0) {
+            const melhor = resultados[0];
+            console.log('✅ MELHOR RESULTADO:', melhor.item.title);
+            return melhor.item.content;
+        }
+        
+        console.log('❌ Nenhum resultado encontrado');
         return null;
     }
-    
-    const resultados = [];
-    
-    // 1. BUSCA EXATA NO TÍTULO
-    for (const item of baseData) {
-        if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
-            console.log('✅ TÍTULO EXATO:', item.title);
-            return item.content;
-        }
-    }
-    
-    // 2. BUSCA POR PALAVRAS-CHAVE
-    for (const item of baseData) {
-        if (item.keywords && Array.isArray(item.keywords)) {
-            for (const keyword of item.keywords) {
-                if (keyword && keyword.toLowerCase().includes(perguntaLower)) {
-                    console.log('✅ KEYWORD encontrado:', keyword);
-                    resultados.push({ item, score: 0.9, source: 'Keyword' });
-                }
-            }
-        }
-    }
-    
-    // 3. BUSCA POR SINÔNIMOS
-    for (const item of baseData) {
-        if (item.sinonimos && Array.isArray(item.sinonimos)) {
-            for (const sinonimo of item.sinonimos) {
-                if (sinonimo && sinonimo.toLowerCase().includes(perguntaLower)) {
-                    console.log('✅ SINÔNIMO encontrado:', sinonimo);
-                    resultados.push({ item, score: 0.8, source: 'Sinônimo' });
-                }
-            }
-        }
-    }
-    
-    // 4. BUSCA POR PALAVRAS INDIVIDUAIS
-    const palavrasPergunta = perguntaLower.split(/\s+/).filter(p => p.length > 2);
-    console.log('Palavras da pergunta:', palavrasPergunta);
-    
-    for (const item of baseData) {
-        let score = 0;
-        let palavrasEncontradas = 0;
-        
-        // Verifica no título
-        if (item.title) {
-            const tituloLower = item.title.toLowerCase();
-            for (const palavra of palavrasPergunta) {
-                if (tituloLower.includes(palavra)) {
-                    score += 0.3;
-                    palavrasEncontradas++;
-                    console.log(`✅ Palavra "${palavra}" no título:`, item.title);
-                }
-            }
-        }
-        
-        // Verifica nas keywords
-        if (item.keywords && Array.isArray(item.keywords)) {
-            for (const keyword of item.keywords) {
-                if (keyword) {
-                    const keywordLower = keyword.toLowerCase();
-                    for (const palavra of palavrasPergunta) {
-                        if (keywordLower.includes(palavra)) {
-                            score += 0.2;
-                            palavrasEncontradas++;
-                            console.log(`✅ Palavra "${palavra}" na keyword:`, keyword);
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Verifica nos sinônimos
-        if (item.sinonimos && Array.isArray(item.sinonimos)) {
-            for (const sinonimo of item.sinonimos) {
-                if (sinonimo) {
-                    const sinonimoLower = sinonimo.toLowerCase();
-                    for (const palavra of palavrasPergunta) {
-                        if (sinonimoLower.includes(palavra)) {
-                            score += 0.1;
-                            palavrasEncontradas++;
-                            console.log(`✅ Palavra "${palavra}" no sinônimo:`, sinonimo);
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (score > 0.3) {
-            resultados.push({ item, score, source: 'Palavras', match: `${palavrasEncontradas} palavras` });
-        }
-    }
-    
-    // Ordena por pontuação
-    resultados.sort((a, b) => b.score - a.score);
-    
-    console.log('Resultados encontrados:', resultados.length);
-    resultados.forEach((r, i) => {
-        console.log(`${i + 1}. ${r.item.title} (${r.score.toFixed(2)}) - ${r.source}`);
-    });
-    
-    if (resultados.length > 0) {
-        const melhor = resultados[0];
-        console.log('✅ MELHOR RESULTADO:', melhor.item.title);
-        return melhor.item.content;
-    }
-    
-    console.log('❌ Nenhum resultado encontrado');
-    return null;
-}
 
     // Função para calcular similaridade entre strings (tolerante a erros)
     function calcularSimilaridade(str1, str2) {
@@ -951,75 +963,12 @@ function buscarNaBaseLocal(pergunta, baseData) {
             if (typingIndicator) typingIndicator.remove();
         }
 
-        async function enviarFeedback(action, container, sugestao = null) {
-            if (!ultimaPergunta || !ultimaLinhaDaFonte) {
-                console.error("FALHA: Feedback não enviado.");
-                return;
-            }
-            container.textContent = 'Obrigado pelo feedback!';
-            container.className = 'feedback-thanks';
-
-            console.log("Enviando para a API de Feedback:", { action, question: ultimaPergunta, sourceRow: ultimaLinhaDaFonte, email: dadosAtendente.email, sugestao });
-            try {
-                await fetch('/api/feedback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: action,
-                        question: ultimaPergunta,
-                        sourceRow: ultimaLinhaDaFonte,
-                        email: dadosAtendente.email,
-                        sugestao: sugestao
-                    })
-                });
-            } catch (error) {
-                console.error("ERRO DE REDE ao enviar feedback:", error);
-            }
-        }
-
-        async function buscarResposta(textoDaPergunta) {
-            ultimaPergunta = textoDaPergunta;
-            ultimaLinhaDaFonte = null;
-            if (!textoDaPergunta.trim()) return;
-            showTypingIndicator();
-            try {
-                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
-                const response = await fetch(url);
-                hideTypingIndicator();
-                if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
-                const data = await response.json();
-
-                // Bloco corrigido para repassar TODAS as informações para addMessage
-                if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
-                    addMessage(data.resposta, 'bot', { 
-                        sourceRow: data.sourceRow, // sourceRow pode ser um número ou 'Resposta da IA'
-                        source: data.source, 
-                        tabulacoes: data.tabulacoes
-                    });
-                } else if (data.status === 'clarification_needed') {
-                    addMessage(data.resposta, 'bot', { 
-                        options: data.options, 
-                        source: data.source,
-                        sourceRow: data.sourceRow // sourceRow será 'Pergunta de Esclarecimento'
-                    });
-                } else {
-                    addMessage(data.resposta, 'bot', {
-                        sourceRow: 'Erro do Bot' // Adiciona uma referência para erros
-                    });
-                }
-            } catch (error) {
-                hideTypingIndicator();
-                addMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot', { sourceRow: 'Erro de Conexão' });
-                console.error("Detalhes do erro:", error);
-            }
-        }
-
         function handleSendMessage(text) {
             const trimmedText = text.trim();
             if (!trimmedText) return;
             addMessage(trimmedText, 'user');
             logQuestionOnSheet(trimmedText, dadosAtendente.email);
-            buscarRespostaAI(trimmedText); // <- use a versão sem streaming
+            buscarRespostaAI(trimmedText);
             userInput.value = '';
         }
 
@@ -1035,17 +984,12 @@ function buscarNaBaseLocal(pergunta, baseData) {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
 
+        // Sistema de feedback com modal
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
         const feedbackText = document.getElementById('feedback-comment');
         let activeFeedbackContainer = null;
-
-        function abrirModalFeedback(container) {
-            activeFeedbackContainer = container;
-            feedbackOverlay.classList.remove('hidden');
-            if (feedbackText) feedbackText.focus();
-        }
 
         function fecharModalFeedback() {
             feedbackOverlay.classList.add('hidden');
@@ -1061,7 +1005,7 @@ function buscarNaBaseLocal(pergunta, baseData) {
             feedbackSendBtn.addEventListener('click', () => {
                 const sugestao = feedbackText ? feedbackText.value.trim() : '';
                 if (activeFeedbackContainer) {
-                    enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
+                    enviarFeedback('logFeedbackNegativo', ultimaPergunta, ultimaLinhaDaFonte, sugestao || null);
                     fecharModalFeedback();
                 } else {
                     console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
