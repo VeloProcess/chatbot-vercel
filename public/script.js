@@ -63,14 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (action === 'logFeedbackNegativo') {
                     console.log('🔍 ANÁLISE ML: Feedback negativo detectado');
                     console.log('📊 Pergunta problemática:', question);
-                    console.log('�� Fonte:', sourceRow);
+                    console.log(' Fonte:', sourceRow);
                     console.log('📊 Sugestão do usuário:', sugestao);
-                    
-                    // Aqui você pode adicionar lógica para melhorar a base de dados
-                    // baseada nos feedbacks negativos
                 }
             } else {
-                console.error('❌ Erro ao enviar feedback:', response.status);
+                const errorText = await response.text();
+                console.error('❌ Erro ao enviar feedback:', response.status, errorText);
             }
         } catch (error) {
             console.error('❌ Erro na requisição de feedback:', error);
@@ -79,6 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função para abrir modal de feedback negativo
     function abrirModalFeedback(container) {
+        // Armazena a referência do container ativo
+        window.activeFeedbackContainer = container;
+        
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackText = document.getElementById('feedback-comment');
         
@@ -336,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (baseData.base && Array.isArray(baseData.base)) {
                     console.log('📊 Total de itens na base:', baseData.base.length);
-                    console.log('�� Primeiros 3 títulos:', baseData.base.slice(0, 3).map(item => item.title));
+                    console.log(' Primeiros 3 títulos:', baseData.base.slice(0, 3).map(item => item.title));
                     
                     const respostaLocal = buscarNaBaseLocal(pergunta, baseData.base);
                     if (respostaLocal) {
@@ -984,17 +985,18 @@ document.addEventListener('DOMContentLoaded', () => {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
 
-        // Sistema de feedback com modal
+        // Sistema de feedback com modal corrigido
         const feedbackOverlay = document.getElementById('feedback-overlay');
         const feedbackSendBtn = document.getElementById('feedback-send');
         const feedbackCancelBtn = document.getElementById('feedback-cancel');
         const feedbackText = document.getElementById('feedback-comment');
-        let activeFeedbackContainer = null;
 
         function fecharModalFeedback() {
-            feedbackOverlay.classList.add('hidden');
-            if (feedbackText) feedbackText.value = '';
-            activeFeedbackContainer = null;
+            if (feedbackOverlay) {
+                feedbackOverlay.classList.add('hidden');
+                if (feedbackText) feedbackText.value = '';
+            }
+            window.activeFeedbackContainer = null;
         }
 
         if (feedbackCancelBtn) {
@@ -1004,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (feedbackSendBtn) {
             feedbackSendBtn.addEventListener('click', () => {
                 const sugestao = feedbackText ? feedbackText.value.trim() : '';
-                if (activeFeedbackContainer) {
+                if (window.activeFeedbackContainer) {
                     enviarFeedback('logFeedbackNegativo', ultimaPergunta, ultimaLinhaDaFonte, sugestao || null);
                     fecharModalFeedback();
                 } else {
