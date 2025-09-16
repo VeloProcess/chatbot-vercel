@@ -1,407 +1,437 @@
-// api/ask.js (Versão OpenAI Completa – Memória de Sessão e Busca em Sites)
+// api/ask.js - Sistema de busca ULTRA-AVANÇADO com MongoDB
 
-const { google } = require('googleapis');
-const axios = require('axios');
-const OpenAI = require('openai');
+import { MongoClient } from 'mongodb';
 
-// --- CONFIGURAÇÃO ---
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:D";
-const CACHE_DURATION_SECONDS = 0; // Desativado para sempre buscar atualizado
+const MONGODB_URI = 'mongodb+srv://gabrielaraujo:sGoeqQgbxlsIwnjc@clustercentral.quqgq6x.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCentral';
+const DB_NAME = 'console_conteudo';
+const COLLECTION_NAME = 'Bot_perguntas';
 
-// --- CLIENTE GOOGLE SHEETS ---
-const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-const sheets = google.sheets({ version: 'v4', auth });
+let client = null;
+let db = null;
 
-// --- CLIENTE OPENAI ---
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const modeloOpenAI = "gpt-4o-mini"; // Ajustável
+// Cache inteligente com TTL
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
-// --- MEMÓRIA DE SESSÃO POR USUÁRIO ---
-let userSessions = {}; // { email: { contexto: "", ultimaPergunta: "", historico: [] } }
+// Dicionário de sinônimos e variações
+const SINONIMOS = {
+  'portabilidade': ['portar', 'migrar', 'transferir', 'mudar', 'trocar'],
+  'antecipacao': ['antecipar', 'adiantar', 'receber antes', 'liberar'],
+  'restituicao': ['restituir', 'devolver', 'reembolsar', 'retornar'],
+  'conta': ['account', 'perfil', 'cadastro'],
+  'celcoin': ['celcoin', 'cel coin', 'cel-coin'],
+  'como': ['como fazer', 'como posso', 'como consigo', 'como faço'],
+  'quando': ['quando posso', 'quando consigo', 'quando faço'],
+  'onde': ['onde posso', 'onde consigo', 'onde faço'],
+  'problema': ['erro', 'dificuldade', 'não funciona', 'não consegui'],
+  'valor': ['preço', 'custo', 'taxa', 'valor'],
+  'prazo': ['tempo', 'quanto tempo', 'quando', 'data'],
+  'documento': ['documentação', 'papel', 'comprovante'],
+  'aprovação': ['aprovado', 'aprovar', 'aceito', 'aceitar'],
+  'negado': ['negado', 'rejeitado', 'recusado', 'não aprovado']
+};
 
-// --- CONFIGURAÇÕES SIMPLES ---
+// Função para normalizar texto
+function normalizarTexto(texto) {
+  return texto
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s]/g, ' ') // Remove pontuação
+    .replace(/\s+/g, ' ') // Remove espaços extras
+    .trim();
+}
 
-// --- CACHE INTELIGENTE ---
-let cacheRespostas = {}; // { pergunta_hash: { resposta, timestamp, hits } }
-const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutos
-const MAX_CACHE_SIZE = 1000; // Máximo de entradas no cache
+// Função para calcular similaridade (Levenshtein)
+function calcularSimilaridade(str1, str2) {
+  const matrix = [];
+  const len1 = str1.length;
+  const len2 = str2.length;
 
-// Função para gerar hash da pergunta
-function gerarHashPergunta(pergunta) {
-  return normalizarTexto(pergunta).replace(/\s+/g, '_');
+  for (let i = 0; i <= len2; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= len1; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= len2; i++) {
+    for (let j = 1; j <= len1; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  const maxLen = Math.max(len1, len2);
+  return maxLen === 0 ? 1 : (maxLen - matrix[len2][len1]) / maxLen;
+}
+
+// Função para expandir sinônimos
+function expandirSinonimos(texto) {
+  const palavras = texto.split(' ');
+  const palavrasExpandidas = [...palavras];
+  
+  palavras.forEach(palavra => {
+    Object.entries(SINONIMOS).forEach(([chave, sinonimos]) => {
+      if (sinonimos.includes(palavra)) {
+        palavrasExpandidas.push(chave);
+      }
+      if (palavra === chave) {
+        palavrasExpandidas.push(...sinonimos);
+      }
+    });
+  });
+  
+  return [...new Set(palavrasExpandidas)]; // Remove duplicatas
 }
 
 // Função para limpar cache expirado
 function limparCacheExpirado() {
   const agora = Date.now();
-  Object.keys(cacheRespostas).forEach(hash => {
-    if (agora - cacheRespostas[hash].timestamp > CACHE_DURATION_MS) {
-      delete cacheRespostas[hash];
+  for (const [chave, valor] of cache.entries()) {
+    if (agora - valor.timestamp > CACHE_TTL) {
+      cache.delete(chave);
     }
-  });
-}
-
-// Função para adicionar ao cache
-function adicionarAoCache(pergunta, resposta, source) {
-  const hash = gerarHashPergunta(pergunta);
-  
-  // Limpa cache se estiver muito grande
-  if (Object.keys(cacheRespostas).length >= MAX_CACHE_SIZE) {
-    limparCacheExpirado();
   }
-  
-  cacheRespostas[hash] = {
-    resposta: resposta,
-    source: source,
-    timestamp: Date.now(),
-    hits: 1
-  };
 }
 
 // Função para buscar no cache
 function buscarNoCache(pergunta) {
-  const hash = gerarHashPergunta(pergunta);
-  const cached = cacheRespostas[hash];
+  const chave = normalizarTexto(pergunta);
+  const item = cache.get(chave);
   
-  if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION_MS) {
-    cached.hits++;
-    return cached;
+  if (item && Date.now() - item.timestamp < CACHE_TTL) {
+    console.log('🎯 Cache hit!');
+    return item.resultado;
   }
   
   return null;
 }
 
-// --- FUNÇÕES DE APOIO ---
-async function getFaqData() {
-  try {
-    // Tentar usar base local primeiro (mais rápido)
-    const fs = require('fs');
-    const path = require('path');
-    const basePath = path.join(process.cwd(), 'data', 'base_atualizada.json');
-    
-    if (fs.existsSync(basePath)) {
-      const baseData = JSON.parse(fs.readFileSync(basePath, 'utf8'));
-      console.log(`📊 Usando base local: ${baseData.length} itens`);
-      
-      // Converter para formato da planilha
-      return [
-        ['Pergunta', 'Palavras-chave', 'Resposta', 'Tabulacoes'],
-        ...baseData.map(item => [
-          item.pergunta,
-          item.palavras_chave,
-          item.resposta,
-          item.tabulacoes
-        ])
-      ];
-    }
-  } catch (error) {
-    console.log('⚠️ Erro ao carregar base local, usando planilha...');
-  }
-  
-  // Fallback para planilha Google Sheets
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: FAQ_SHEET_NAME,
+// Função para adicionar ao cache
+function adicionarAoCache(pergunta, resultado) {
+  const chave = normalizarTexto(pergunta);
+  cache.set(chave, {
+    resultado,
+    timestamp: Date.now()
   });
-  if (!response.data.values || response.data.values.length === 0) {
-    throw new Error("Não foi possível ler dados da planilha FAQ ou ela está vazia.");
-  }
-  return response.data.values;
 }
 
-function normalizarTexto(texto) {
-  if (!texto || typeof texto !== 'string') return '';
-  return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
-}
-
-async function logIaUsage(email, pergunta) {
-  try {
-    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const newRow = [timestamp, email, pergunta];
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_IA_Usage',
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: [newRow] },
-    });
-  } catch (error) {
-    console.error("ERRO AO REGISTRAR USO DA IA:", error);
-  }
-}
-
-function findMatches(pergunta, faqData) {
-  const cabecalho = faqData[0];
-  const dados = faqData.slice(1);
-  const idxPergunta = cabecalho.indexOf("Pergunta");
-  const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
-  const idxResposta = cabecalho.indexOf("Resposta");
-
-  if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
-    throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
-  }
-
-  const perguntaLower = pergunta.toLowerCase();
-  const perguntaNormalizada = normalizarTexto(pergunta);
-  let todasAsCorrespondencias = [];
-
-  for (let i = 0; i < dados.length; i++) {
-    const linhaAtual = dados[i];
-    const perguntaOriginal = linhaAtual[idxPergunta] || '';
-    const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
-    const resposta = linhaAtual[idxResposta] || '';
-    
-    let score = 0;
-    
-    // 1. BUSCA EXATA na pergunta original (prioridade máxima)
-    if (perguntaOriginal.toLowerCase().includes(perguntaLower)) {
-      score = 100;
-    }
-    // 2. BUSCA EXATA nas palavras-chave
-    else if (textoPalavrasChave.includes(perguntaNormalizada)) {
-      score = 90;
-    }
-    // 3. BUSCA PARCIAL na pergunta original (mais flexível)
-    else if (perguntaOriginal.toLowerCase().includes(perguntaLower.split(' ')[0])) {
-      score = 80;
-    }
-    // 4. BUSCA POR PALAVRAS-CHAVE INDIVIDUAIS (mais permissiva)
-    else if (perguntaLower.split(' ').some(palavra => 
-      palavra.length > 2 && perguntaOriginal.toLowerCase().includes(palavra)
-    )) {
-      score = 70;
-    }
-    // 4. BUSCA PARCIAL nas palavras-chave
-    else {
-      const palavrasPergunta = perguntaNormalizada.split(' ').filter(p => p.length > 2);
-      const palavrasChave = textoPalavrasChave.split(' ');
-      let matches = 0;
-      
-      palavrasPergunta.forEach(palavra => {
-        if (palavrasChave.some(p => p.includes(palavra) || palavra.includes(p))) {
-          matches++;
-        }
-      });
-      
-      if (matches > 0) {
-        score = matches * 30; // 30 pontos por palavra encontrada
-      }
-    }
-    
-    if (score > 0) {
-      todasAsCorrespondencias.push({
-        resposta: resposta,
-        perguntaOriginal: perguntaOriginal,
-        sourceRow: i + 2,
-        score: score,
-        tabulacoes: linhaAtual[3] || null
-      });
-    }
-  }
-
-  // Ordenação por score (maior primeiro)
-  todasAsCorrespondencias.sort((a, b) => b.score - a.score);
-  
-  return todasAsCorrespondencias;
-}
-
-// --- FUNÇÃO DE BUSCA EM SITES AUTORIZADOS ---
-async function buscarEPrepararContextoSites(pergunta) {
-  const sites = [
-    {
-      url: "https://www.gov.br/receitafederal",
-      keywords: ["receita", "federal", "imposto", "renda", "declaração", "restituição"],
-      priority: 1
-    },
-    {
-      url: "https://cav.receita.fazenda.gov.br",
-      keywords: ["cav", "receita", "consulta", "cpf", "situação"],
-      priority: 2
-    },
-    {
-      url: "https://www.gov.br",
-      keywords: ["governo", "federal", "serviços", "digitais"],
-      priority: 3
-    },
-    {
-      url: "https://velotax.com.br",
-      keywords: ["velotax", "antecipação", "celcoin", "crédito"],
-      priority: 4
-    }
-  ];
-
-  const perguntaNormalizada = normalizarTexto(pergunta);
-  const palavrasChave = perguntaNormalizada.split(' ').filter(p => p.length > 2);
-  
-  let contexto = "";
-  let sitesEncontrados = 0;
-  const maxSites = 2; // Limita para não sobrecarregar
-
-  // Ordena sites por prioridade e relevância
-  const sitesRelevantes = sites
-    .map(site => {
-      let relevancia = 0;
-      palavrasChave.forEach(palavra => {
-        if (site.keywords.some(keyword => keyword.includes(palavra) || palavra.includes(keyword))) {
-          relevancia++;
-        }
-      });
-      return { ...site, relevancia };
-    })
-    .filter(site => site.relevancia > 0)
-    .sort((a, b) => a.priority - b.priority)
-    .slice(0, maxSites);
-
-  for (const site of sitesRelevantes) {
+async function conectarMongoDB() {
+  if (!client) {
     try {
-      console.log(`🔍 Buscando em: ${site.url}`);
-      const { data } = await axios.get(site.url, { 
-        timeout: 5000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; VeloBot/1.0)'
-        }
-      });
-      
-      // Busca mais inteligente no conteúdo
-      const conteudo = data.toLowerCase();
-      const perguntaLower = pergunta.toLowerCase();
-      
-      // Verifica se o site contém palavras-chave relevantes
-      const palavrasEncontradas = palavrasChave.filter(palavra => 
-        conteudo.includes(palavra.toLowerCase())
-      );
-      
-      if (palavrasEncontradas.length > 0) {
-        // Extrai trecho relevante (simplificado)
-        const indice = conteudo.indexOf(palavrasEncontradas[0]);
-        const trecho = data.substring(
-          Math.max(0, indice - 200), 
-          Math.min(data.length, indice + 300)
-        ).replace(/<[^>]*>/g, ' ').trim();
-        
-        contexto += `Fonte: ${site.url}\nTrecho relevante: ${trecho}\n\n`;
-        sitesEncontrados++;
-        
-        if (sitesEncontrados >= maxSites) break;
-      }
-    } catch (e) {
-      console.error(`❌ Falha ao processar site ${site.url}:`, e.message);
+      client = new MongoClient(MONGODB_URI);
+      await client.connect();
+      db = client.db(DB_NAME);
+      console.log('✅ Conectado ao MongoDB');
+    } catch (error) {
+      console.error('❌ Erro ao conectar MongoDB:', error.message);
+      throw error;
     }
   }
-  
-  return contexto || null;
+  return db;
 }
 
+async function buscarFAQ(pergunta) {
+  try {
+    const database = await conectarMongoDB();
+    const collection = database.collection(COLLECTION_NAME);
+    
+    // Limpar cache expirado
+    limparCacheExpirado();
+    
+    // Verificar cache primeiro
+    const cacheResult = buscarNoCache(pergunta);
+    if (cacheResult) {
+      return cacheResult;
+    }
+    
+    const perguntaNormalizada = normalizarTexto(pergunta);
+    const palavrasPergunta = perguntaNormalizada.split(' ');
+    const sinonimos = expandirSinonimos(perguntaNormalizada);
+    
+    console.log(`🔍 Buscando: "${pergunta}"`);
+    console.log(`📝 Palavras: [${palavrasPergunta.join(', ')}]`);
+    console.log(`🔄 Sinônimos: [${sinonimos.join(', ')}]`);
+    
+    // Busca ultra-avançada com múltiplas técnicas
+    const resultados = await collection.aggregate([
+      {
+        $addFields: {
+          score: {
+            $add: [
+              // 1. MATCH EXATO na pergunta (score máximo)
+              {
+                $cond: [
+                  { $regexMatch: { input: { $toLower: "$pergunta" }, regex: perguntaNormalizada } },
+                  1000,
+                  0
+                ]
+              },
+              
+              // 2. MATCH EXATO nas palavras-chave
+              {
+                $cond: [
+                  { $regexMatch: { input: { $toLower: "$palavras_chave" }, regex: perguntaNormalizada } },
+                  900,
+                  0
+                ]
+              },
+              
+              // 3. MATCH EXATO na resposta
+              {
+                $cond: [
+                  { $regexMatch: { input: { $toLower: "$resposta" }, regex: perguntaNormalizada } },
+                  800,
+                  0
+                ]
+              },
+              
+              // 4. MATCH PARCIAL na pergunta (palavras individuais)
+              {
+                $reduce: {
+                  input: palavrasPergunta,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$pergunta" }, regex: "$$this" } },
+                          100,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 5. MATCH PARCIAL nas palavras-chave
+              {
+                $reduce: {
+                  input: palavrasPergunta,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$palavras_chave" }, regex: "$$this" } },
+                          80,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 6. MATCH PARCIAL na resposta
+              {
+                $reduce: {
+                  input: palavrasPergunta,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$resposta" }, regex: "$$this" } },
+                          60,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 7. MATCH com sinônimos na pergunta
+              {
+                $reduce: {
+                  input: sinonimos,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$pergunta" }, regex: "$$this" } },
+                          70,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 8. MATCH com sinônimos nas palavras-chave
+              {
+                $reduce: {
+                  input: sinonimos,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$palavras_chave" }, regex: "$$this" } },
+                          50,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              
+              // 9. MATCH com sinônimos na resposta
+              {
+                $reduce: {
+                  input: sinonimos,
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $regexMatch: { input: { $toLower: "$resposta" }, regex: "$$this" } },
+                          40,
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        $match: {
+          score: { $gt: 0 }
+        }
+      },
+      {
+        $sort: { score: -1 }
+      },
+      {
+        $limit: 5 // Pegar top 5 para análise
+      }
+    ]).toArray();
+    
+    if (resultados.length === 0) {
+      console.log('❌ Nenhum resultado encontrado');
+      return null;
+    }
+    
+    // Aplicar similaridade de texto para refinamento
+    const resultadosComSimilaridade = resultados.map(item => {
+      const similaridadePergunta = calcularSimilaridade(perguntaNormalizada, normalizarTexto(item.pergunta));
+      const similaridadePalavras = calcularSimilaridade(perguntaNormalizada, normalizarTexto(item.palavras_chave || ''));
+      const similaridadeResposta = calcularSimilaridade(perguntaNormalizada, normalizarTexto(item.resposta || ''));
+      
+      const scoreSimilaridade = Math.max(similaridadePergunta, similaridadePalavras, similaridadeResposta) * 200;
+      
+      return {
+        ...item,
+        scoreFinal: item.score + scoreSimilaridade,
+        similaridade: {
+          pergunta: similaridadePergunta,
+          palavras: similaridadePalavras,
+          resposta: similaridadeResposta
+        }
+      };
+    });
+    
+    // Ordenar por score final
+    resultadosComSimilaridade.sort((a, b) => b.scoreFinal - a.scoreFinal);
+    
+    const melhorResultado = resultadosComSimilaridade[0];
+    
+    console.log(`✅ Melhor resultado: "${melhorResultado.pergunta}" (score: ${melhorResultado.scoreFinal})`);
+    console.log(`📊 Similaridade: P=${melhorResultado.similaridade.pergunta.toFixed(2)}, K=${melhorResultado.similaridade.palavras.toFixed(2)}, R=${melhorResultado.similaridade.resposta.toFixed(2)}`);
+    
+    // Adicionar ao cache
+    adicionarAoCache(pergunta, melhorResultado);
+    
+    return melhorResultado;
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar FAQ:', error.message);
+    return null;
+  }
+}
 
-// --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=240');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
   try {
-    const { pergunta, email, reformular } = req.query;
-    if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
-
-    const perguntaNormalizada = normalizarTexto(pergunta);
-
-    // --- VERIFICA CACHE PRIMEIRO (exceto se for reformulação) ---
-    if (!reformular) {
-      const cached = buscarNoCache(pergunta);
-      if (cached) {
-        console.log(`✅ Cache hit para: "${pergunta}"`);
-        return res.status(200).json({
-          status: "sucesso",
-          resposta: cached.resposta,
-          source: cached.source,
-          sourceRow: 'Cache',
-          cached: true
-        });
-      }
-    }
-
-    // --- MENU ESPECÍFICO: CRÉDITO ---
-    if (perguntaNormalizada === 'credito') {
-      const resposta = {
-        status: "clarification_needed",
-        resposta: "Você quer qual informação sobre crédito?",
-        options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal", "Data dos créditos ( lotes )"],
-        source: "Planilha",
-        sourceRow: 'Pergunta de Esclarecimento'
-      };
-      
-      // Adiciona ao cache
-      adicionarAoCache(pergunta, resposta.resposta, "Planilha");
-      
-      return res.status(200).json(resposta);
-    }
-
-    const faqData = await getFaqData();
-    const correspondencias = findMatches(pergunta, faqData);
+    const { pergunta, email } = req.query;
     
-    console.log(`🔍 Busca para: "${pergunta}"`);
-    console.log(`📊 Encontradas: ${correspondencias.length} correspondências`);
-    if (correspondencias.length > 0) {
-      console.log(`🎯 Melhor match: "${correspondencias[0].perguntaOriginal}" (score: ${correspondencias[0].score})`);
+    if (!pergunta) {
+      return res.status(400).json({ 
+        error: "Nenhuma pergunta fornecida." 
+      });
     }
 
-    // --- SEM CORRESPONDÊNCIAS NA PLANILHA ---
-    if (correspondencias.length === 0) {
-    // Loga o uso da IA
-    await logIaUsage(email, pergunta);
-    // Prepara o contexto dos sites autorizados
-    const contextoSites = await buscarEPrepararContextoSites(pergunta);
-    // Pergunta à OpenAI
-    const respostaDaIA = await askOpenAI(pergunta, contextoSites || "Nenhum", email, reformular);
-      
-      // Adiciona resposta da IA ao cache
-      adicionarAoCache(pergunta, respostaDaIA, "IA");
-      
-    // Retorna a resposta da IA
-    return res.status(200).json({
-        status: "sucesso_ia",
-        resposta: respostaDaIA,
-        source: "IA",
-        sourceRow: 'Resposta da IA'
-    });
-}
-
-    // --- SE HOUVER CORRESPONDÊNCIAS ---
-    if (correspondencias.length === 1 || correspondencias[0].score >= 70) {
-      const resposta = correspondencias[0].resposta;
-      
-      // Adiciona resposta da planilha ao cache
-      adicionarAoCache(pergunta, resposta, "Planilha");
+    console.log(`\n🚀 Nova pergunta: "${pergunta}"`);
+    
+    const resultado = await buscarFAQ(pergunta);
+    
+    if (resultado && resultado.scoreFinal >= 100) {
+      console.log(`✅ Encontrado: "${resultado.pergunta}" (score: ${resultado.scoreFinal})`);
       
       return res.status(200).json({
         status: "sucesso",
-        resposta: resposta,
-        sourceRow: correspondencias[0].sourceRow,
-        tabulacoes: correspondencias[0].tabulacoes,
-        source: "Planilha"
+        resposta: resultado.resposta,
+        source: "MongoDB",
+        sourceRow: resultado._id,
+        score: resultado.scoreFinal,
+        perguntaOriginal: resultado.pergunta,
+        similaridade: resultado.similaridade,
+        matchType: resultado.scoreFinal >= 1000 ? "exato" : 
+                   resultado.scoreFinal >= 500 ? "alto" : 
+                   resultado.scoreFinal >= 200 ? "medio" : "baixo"
       });
-    } else if (correspondencias.length > 1) {
-      const resposta = `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`;
-      
-      // Adiciona pergunta de esclarecimento ao cache
-      adicionarAoCache(pergunta, resposta, "Planilha");
+    } else {
+      console.log(`❌ Não encontrado na base (score: ${resultado?.scoreFinal || 0})`);
       
       return res.status(200).json({
-        status: "clarification_needed",
-        resposta: resposta,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8),
-        source: "Planilha",
-        sourceRow: 'Pergunta de Esclarecimento'
+        status: "nao_encontrado",
+        resposta: "Não encontrei informações específicas sobre sua pergunta na base de dados. Tente reformular ou ser mais específico.",
+        source: "Sistema",
+        sourceRow: "N/A",
+        sugestoes: [
+          "Tente usar palavras-chave mais específicas",
+          "Verifique se digitou corretamente",
+          "Use sinônimos (ex: 'portar' em vez de 'portabilidade')",
+          "Seja mais descritivo na sua pergunta"
+        ]
       });
     }
 
   } catch (error) {
-    console.error("ERRO NO BACKEND:", error);
-    return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
+    console.error("❌ ERRO:", error);
+    return res.status(500).json({ 
+      error: "Erro interno no servidor.", 
+      details: error.message 
+    });
   }
 };
