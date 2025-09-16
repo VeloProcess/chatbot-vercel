@@ -323,60 +323,114 @@ async function buscarRespostaAI(pergunta) {
     }
 }
 
-// Função para buscar na base local
+// Função para buscar na base local - VERSÃO MELHORADA
 function buscarNaBaseLocal(pergunta, baseData) {
     const perguntaLower = pergunta.toLowerCase().trim();
     
-    console.log('Pergunta:', perguntaLower);
-    console.log('Base de dados:', baseData);
+    console.log('=== BUSCA NA BASE LOCAL ===');
+    console.log('Pergunta original:', pergunta);
+    console.log('Pergunta processada:', perguntaLower);
+    console.log('Total de entradas na base:', baseData.length);
     
-    // Primeiro: procura por correspondência exata no title
+    // 1. BUSCA EXATA NO TÍTULO (maior prioridade)
     for (const item of baseData) {
         if (item.title && item.title.toLowerCase().trim() === perguntaLower) {
-            console.log('Encontrou por title exato:', item.title);
+            console.log('✅ Encontrou por TÍTULO EXATO:', item.title);
             return item.content;
         }
     }
     
-    // Segundo: procura por palavras-chave mais inteligente
+    // 2. BUSCA POR PALAVRAS-CHAVE (segunda prioridade)
     for (const item of baseData) {
         if (item.keywords && Array.isArray(item.keywords)) {
             for (const keyword of item.keywords) {
-                if (perguntaLower.includes(keyword.toLowerCase())) {
-                    console.log('Encontrou por keyword:', keyword);
+                const keywordLower = keyword.toLowerCase().trim();
+                
+                // Busca exata da palavra-chave
+                if (perguntaLower.includes(keywordLower)) {
+                    console.log('✅ Encontrou por KEYWORD EXATA:', keyword);
+                    return item.content;
+                }
+                
+                // Busca por palavras individuais da palavra-chave
+                const palavrasKeyword = keywordLower.split(/\s+/);
+                const palavrasPergunta = perguntaLower.split(/\s+/);
+                
+                let matches = 0;
+                for (const palavra of palavrasKeyword) {
+                    if (palavrasPergunta.includes(palavra)) {
+                        matches++;
+                    }
+                }
+                
+                // Se pelo menos 70% das palavras da keyword estão na pergunta
+                if (matches >= Math.ceil(palavrasKeyword.length * 0.7)) {
+                    console.log('✅ Encontrou por KEYWORD PARCIAL:', keyword, `(${matches}/${palavrasKeyword.length} palavras)`);
                     return item.content;
                 }
             }
         }
     }
     
-    // Terceiro: procura por sinônimos
+    // 3. BUSCA POR SINÔNIMOS (terceira prioridade)
     for (const item of baseData) {
         if (item.sinonimos && Array.isArray(item.sinonimos)) {
             for (const sinonimo of item.sinonimos) {
-                if (perguntaLower.includes(sinonimo.toLowerCase())) {
-                    console.log('Encontrou por sinônimo:', sinonimo);
+                const sinonimoLower = sinonimo.toLowerCase().trim();
+                
+                // Busca exata do sinônimo
+                if (perguntaLower.includes(sinonimoLower)) {
+                    console.log('✅ Encontrou por SINÔNIMO EXATO:', sinonimo);
+                    return item.content;
+                }
+                
+                // Busca por palavras individuais do sinônimo
+                const palavrasSinonimo = sinonimoLower.split(/\s+/);
+                const palavrasPergunta = perguntaLower.split(/\s+/);
+                
+                let matches = 0;
+                for (const palavra of palavrasSinonimo) {
+                    if (palavrasPergunta.includes(palavra)) {
+                        matches++;
+                    }
+                }
+                
+                // Se pelo menos 60% das palavras do sinônimo estão na pergunta
+                if (matches >= Math.ceil(palavrasSinonimo.length * 0.6)) {
+                    console.log('✅ Encontrou por SINÔNIMO PARCIAL:', sinonimo, `(${matches}/${palavrasSinonimo.length} palavras)`);
                     return item.content;
                 }
             }
         }
     }
     
-    // Quarto: busca por palavras individuais
-    const palavrasPergunta = perguntaLower.split(/\s+/);
+    // 4. BUSCA POR PALAVRAS INDIVIDUAIS (menor prioridade)
+    const palavrasPergunta = perguntaLower.split(/\s+/).filter(palavra => palavra.length > 2);
+    let melhorMatch = null;
+    let maiorScore = 0;
+    
     for (const item of baseData) {
-        if (item.keywords && Array.isArray(item.keywords)) {
-            for (const keyword of item.keywords) {
-                const palavrasKeyword = keyword.toLowerCase().split(/\s+/);
-                if (palavrasKeyword.some(palavra => palavrasPergunta.includes(palavra))) {
-                    console.log('Encontrou por palavra-chave parcial:', keyword);
-                    return item.content;
-                }
+        let score = 0;
+        const textoCompleto = `${item.title} ${item.keywords?.join(' ')} ${item.sinonimos?.join(' ')}`.toLowerCase();
+        
+        for (const palavra of palavrasPergunta) {
+            if (textoCompleto.includes(palavra)) {
+                score++;
             }
+        }
+        
+        if (score > maiorScore && score >= Math.ceil(palavrasPergunta.length * 0.3)) {
+            maiorScore = score;
+            melhorMatch = item;
         }
     }
     
-    console.log('Nenhuma correspondência encontrada na base local');
+    if (melhorMatch) {
+        console.log('✅ Encontrou por BUSCA INDIVIDUAL:', melhorMatch.title, `(score: ${maiorScore})`);
+        return melhorMatch.content;
+    }
+    
+    console.log('❌ Nenhuma correspondência encontrada na base local');
     return null;
 }
 
