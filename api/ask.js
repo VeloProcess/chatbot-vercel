@@ -23,90 +23,7 @@ const modeloOpenAI = "gpt-4o-mini"; // Ajustável
 // --- MEMÓRIA DE SESSÃO POR USUÁRIO ---
 let userSessions = {}; // { email: { contexto: "", ultimaPergunta: "", historico: [] } }
 
-// --- ANÁLISE DE INTENÇÃO ---
-function analisarIntencao(pergunta) {
-  const perguntaLower = pergunta.toLowerCase();
-  
-  const intencoes = {
-    'consulta': ['consultar', 'verificar', 'checar', 'buscar', 'procurar', 'como saber', 'onde ver'],
-    'problema': ['erro', 'não funciona', 'bloqueado', 'travado', 'problema', 'dificuldade', 'não consegue'],
-    'procedimento': ['como fazer', 'passo a passo', 'processo', 'procedimento', 'tutorial', 'instrução'],
-    'informacao': ['o que é', 'quando', 'onde', 'quanto', 'qual', 'por que', 'explicar'],
-    'urgencia': ['urgente', 'rápido', 'emergência', 'imediato', 'agora', 'hoje']
-  };
-  
-  const intencaoDetectada = [];
-  Object.keys(intencoes).forEach(intencao => {
-    if (intencoes[intencao].some(palavra => perguntaLower.includes(palavra))) {
-      intencaoDetectada.push(intencao);
-    }
-  });
-  
-  return intencaoDetectada.length > 0 ? intencaoDetectada : ['informacao'];
-}
-
-// --- ANÁLISE DE CONTEXTO ---
-function analisarContexto(pergunta, historico) {
-  const contexto = {
-    intencao: analisarIntencao(pergunta),
-    urgencia: analisarIntencao(pergunta).includes('urgencia') ? 'alta' : 'normal',
-    continuidade: false,
-    tema: 'geral'
-  };
-  
-  // Verifica se é continuação de conversa
-  if (historico && historico.length > 0) {
-    const ultimaPergunta = historico[historico.length - 1];
-    if (ultimaPergunta && ultimaPergunta.includes('?')) {
-      contexto.continuidade = true;
-    }
-  }
-  
-  // Detecta tema principal
-  const temas = {
-    'antecipacao': ['antecipação', 'restituição', 'pix', 'cpf'],
-    'celcoin': ['celcoin', 'conta', 'digital', 'app'],
-    'credito': ['crédito', 'empréstimo', 'pessoal', 'trabalhador'],
-    'receita': ['receita', 'federal', 'declaração', 'imposto']
-  };
-  
-  Object.keys(temas).forEach(tema => {
-    if (temas[tema].some(palavra => pergunta.toLowerCase().includes(palavra))) {
-      contexto.tema = tema;
-    }
-  });
-  
-  return contexto;
-}
-
-// --- CONFIGURAÇÕES DE BUSCA ---
-const CONFIGURACOES_BUSCA = {
-  SCORING: {
-    EXACT_MATCH: 10,        // Busca exata na pergunta original
-    KEYWORD_MATCH: 5,       // Busca nas palavras-chave
-    SYNONYM_MATCH: 3,       // Busca com sinônimos
-    PARTIAL_MATCH: 2,       // Busca parcial
-    SEMANTIC_MATCH: 1,      // Busca semântica
-    SPECIFICITY_BONUS: 0.5  // Bonus por especificidade
-  },
-  SINONIMOS: {
-    'antecipacao': ['antecipação', 'adiantamento', 'adiantamento de restituição', 'adiantamento do ir'],
-    'restituicao': ['restituição', 'devolução', 'reembolso', 'devolução do ir'],
-    'celcoin': ['celcoin', 'conta digital', 'app celcoin', 'aplicativo celcoin'],
-    'cpf': ['cpf', 'documento', 'documento de identificação', 'cadastro de pessoa física'],
-    'pix': ['pix', 'transferência', 'transferência instantânea', 'pagamento instantâneo'],
-    'bloqueio': ['bloqueio', 'travamento', 'suspensão', 'bloqueado', 'travado'],
-    'desbloqueio': ['desbloqueio', 'liberação', 'desbloquear', 'liberar'],
-    'cadastro': ['cadastro', 'registro', 'inscrição', 'criar conta'],
-    'alteracao': ['alteração', 'modificação', 'mudança', 'trocar', 'atualizar'],
-    'consulta': ['consulta', 'verificação', 'checagem', 'verificar', 'checar'],
-    'receita': ['receita', 'receita federal', 'fazenda', 'fisco'],
-    'declaracao': ['declaração', 'declaração de imposto de renda', 'dirpf'],
-    'malha': ['malha', 'malha fina', 'pendência', 'pendencia'],
-    'cav': ['cav', 'consulta de situação', 'situação cadastral'],
-    'velotax': ['velotax', 'velo tax', 'empresa', 'plataforma']
-  }
-};
+// --- CONFIGURAÇÕES SIMPLES ---
 
 // --- CACHE INTELIGENTE ---
 let cacheRespostas = {}; // { pergunta_hash: { resposta, timestamp, hits } }
@@ -201,28 +118,9 @@ function findMatches(pergunta, faqData) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
   }
 
+  const perguntaLower = pergunta.toLowerCase();
   const perguntaNormalizada = normalizarTexto(pergunta);
-  const palavrasDaBusca = perguntaNormalizada.split(' ').filter(p => p.length > 2);
   let todasAsCorrespondencias = [];
-
-  // Usa dicionário de sinônimos das configurações
-  const sinonimos = CONFIGURACOES_BUSCA.SINONIMOS;
-
-  // Função para expandir sinônimos
-  function expandirSinonimos(texto) {
-    let textoExpandido = texto;
-    Object.keys(sinonimos).forEach(palavra => {
-      sinonimos[palavra].forEach(sinonimo => {
-        if (textoExpandido.includes(palavra)) {
-          textoExpandido += ' ' + sinonimo;
-        }
-        if (textoExpandido.includes(sinonimo)) {
-          textoExpandido += ' ' + palavra;
-        }
-      });
-    });
-    return textoExpandido;
-  }
 
   for (let i = 0; i < dados.length; i++) {
     const linhaAtual = dados[i];
@@ -230,96 +128,48 @@ function findMatches(pergunta, faqData) {
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
     const resposta = linhaAtual[idxResposta] || '';
     
-    // Busca expandida com sinônimos
-    const perguntaExpandida = expandirSinonimos(perguntaNormalizada);
-    const palavrasExpandidas = perguntaExpandida.split(' ').filter(p => p.length > 2);
+    let score = 0;
     
-    let relevanceScore = 0;
-    let matchType = 'keyword'; // keyword, exact, partial, semantic
-    
-    // 1. Busca exata na pergunta original (peso máximo)
-    if (perguntaOriginal.toLowerCase().includes(pergunta.toLowerCase())) {
-      relevanceScore += CONFIGURACOES_BUSCA.SCORING.EXACT_MATCH;
-      matchType = 'exact';
+    // 1. BUSCA EXATA na pergunta original (prioridade máxima)
+    if (perguntaOriginal.toLowerCase().includes(perguntaLower)) {
+      score = 100;
+    }
+    // 2. BUSCA EXATA nas palavras-chave
+    else if (textoPalavrasChave.includes(perguntaNormalizada)) {
+      score = 90;
+    }
+    // 3. BUSCA PARCIAL nas palavras-chave
+    else {
+      const palavrasPergunta = perguntaNormalizada.split(' ').filter(p => p.length > 2);
+      const palavrasChave = textoPalavrasChave.split(' ');
+      let matches = 0;
+      
+      palavrasPergunta.forEach(palavra => {
+        if (palavrasChave.some(p => p.includes(palavra) || palavra.includes(p))) {
+          matches++;
+        }
+      });
+      
+      if (matches > 0) {
+        score = matches * 30; // 30 pontos por palavra encontrada
+      }
     }
     
-    // 2. Busca nas palavras-chave (peso alto)
-    palavrasDaBusca.forEach(palavra => {
-      if (textoPalavrasChave.includes(palavra)) {
-        relevanceScore += CONFIGURACOES_BUSCA.SCORING.KEYWORD_MATCH;
-      }
-    });
-    
-    // 3. Busca com sinônimos expandidos (peso médio)
-    palavrasExpandidas.forEach(palavra => {
-      if (textoPalavrasChave.includes(palavra)) {
-        relevanceScore += CONFIGURACOES_BUSCA.SCORING.SYNONYM_MATCH;
-      }
-    });
-    
-    // 4. Busca parcial na pergunta original (peso baixo)
-    const palavrasPerguntaOriginal = normalizarTexto(perguntaOriginal).split(' ');
-    let matchesParciais = 0;
-    palavrasDaBusca.forEach(palavra => {
-      if (palavrasPerguntaOriginal.some(p => p.includes(palavra) || palavra.includes(p))) {
-        matchesParciais++;
-      }
-    });
-    if (matchesParciais > 0) {
-      relevanceScore += matchesParciais * CONFIGURACOES_BUSCA.SCORING.PARTIAL_MATCH;
-      matchType = 'partial';
-    }
-    
-    // 5. Busca semântica simples (peso baixo)
-    const palavrasResposta = normalizarTexto(resposta).split(' ').filter(p => p.length > 3);
-    let matchesSemanticos = 0;
-    palavrasDaBusca.forEach(palavra => {
-      if (palavrasResposta.some(p => p.includes(palavra) || palavra.includes(p))) {
-        matchesSemanticos++;
-      }
-    });
-    if (matchesSemanticos > 0) {
-      relevanceScore += matchesSemanticos * CONFIGURACOES_BUSCA.SCORING.SEMANTIC_MATCH;
-      matchType = 'semantic';
-    }
-    
-    // 6. Bonus por comprimento da pergunta (perguntas mais específicas têm prioridade)
-    const bonusEspecificidade = Math.min(palavrasDaBusca.length * CONFIGURACOES_BUSCA.SCORING.SPECIFICITY_BONUS, 3);
-    relevanceScore += bonusEspecificidade;
-    
-    if (relevanceScore > 0) {
+    if (score > 0) {
       todasAsCorrespondencias.push({
         resposta: resposta,
         perguntaOriginal: perguntaOriginal,
         sourceRow: i + 2,
-        score: relevanceScore,
-        matchType: matchType,
+        score: score,
         tabulacoes: linhaAtual[3] || null
       });
     }
   }
 
-  // Desduplicação e ordenação melhorada
-  const uniqueMatches = {};
-  todasAsCorrespondencias.forEach(match => {
-    const key = match.perguntaOriginal.trim();
-    if (!uniqueMatches[key] || match.score > uniqueMatches[key].score) {
-      uniqueMatches[key] = match;
-    }
-  });
+  // Ordenação por score (maior primeiro)
+  todasAsCorrespondencias.sort((a, b) => b.score - a.score);
   
-  let correspondenciasUnicas = Object.values(uniqueMatches);
-  
-  // Ordenação por score e tipo de match
-  correspondenciasUnicas.sort((a, b) => {
-    if (a.score !== b.score) return b.score - a.score;
-    
-    // Em caso de empate, priorizar tipos de match
-    const tipoPrioridade = { 'exact': 4, 'keyword': 3, 'partial': 2, 'semantic': 1 };
-    return tipoPrioridade[b.matchType] - tipoPrioridade[a.matchType];
-  });
-  
-  return correspondenciasUnicas;
+  return todasAsCorrespondencias;
 }
 
 // --- FUNÇÃO DE BUSCA EM SITES AUTORIZADOS ---
@@ -424,34 +274,17 @@ module.exports = async function handler(req, res) {
 
     const perguntaNormalizada = normalizarTexto(pergunta);
 
-    // --- INICIALIZA SESSÃO DO USUÁRIO ---
-    if (!userSessions[email]) {
-      userSessions[email] = { contexto: "", ultimaPergunta: "", historico: [] };
-    }
-    
-    // --- ANÁLISE DE CONTEXTO E INTENÇÃO ---
-    const contextoAnalise = analisarContexto(pergunta, userSessions[email].historico);
-    console.log(`🧠 Contexto detectado:`, contextoAnalise);
-    
-    // Atualiza histórico
-    userSessions[email].historico.push(pergunta);
-    if (userSessions[email].historico.length > 10) {
-      userSessions[email].historico = userSessions[email].historico.slice(-10);
-    }
-
     // --- VERIFICA CACHE PRIMEIRO (exceto se for reformulação) ---
     if (!reformular) {
       const cached = buscarNoCache(pergunta);
       if (cached) {
-        console.log(`✅ Cache hit para: "${pergunta}" (${cached.hits} hits)`);
+        console.log(`✅ Cache hit para: "${pergunta}"`);
         return res.status(200).json({
           status: "sucesso",
           resposta: cached.resposta,
           source: cached.source,
           sourceRow: 'Cache',
-          cached: true,
-          hits: cached.hits,
-          contexto: contextoAnalise
+          cached: true
         });
       }
     }
@@ -477,28 +310,27 @@ module.exports = async function handler(req, res) {
 
     // --- SEM CORRESPONDÊNCIAS NA PLANILHA ---
     if (correspondencias.length === 0) {
-      // Loga o uso da IA
-      await logIaUsage(email, pergunta);
-      // Prepara o contexto dos sites autorizados
-      const contextoSites = await buscarEPrepararContextoSites(pergunta);
-      // Pergunta à OpenAI
-      const respostaDaIA = await askOpenAI(pergunta, contextoSites || "Nenhum", email, reformular);
+    // Loga o uso da IA
+    await logIaUsage(email, pergunta);
+    // Prepara o contexto dos sites autorizados
+    const contextoSites = await buscarEPrepararContextoSites(pergunta);
+    // Pergunta à OpenAI
+    const respostaDaIA = await askOpenAI(pergunta, contextoSites || "Nenhum", email, reformular);
       
       // Adiciona resposta da IA ao cache
       adicionarAoCache(pergunta, respostaDaIA, "IA");
       
-      // Retorna a resposta da IA
-      return res.status(200).json({
+    // Retorna a resposta da IA
+    return res.status(200).json({
         status: "sucesso_ia",
         resposta: respostaDaIA,
         source: "IA",
-        sourceRow: 'Resposta da IA',
-        contexto: contextoAnalise
-      });
-    }
+        sourceRow: 'Resposta da IA'
+    });
+}
 
     // --- SE HOUVER CORRESPONDÊNCIAS ---
-    if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1].score) {
+    if (correspondencias.length === 1 || correspondencias[0].score >= 90) {
       const resposta = correspondencias[0].resposta;
       
       // Adiciona resposta da planilha ao cache
@@ -509,12 +341,9 @@ module.exports = async function handler(req, res) {
         resposta: resposta,
         sourceRow: correspondencias[0].sourceRow,
         tabulacoes: correspondencias[0].tabulacoes,
-        source: "Planilha",
-        matchType: correspondencias[0].matchType,
-        score: correspondencias[0].score,
-        contexto: contextoAnalise
+        source: "Planilha"
       });
-    } else {
+    } else if (correspondencias.length > 1) {
       const resposta = `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`;
       
       // Adiciona pergunta de esclarecimento ao cache
@@ -523,10 +352,9 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         status: "clarification_needed",
         resposta: resposta,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
+        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 8),
         source: "Planilha",
-        sourceRow: 'Pergunta de Esclarecimento',
-        contexto: contextoAnalise
+        sourceRow: 'Pergunta de Esclarecimento'
       });
     }
 
