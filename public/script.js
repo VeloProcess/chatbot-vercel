@@ -1,3 +1,44 @@
+// Adicione este teste no seu script.js para debugar
+async function testarAPIDiretamente() {
+    console.log('=== TESTE DIRETO DA API ===');
+    
+    const testData = {
+        type: 'access',
+        payload: {
+            email: 'teste@velotax.com.br',
+            status: 'online',
+            sessionId: 'test-session-' + Date.now(),
+            timestamp: new Date().toLocaleString('pt-BR', {
+                timeZone: 'America/Sao_Paulo'
+            })
+        }
+    };
+    
+    console.log('Enviando dados de teste:', testData);
+    
+    try {
+        const response = await fetch('/api/logQuestion', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(testData)
+        });
+        
+        console.log('Status da resposta:', response.status);
+        const result = await response.json();
+        console.log('Resposta da API:', result);
+        
+        if (result.status === 'sucesso') {
+            console.log('✅ Teste da API passou!');
+        } else {
+            console.error('❌ Teste da API falhou:', result);
+        }
+    } catch (error) {
+        console.error('❌ Erro no teste da API:', error);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // >>> VARIÁVEIS DEFINIDAS NO FRONTEND <<<
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
@@ -578,7 +619,7 @@ function levenshteinDistance(str1, str2) {
     const userStatusContainer = document.getElementById('user-status-container');
 
     // Função para registrar status de login/logout no backend - VERSÃO CORRIGIDA
-// Função para registrar status de login/logout no backend - VERSÃO COM DEBUG
+// Função para registrar status de login/logout - VERSÃO CORRIGIDA
 function logUserStatus(status) {
     if (!dadosAtendente?.email) {
         console.error('❌ ERRO: dadosAtendente.email não definido');
@@ -605,8 +646,10 @@ function logUserStatus(status) {
     };
 
     console.log('=== LOG USER STATUS ===');
-    console.log('URL:', url);
-    console.log('Data:', data);
+    console.log('Status:', status);
+    console.log('Email:', dadosAtendente.email);
+    console.log('SessionId:', sessionId);
+    console.log('Timestamp:', data.payload.timestamp);
 
     fetch(url, {
         method: 'POST',
@@ -618,16 +661,12 @@ function logUserStatus(status) {
     })
     .then(response => {
         console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
         return response.json();
     })
     .then(json => {
         console.log('Response JSON:', json);
         if (json.status === 'sucesso') {
             console.log(`✅ Status ${status} registrado com sucesso`);
-            if (json.details) {
-                console.log('Detalhes:', json.details);
-            }
         } else {
             console.error('❌ Erro na resposta da API:', json);
         }
@@ -636,6 +675,7 @@ function logUserStatus(status) {
         console.error(`❌ ERRO ao registrar status ${status}:`, error);
     });
 }
+
 
     // Função para consultar e exibir status/histórico de um usuário
     async function updateUserStatus(email) {
@@ -1056,6 +1096,8 @@ function logUserStatus(status) {
             }
         }
 
+        
+
         async function handleLogout() {
     console.log('Usuário fazendo logout, registrando status offline...');
     await logUserStatus('offline');
@@ -1102,4 +1144,21 @@ if (lastMessage) {
 
     // Inicia diretamente o Google Sign-In
     initGoogleSignIn();
+
+    const testButton = document.createElement('button');
+    testButton.textContent = '🧪 Testar API';
+    testButton.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 9999;
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        cursor: pointer;
+    `;
+    testButton.onclick = testarAPIDiretamente;
+    document.body.appendChild(testButton);
 });

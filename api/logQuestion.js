@@ -16,6 +16,7 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: 'v4', auth });
 
+// Função corrigida para determinar status do usuário
 async function getUserStatusAndHistory(email) {
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -24,29 +25,59 @@ async function getUserStatusAndHistory(email) {
     });
     const rows = response.data.values || [];
     const now = new Date();
-    const onlineThreshold = 5 * 60 * 1000;
+    const onlineThreshold = 10 * 60 * 1000; // Aumentei para 10 minutos
     let latestStatus = 'offline';
     let latestLogin = null;
     let latestLogout = null;
 
+    console.log('=== DEBUG STATUS USER ===');
+    console.log('Email:', email);
+    console.log('Total de linhas:', rows.length);
+    console.log('Agora:', now.toISOString());
+
     const userRows = rows.slice(1).filter(row => row[1] === email);
+    console.log('Linhas do usuário:', userRows.length);
+    
     for (const row of userRows) {
-      const [timestamp, , status] = row;
+      const [timestamp, , status, sessionId] = row;
       const eventTime = new Date(timestamp);
+      console.log(`Evento: ${timestamp} - Status: ${status} - SessionId: ${sessionId}`);
+      
       if (status === 'online' && (!latestLogin || eventTime > new Date(latestLogin))) {
         latestLogin = timestamp;
+        console.log('Novo login mais recente:', latestLogin);
       }
       if (status === 'offline' && (!latestLogout || eventTime > new Date(latestLogout))) {
         latestLogout = timestamp;
+        console.log('Novo logout mais recente:', latestLogout);
       }
     }
 
-    if (latestLogin && (!latestLogout || new Date(latestLogin) > new Date(latestLogout))) {
+    // Lógica corrigida para determinar status
+    if (latestLogin) {
       const loginTime = new Date(latestLogin);
-      if (now - loginTime < onlineThreshold) {
-        latestStatus = 'online';
+      const timeSinceLogin = now - loginTime;
+      
+      console.log('Login mais recente:', latestLogin);
+      console.log('Tempo desde login (ms):', timeSinceLogin);
+      console.log('Threshold (ms):', onlineThreshold);
+      
+      // Se não há logout ou o login é mais recente que o logout
+      if (!latestLogout || loginTime > new Date(latestLogout)) {
+        if (timeSinceLogin < onlineThreshold) {
+          latestStatus = 'online';
+          console.log('✅ Usuário considerado ONLINE');
+        } else {
+          console.log('❌ Usuário OFFLINE - tempo limite excedido');
+        }
+      } else {
+        console.log('❌ Usuário OFFLINE - logout mais recente que login');
       }
+    } else {
+      console.log('❌ Usuário OFFLINE - sem logins registrados');
     }
+
+    console.log('Status final:', latestStatus);
 
     return {
       email,
@@ -65,7 +96,6 @@ async function getUserStatusAndHistory(email) {
   }
 }
 
-// Adicione este debug na sua API logQuestion.js
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
@@ -74,9 +104,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    console.log('=== LOG QUESTION API DEBUG ===');
+    console.log('=== LOG QUESTION API ===');
     console.log('Method:', req.method);
-    console.log('Body:', req.body);
+    console.log('Body:', JSON.stringify(req.body, null, 2));
     
     if (req.method === 'GET') {
       // ... seu código GET existente ...
@@ -88,10 +118,17 @@ export default async function handler(req, res) {
 
     const { type, payload } = req.body;
     console.log('Type:', type);
-    console.log('Payload:', payload);
+    console.log('Payload:', JSON.stringify(payload, null, 2));
     
     if (!type || !payload || !SHEET_NAMES[type]) {
-      console.error('❌ Dados inválidos:', { type, payload, validTypes: Object.keys(SHEET_NAMES) });
+      console.error('❌ Dados inválidos:', { 
+        type, 
+        payload, 
+        validTypes: Object.keys(SHEET_NAMES),
+        hasType: !!type,
+        hasPayload: !!payload,
+        isValidType: !!SHEET_NAMES[type]
+      });
       return res.status(400).json({ error: "Tipo de log ('type') inválido ou 'payload' ausente." });
     }
 
@@ -116,41 +153,54 @@ export default async function handler(req, res) {
 
     console.log('Nova linha a ser adicionada:', newRow);
     console.log('Sheet name:', sheetName);
+    console.log('Spreadsheet ID:', SPREADSHEET_ID);
 
-    // Testa se as credenciais estão funcionando
+    // Testa se consegue acessar a planilha
     try {
       const testResponse = await sheets.spreadsheets.get({
         spreadsheetId: SPREADSHEET_ID,
       });
       console.log('✅ Acesso à planilha OK:', testResponse.data.properties.title);
     } catch (authError) {
-      console.error('❌ ERRO DE AUTENTICAÇÃO:', authError);
+      console.error('❌ ERRO DE AUTENTICAÇÃO:', authError.message);
       return res.status(500).json({ 
         error: "Erro de autenticação com Google Sheets", 
         details: authError.message 
       });
     }
 
-    const appendResult = await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: sheetName,
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: [newRow] },
-    });
+    // Tenta adicionar a linha
+    try {
+      const appendResult = await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: sheetName,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: [newRow] },
+      });
 
-    console.log('✅ Dados salvos com sucesso:', appendResult.data);
-    return res.status(200).json({ 
-      status: 'sucesso', 
-      message: `Log do tipo '${type}' registrado.`,
-      details: {
-        sheetName,
-        newRow,
-        updatedRows: appendResult.data.updates?.updatedRows
-      }
-    });
+      console.log('✅ Dados salvos com sucesso!');
+      console.log('Resultado do append:', JSON.stringify(appendResult.data, null, 2));
+      
+      return res.status(200).json({ 
+        status: 'sucesso', 
+        message: `Log do tipo '${type}' registrado.`,
+        details: {
+          sheetName,
+          newRow,
+          updatedRows: appendResult.data.updates?.updatedRows,
+          updatedRange: appendResult.data.updates?.updatedRange
+        }
+      });
+    } catch (appendError) {
+      console.error('❌ ERRO AO ADICIONAR LINHA:', appendError.message);
+      return res.status(500).json({ 
+        error: "Erro ao adicionar linha na planilha", 
+        details: appendError.message 
+      });
+    }
 
   } catch (error) {
-    console.error(`❌ ERRO NO ENDPOINT DE LOG (tipo: ${req.body?.type}):`, error);
+    console.error(`❌ ERRO GERAL NO ENDPOINT DE LOG:`, error);
     console.error('Stack trace:', error.stack);
     return res.status(500).json({ 
       error: "Erro interno ao registrar o log.", 
