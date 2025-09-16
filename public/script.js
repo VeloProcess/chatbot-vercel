@@ -577,34 +577,53 @@ function levenshteinDistance(str1, str2) {
     const errorMsg = document.getElementById('identificacao-error');
     const userStatusContainer = document.getElementById('user-status-container');
 
-    // Função para registrar status de login/logout no backend
-    function logUserStatus(status) {
-        if (!dadosAtendente?.email) return;
-        
-        const url = '/api/logQuestion';
-        const data = JSON.stringify({
-            type: 'access',
-            payload: {
-                email: dadosAtendente.email,
-                status: status,
-                sessionId: sessionId
-            }
-        });
-
-        if (navigator.sendBeacon) {
-            const blob = new Blob([data], { type: 'application/json' });
-            navigator.sendBeacon(url, blob);
-        } else {
-            fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: data,
-                keepalive: true
-            }).catch(error => {
-                console.error(`Erro ao registrar status ${status}:`, error);
-            });
-        }
+    // Função para registrar status de login/logout no backend - VERSÃO CORRIGIDA
+function logUserStatus(status) {
+    if (!dadosAtendente?.email) {
+        console.error('Erro: dadosAtendente.email não definido');
+        return;
     }
+    
+    const url = '/api/logQuestion';
+    const data = {
+        type: 'access',
+        payload: {
+            email: dadosAtendente.email,
+            status: status,
+            sessionId: sessionId,
+            timestamp: new Date().toLocaleString('pt-BR', {
+                timeZone: 'America/Sao_Paulo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            })
+        }
+    };
+
+    console.log('Enviando log de status:', data);
+
+    // Usa fetch com keepalive para garantir envio
+    fetch(url, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data),
+        keepalive: true
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        console.log(`Status ${status} registrado com sucesso`);
+    })
+    .catch(error => {
+        console.error(`Erro ao registrar status ${status}:`, error);
+    });
+}
 
     // Função para consultar e exibir status/histórico de um usuário
     async function updateUserStatus(email) {
@@ -676,64 +695,71 @@ function levenshteinDistance(str1, str2) {
     }
 
     async function handleGoogleSignIn(response) {
-        try {
-            const googleResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                headers: { Authorization: `Bearer ${response.access_token}` }
-            });
-            const user = await googleResponse.json();
+    try {
+        const googleResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${response.access_token}` }
+        });
+        const user = await googleResponse.json();
 
-            if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
-                const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
-                if (!profileResponse.ok) throw new Error('Falha ao buscar perfil do usuário.');
-                
-                const userProfile = await profileResponse.json();
+        if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
+            const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
+            if (!profileResponse.ok) throw new Error('Falha ao buscar perfil do usuário.');
+            
+            const userProfile = await profileResponse.json();
 
-                dadosAtendente = {
-                    nome: user.name,
-                    email: user.email,
-                    timestamp: Date.now(),
-                    funcao: userProfile.funcao
-                };
+            dadosAtendente = {
+                nome: user.name,
+                email: user.email,
+                timestamp: Date.now(),
+                funcao: userProfile.funcao
+            };
 
-                localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
-                
-                await logUserStatus('online');
-                hideOverlay();
-                iniciarBot();
-                checkCurrentUserStatus();
-
-            } else {
-                errorMsg.textContent = 'Acesso permitido apenas para e-mails corporativos!!';
-                errorMsg.classList.remove('hidden');
-            }
-        } catch (error) {
-            console.error("Erro no fluxo de login:", error);
-            errorMsg.textContent = 'Erro ao verificar login ou permissões. Tente novamente.';
-            errorMsg.classList.remove('hidden');
-        }
-    }
-
-    function verificarIdentificacao() {
-        const umDiaEmMs = 24 * 60 * 60 * 1000;
-        let dadosSalvos = null;
-        try {
-            const dadosSalvosString = localStorage.getItem('dadosAtendenteChatbot');
-            if (dadosSalvosString) dadosSalvos = JSON.parse(dadosSalvosString);
-        } catch (e) {
-            localStorage.removeItem('dadosAtendenteChatbot');
-        }
-
-        if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
-            dadosAtendente = dadosSalvos;
-            logUserStatus('online');
+            localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
+            
+            // LOG DE LOGIN - GARANTE QUE SEJA CHAMADO
+            console.log('Usuário logado, registrando status online...');
+            await logUserStatus('online');
+            
             hideOverlay();
             iniciarBot();
             checkCurrentUserStatus();
+
         } else {
-            localStorage.removeItem('dadosAtendenteChatbot');
-            showOverlay();
+            errorMsg.textContent = 'Acesso permitido apenas para e-mails corporativos!!';
+            errorMsg.classList.remove('hidden');
         }
+    } catch (error) {
+        console.error("Erro no fluxo de login:", error);
+        errorMsg.textContent = 'Erro ao verificar login ou permissões. Tente novamente.';
+        errorMsg.classList.remove('hidden');
     }
+}
+
+   function verificarIdentificacao() {
+    const umDiaEmMs = 24 * 60 * 60 * 1000;
+    let dadosSalvos = null;
+    try {
+        const dadosSalvosString = localStorage.getItem('dadosAtendenteChatbot');
+        if (dadosSalvosString) dadosSalvos = JSON.parse(dadosSalvosString);
+    } catch (e) {
+        localStorage.removeItem('dadosAtendenteChatbot');
+    }
+
+    if (dadosSalvos && dadosSalvos.email && dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
+        dadosAtendente = dadosSalvos;
+        
+        // LOG DE LOGIN AUTOMÁTICO
+        console.log('Usuário reautenticado automaticamente, registrando status online...');
+        logUserStatus('online');
+        
+        hideOverlay();
+        iniciarBot();
+        checkCurrentUserStatus();
+    } else {
+        localStorage.removeItem('dadosAtendenteChatbot');
+        showOverlay();
+    }
+}
 
     window.addEventListener('beforeunload', () => {
         if (dadosAtendente) {
@@ -1019,11 +1045,12 @@ function levenshteinDistance(str1, str2) {
         }
 
         async function handleLogout() {
-            await logUserStatus('offline');
-            localStorage.removeItem('dadosAtendenteChatbot');
-            dadosAtendente = null;
-            location.reload();
-        }
+    console.log('Usuário fazendo logout, registrando status offline...');
+    await logUserStatus('offline');
+    localStorage.removeItem('dadosAtendenteChatbot');
+    dadosAtendente = null;
+    location.reload();
+}
 
         if (logoutButton) {
             logoutButton.addEventListener('click', handleLogout);
