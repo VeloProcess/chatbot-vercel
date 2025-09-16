@@ -37,43 +37,43 @@ document.addEventListener('DOMContentLoaded', () => {
     // === SISTEMA DE FEEDBACK INTELIGENTE ===
     
     // Função para enviar feedback com análise ML
-    async function enviarFeedback(action, question, sourceRow, sugestao = '') {
-        try {
-            const feedbackData = {
-                action: action,
-                email: dadosAtendente?.email || 'anônimo',
-                question: question,
-                sourceRow: sourceRow,
-                sugestao: sugestao
-            };
+async function enviarFeedback(action, question, sourceRow, sugestao = '') {
+    try {
+        const feedbackData = {
+            action: action,
+            email: dadosAtendente?.email || 'anônimo',
+            question: question || ultimaPergunta || 'N/A', // Garante que sempre tenha uma pergunta
+            sourceRow: sourceRow,
+            sugestao: sugestao
+        };
 
-            console.log('Enviando feedback:', feedbackData);
+        console.log('Enviando feedback:', feedbackData);
 
-            const response = await fetch('/api/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(feedbackData)
-            });
+        const response = await fetch('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(feedbackData)
+        });
 
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ Feedback enviado com sucesso:', result);
-                
-                // Análise ML interna (só para logs)
-                if (action === 'logFeedbackNegativo') {
-                    console.log('🔍 ANÁLISE ML: Feedback negativo detectado');
-                    console.log('📊 Pergunta problemática:', question);
-                    console.log(' Fonte:', sourceRow);
-                    console.log('📊 Sugestão do usuário:', sugestao);
-                }
-            } else {
-                const errorText = await response.text();
-                console.error('❌ Erro ao enviar feedback:', response.status, errorText);
+        if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Feedback enviado com sucesso:', result);
+            
+            // Análise ML interna (só para logs)
+            if (action === 'logFeedbackNegativo') {
+                console.log('🔍 ANÁLISE ML: Feedback negativo detectado');
+                console.log('📊 Pergunta problemática:', question);
+                console.log(' Fonte:', sourceRow);
+                console.log('📊 Sugestão do usuário:', sugestao);
             }
-        } catch (error) {
-            console.error('❌ Erro na requisição de feedback:', error);
+        } else {
+            const errorText = await response.text();
+            console.error('❌ Erro ao enviar feedback:', response.status, errorText);
         }
+    } catch (error) {
+        console.error('❌ Erro na requisição de feedback:', error);
     }
+}
 
     // Função para abrir modal de feedback negativo
     function abrirModalFeedback(container) {
@@ -216,31 +216,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Feedback do bot com sistema inteligente
-        if (sender === 'bot') {
-            ultimaLinhaDaFonte = sourceRow;
-            const feedbackContainer = document.createElement('div');
-            feedbackContainer.className = 'feedback-container';
+if (sender === 'bot') {
+    ultimaLinhaDaFonte = sourceRow;
+    const feedbackContainer = document.createElement('div');
+    feedbackContainer.className = 'feedback-container';
 
-            const positiveBtn = document.createElement('button');
-            positiveBtn.className = 'feedback-btn';
-            positiveBtn.innerHTML = '👍';
-            positiveBtn.title = 'Resposta útil';
-            positiveBtn.onclick = () => {
-                enviarFeedback('logFeedbackPositivo', ultimaPergunta, sourceRow);
-                positiveBtn.textContent = 'Obrigado!';
-                positiveBtn.disabled = true;
-            };
+    const positiveBtn = document.createElement('button');
+    positiveBtn.className = 'feedback-btn';
+    positiveBtn.innerHTML = '👍';
+    positiveBtn.title = 'Resposta útil';
+    positiveBtn.onclick = () => {
+        enviarFeedback('logFeedbackPositivo', ultimaPergunta, sourceRow);
+        positiveBtn.textContent = 'Obrigado!';
+        positiveBtn.disabled = true;
+    };
 
-            const negativeBtn = document.createElement('button');
-            negativeBtn.className = 'feedback-btn';
-            negativeBtn.innerHTML = '👎';
-            negativeBtn.title = 'Resposta incorreta ou incompleta';
-            negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+    const negativeBtn = document.createElement('button');
+    negativeBtn.className = 'feedback-btn';
+    negativeBtn.innerHTML = '👎';
+    negativeBtn.title = 'Resposta incorreta ou incompleta';
+    negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
 
-            feedbackContainer.appendChild(positiveBtn);
-            feedbackContainer.appendChild(negativeBtn);
-            messageContentDiv.appendChild(feedbackContainer);
-        }
+    feedbackContainer.appendChild(positiveBtn);
+    feedbackContainer.appendChild(negativeBtn);
+    messageContentDiv.appendChild(feedbackContainer);
+}
 
         // Opções de esclarecimento
         if (sender === 'bot' && options.length > 0) {
@@ -986,34 +986,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Sistema de feedback com modal corrigido
-        const feedbackOverlay = document.getElementById('feedback-overlay');
-        const feedbackSendBtn = document.getElementById('feedback-send');
-        const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        const feedbackText = document.getElementById('feedback-comment');
+const feedbackOverlay = document.getElementById('feedback-overlay');
+const feedbackSendBtn = document.getElementById('feedback-send');
+const feedbackCancelBtn = document.getElementById('feedback-cancel');
+const feedbackText = document.getElementById('feedback-comment');
 
-        function fecharModalFeedback() {
-            if (feedbackOverlay) {
-                feedbackOverlay.classList.add('hidden');
-                if (feedbackText) feedbackText.value = '';
-            }
-            window.activeFeedbackContainer = null;
-        }
+function fecharModalFeedback() {
+    if (feedbackOverlay) {
+        feedbackOverlay.classList.add('hidden');
+        if (feedbackText) feedbackText.value = '';
+    }
+    window.activeFeedbackContainer = null;
+}
 
-        if (feedbackCancelBtn) {
-            feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
-        }
+if (feedbackCancelBtn) {
+    feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
+}
 
-        if (feedbackSendBtn) {
-            feedbackSendBtn.addEventListener('click', () => {
-                const sugestao = feedbackText ? feedbackText.value.trim() : '';
-                if (window.activeFeedbackContainer) {
-                    enviarFeedback('logFeedbackNegativo', ultimaPergunta, ultimaLinhaDaFonte, sugestao || null);
-                    fecharModalFeedback();
-                } else {
-                    console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
-                }
-            });
-        }
+if (feedbackSendBtn) {
+    feedbackSendBtn.addEventListener('click', () => {
+        const sugestao = feedbackText ? feedbackText.value.trim() : '';
+        // Garante que a pergunta seja enviada
+        const perguntaParaEnviar = ultimaPergunta || 'Pergunta não identificada';
+        enviarFeedback('logFeedbackNegativo', perguntaParaEnviar, ultimaLinhaDaFonte, sugestao || null);
+        fecharModalFeedback();
+    });
+}
 
         function setInitialTheme() {
             const savedTheme = localStorage.getItem('theme');

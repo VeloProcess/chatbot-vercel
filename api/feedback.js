@@ -1,4 +1,4 @@
-// api/feedback.js (Versão Corrigida para ES Modules)
+// api/feedback.js (Versão Corrigida)
 import { google } from "googleapis";
 
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
@@ -41,20 +41,24 @@ export default async function handler(req, res) {
     });
     console.log("[DEBUG 4] Timestamp criado:", timestamp);
 
-    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo 👎';
+    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo ��';
+    
+    // Garante que a pergunta seja salva corretamente
+    const pergunta = dados.question || 'Pergunta não fornecida';
+    console.log("[DEBUG 5] Pergunta a ser salva:", pergunta);
     
     const newRow = [
       timestamp,
       String(dados.email || 'nao_fornecido'),
-      String(dados.question || 'N/A'),
+      String(pergunta), // Pergunta do atendente
       tipoFeedback,
       String(dados.sourceRow !== null && dados.sourceRow !== undefined ? dados.sourceRow : 'N/A'),
       String(dados.sugestao || '')
     ];
 
-    console.log("[DEBUG 5] Linha preparada:", newRow);
+    console.log("[DEBUG 6] Linha preparada:", newRow);
 
-    console.log("[DEBUG 6] Enviando para Google Sheets...");
+    console.log("[DEBUG 7] Enviando para Google Sheets...");
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: LOG_SHEET_NAME,
@@ -64,11 +68,12 @@ export default async function handler(req, res) {
       },
     });
 
-    console.log("[DEBUG 7] Sucesso! Dados enviados para Google Sheets.");
+    console.log("[DEBUG 8] Sucesso! Dados enviados para Google Sheets.");
 
     return res.status(200).json({ 
       status: 'sucesso', 
-      message: 'Feedback registrado com sucesso!' 
+      message: 'Feedback registrado com sucesso!',
+      perguntaSalva: pergunta
     });
 
   } catch (error) {
