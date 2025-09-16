@@ -373,18 +373,43 @@ function extrairTagsUltraEspecificas(title, content) {
 // Função principal de migração ultra-inteligente
 function migrarDadosUltraInteligente() {
     try {
+        console.log('=== INICIANDO MIGRAÇÃO ULTRA-INTELIGENTE ===');
+        
         // Lê a base atual
         const baseAtualPath = path.join(__dirname, 'data', 'base.json');
-        const baseAtual = JSON.parse(fs.readFileSync(baseAtualPath, 'utf8'));
+        console.log('📁 Carregando base.json de:', baseAtualPath);
         
-        console.log(`🚀 Migrando ${baseAtual.length} itens da base atual...`);
-        console.log('🔍 Detectando tópicos específicos: Abertura de Conta, Antecipação, Crédito do Trabalhador, Crédito Pessoal, VeloPrime, IRPF, etc...');
+        if (!fs.existsSync(baseAtualPath)) {
+            console.error('❌ Arquivo base.json não encontrado em:', baseAtualPath);
+            return null;
+        }
+        
+        const baseAtual = JSON.parse(fs.readFileSync(baseAtualPath, 'utf8'));
+        console.log(`📊 Total de itens na base original: ${baseAtual.length}`);
+        
+        if (!Array.isArray(baseAtual)) {
+            console.error('❌ base.json não é um array válido');
+            return null;
+        }
+        
+        // Mostra os primeiros 5 itens para debug
+        console.log('\n=== PRIMEIROS 5 ITENS DA BASE ORIGINAL ===');
+        baseAtual.slice(0, 5).forEach((item, index) => {
+            console.log(`${index + 1}. "${item.title}"`);
+        });
+        
+        console.log('\n🔍 Iniciando migração de todos os itens...');
         
         // Migra cada item
         const baseOtimizada = baseAtual.map((item, index) => {
             const id = `00${index + 1}`.slice(-3);
-            
             const categoria = detectarCategoriaUltraEspecifica(item.title);
+            const tags = extrairTagsUltraEspecificas(item.title, item.content);
+            
+            // Log a cada 50 itens
+            if ((index + 1) % 50 === 0 || index < 5) {
+                console.log(`Migrando ${index + 1}/${baseAtual.length}: "${item.title}" -> ${categoria}`);
+            }
             
             return {
                 id: id,
@@ -392,7 +417,7 @@ function migrarDadosUltraInteligente() {
                 content: item.content,
                 keywords: item.keywords || [],
                 sinonimos: item.sinonimos || [],
-                tags: extrairTagsUltraEspecificas(item.title, item.content),
+                tags: tags,
                 categoria: categoria,
                 subcategoria: 'geral',
                 prioridade: 'media',
@@ -413,6 +438,8 @@ function migrarDadosUltraInteligente() {
             };
         });
         
+        console.log('\n💾 Salvando base otimizada...');
+        
         // Salva a base otimizada
         const baseOtimizadaPath = path.join(__dirname, 'data', 'base_otimizada.json');
         fs.writeFileSync(baseOtimizadaPath, JSON.stringify(baseOtimizada, null, 2));
@@ -420,6 +447,10 @@ function migrarDadosUltraInteligente() {
         console.log('✅ Migração ultra-inteligente concluída!');
         console.log(`📁 Base otimizada salva em: ${baseOtimizadaPath}`);
         console.log(`📊 Total de itens migrados: ${baseOtimizada.length}`);
+        
+        // Verifica se o arquivo foi criado corretamente
+        const arquivoCriado = JSON.parse(fs.readFileSync(baseOtimizadaPath, 'utf8'));
+        console.log(`✅ Verificação: Arquivo criado com ${arquivoCriado.length} itens`);
         
         // Estatísticas detalhadas
         const categorias = {};
@@ -454,10 +485,13 @@ function migrarDadosUltraInteligente() {
                 console.log(`  ${assunto}: ${count} itens`);
             });
         
+        console.log('\n🎉 MIGRAÇÃO CONCLUÍDA COM SUCESSO!');
+        
         return baseOtimizada;
         
     } catch (error) {
         console.error('❌ Erro na migração:', error);
+        console.error('Stack trace:', error.stack);
         return null;
     }
 }
