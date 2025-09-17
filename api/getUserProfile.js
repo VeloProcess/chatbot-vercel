@@ -1,46 +1,48 @@
 // api/getUserProfile.js
 
-import { google } from "googleapis";
+const { google } = require('googleapis');
 
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const SHEET_NAME = "Usuarios";
+const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
-const sheets = google.sheets({ version: "v4", auth });
+const sheets = google.sheets({ version: 'v4', auth });
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+module.exports = async function handler(req, res) {
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Restrinja em produção
 
-  if (req.method === "OPTIONS") return res.status(200).end();
+  const { email } = req.query;
 
-  const email = req.query.email;
-  if (!email) return res.status(400).json({ error: "Email não fornecido." });
+  if (!email) {
+    return res.status(400).json({ error: 'E-mail não fornecido.' });
+  }
 
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:B`, // Colunas A e B
+      range: 'Usuarios!A:B', // Lê as colunas Email e Funcao da nova aba
     });
 
     const rows = response.data.values || [];
-    if (rows.length < 1) return res.status(404).json({ error: "Nenhum usuário encontrado." });
+    let userProfile = { email: email, funcao: 'Atendente' }; // Define 'Atendente' como padrão
 
-    const userRow = rows.find(row => row[0]?.toLowerCase() === email.toLowerCase());
-    if (!userRow) return res.status(404).json({ error: "Usuário não encontrado." });
+    // Procura o email na lista, começando da segunda linha para ignorar o cabeçalho
+    for (let i = 1; i < rows.length; i++) {
+      const [userEmail, userFuncao] = rows[i];
+      if (userEmail && userEmail.toLowerCase() === email.toLowerCase()) {
+        userProfile.funcao = userFuncao;
+        break; // Para a busca assim que encontrar o usuário
+      }
+    }
 
-    const userData = {
-      email: userRow[0],
-      cargo: userRow[1] || null,
-    };
+    return res.status(200).json(userProfile);
 
-    return res.status(200).json({ status: "sucesso", user: userData });
   } catch (error) {
-    console.error("Erro ao buscar perfil do usuário:", error);
-    return res.status(500).json({ error: "Erro interno ao buscar perfil." });
+    console.error("ERRO AO BUSCAR PERFIL DO USUÁRIO:", error);
+    // Em caso de erro, retorna o perfil padrão para não quebrar o login
+    return res.status(200).json({ email: email, funcao: 'Atendente' });
   }
-}
+};

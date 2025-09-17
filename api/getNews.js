@@ -1,7 +1,6 @@
-// api/getNews.js (Versão ES Module com cache e ordenação cronológica)
+// api/getNews.js (Versão com cache e ordenação cronológica)
 
-import { google } from "googleapis";
-import fs from "fs";
+const { google } = require('googleapis');
 
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const NEWS_SHEET_NAME = "Noticias!A:D";
@@ -15,7 +14,7 @@ const sheets = google.sheets({ version: 'v4', auth });
 
 let cache = { timestamp: null, data: null };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', `s-maxage=${CACHE_DURATION_SECONDS}, stale-while-revalidate`);
 
@@ -49,6 +48,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // AQUI ESTÁ A LÓGICA CORRETA: apenas inverte a ordem
     const responseData = { news: newsData.reverse() };
     
     // Salva a nova resposta no cache
@@ -61,4 +61,4 @@ export default async function handler(req, res) {
     console.error("ERRO AO BUSCAR NOTÍCIAS:", error);
     return res.status(500).json({ error: "Erro interno ao buscar as notícias." });
   }
-}
+};
