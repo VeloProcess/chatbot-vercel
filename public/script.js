@@ -1,6 +1,29 @@
 // Variáveis globais
 let dadosAtendente = null;
 
+// Função logQuestionOnSheet no escopo global
+async function logQuestionOnSheet(question, email) {
+    if (!question || !email) return;
+    try {
+        await fetch('/api/logQuestion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'question',
+                payload: {
+                    question: question,
+                    email: email,
+                    timestamp: new Date().toISOString(),
+                    sessionId: sessionId || 'unknown'
+                }
+            })
+        });
+        console.log('✅ Pergunta logada com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao logar pergunta:', error);
+    }
+}
+
 // Função handleSendMessage no escopo global
 function handleSendMessage(text) {
     console.log(`📤 Enviando mensagem: ${text}`);
@@ -968,24 +991,6 @@ function buscarNaBaseLocal(pergunta, baseData) {
         });
     }
 
-    async function logQuestionOnSheet(question, email) {
-        if (!question || !email) return;
-        try {
-            await fetch('/api/logQuestion', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'question',
-                    payload: {
-                        question: question,
-                        email: email
-                    }
-                })
-            });
-        } catch (error) {
-            console.error("Erro ao registrar a pergunta na planilha:", error);
-        }
-    }
 
     // Função para verificar atualizações (placeholder)
     function verificarAtualizacao() {
