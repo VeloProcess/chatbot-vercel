@@ -1,3 +1,18 @@
+// Função formatarAssinatura no escopo global
+function formatarAssinatura(nomeCompleto) {
+    if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
+        return '';
+    }
+    const nomes = nomeCompleto.trim().split(' ');
+    const primeiroNome = nomes[0];
+    let assinaturaFormatada = primeiroNome;
+    if (nomes.length > 1 && nomes[1]) {
+        const inicialDoSegundoNome = nomes[1].charAt(0).toUpperCase();
+        assinaturaFormatada += ` ${inicialDoSegundoNome}.`;
+    }
+    return assinaturaFormatada;
+}
+
 // Função addMessage no escopo global
 function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
     console.log(`📝 Adicionando mensagem: ${sender} - ${text.substring(0, 50)}...`);
@@ -202,20 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Função para formatar assinatura
-    function formatarAssinatura(nomeCompleto) {
-        if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
-            return '';
-        }
-        const nomes = nomeCompleto.trim().split(' ');
-        const primeiroNome = nomes[0];
-        let assinaturaFormatada = primeiroNome;
-        if (nomes.length > 1 && nomes[1]) {
-            const inicialDoSegundoNome = nomes[1].charAt(0).toUpperCase();
-            assinaturaFormatada += ` ${inicialDoSegundoNome}.`;
-        }
-        return assinaturaFormatada;
-    }
 
     // === SISTEMA DE FEEDBACK INTELIGENTE ===
     
@@ -1441,7 +1442,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Adicionar mensagem inicial de boas-vindas
         console.log('🎯 Adicionando mensagem inicial...');
-        addMessage('Olá! Sou o assistente virtual da Velo. Como posso ajudá-lo hoje?', 'bot', { source: 'Sistema' });
+        addMessage('Olá! Sou o assistente virtual da Velo. Como posso ajudá-lo hoje?<br><br>💡 <strong>Dica:</strong> Acesse nossa plataforma de cursos <a href="https://veloacademy.vercel.app/cursos.html" target="_blank" style="color: #4CAF50; text-decoration: none;">VeloAcademy</a> para aprender mais sobre nossos produtos!', 'bot', { source: 'Sistema', html: true });
         console.log('✅ Mensagem inicial adicionada');
         
         
