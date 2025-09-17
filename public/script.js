@@ -893,13 +893,24 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 addMessage('🎤 Processando áudio...', 'bot');
                 
-                const formData = new FormData();
-                formData.append('audio', audioBlob);
-
+                // Converter blob para base64
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                
                 const response = await fetch('/api/voice?action=speech-to-text', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        audio: base64Audio
+                    })
                 });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+                }
 
                 const result = await response.json();
 
@@ -907,12 +918,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     addMessage(`🎤 Você disse: "${result.text}"`, 'user');
                     buscarResposta(result.text);
                 } else {
-                    addMessage('❌ Erro ao processar áudio. Tente novamente.', 'bot');
+                    addMessage(`❌ Erro na transcrição: ${result.error}`, 'bot');
                 }
 
             } catch (error) {
                 console.error('❌ Erro ao processar áudio:', error);
-                addMessage('❌ Erro ao processar áudio. Tente novamente.', 'bot');
+                addMessage(`❌ Erro ao processar áudio: ${error.message}`, 'bot');
             }
         }
 
@@ -1008,6 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Configurar todos os botões
             setupTestButton();
+            setupTestButton2();
             setupVoiceButton();
             setupPlayButton();
             setupStopButton();
@@ -1021,6 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('🌐 Janela carregada, verificando botões...');
             setTimeout(() => {
                 setupTestButton();
+                setupTestButton2();
                 setupVoiceButton();
                 setupPlayButton();
                 setupStopButton();
@@ -1031,11 +1044,11 @@ document.addEventListener('DOMContentLoaded', () => {
         function setupTestButton() {
             const testBtn = document.getElementById('test-voice');
             if (testBtn) {
-                testBtn.onclick = function() {
+                testBtn.addEventListener('click', function() {
                     console.log('🧪 Botão de teste clicado!');
                     addMessage('🧪 Teste de funcionalidade executado!', 'bot');
                     toggleRecording();
-                };
+                });
                 console.log('✅ Botão de teste configurado');
             }
         }
@@ -1070,11 +1083,38 @@ document.addEventListener('DOMContentLoaded', () => {
         function setupStopButton() {
             const stopBtn = document.getElementById('stop-audio');
             if (stopBtn) {
-                stopBtn.onclick = function() {
+                stopBtn.addEventListener('click', function() {
                     console.log('⏹️ Botão de stop clicado!');
                     stopAudio();
-                };
+                });
                 console.log('✅ Botão de stop configurado');
+            }
+        }
+
+        // Configurar segundo botão de teste
+        function setupTestButton2() {
+            const testBtn2 = document.getElementById('test-voice2');
+            if (testBtn2) {
+                testBtn2.addEventListener('click', function() {
+                    console.log('🧪 TESTE 2 - Botão clicado!');
+                    addMessage('🧪 TESTE 2 - Função executada!', 'bot');
+                    
+                    // Teste direto de gravação
+                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        addMessage('🎤 Testando acesso ao microfone...', 'bot');
+                        navigator.mediaDevices.getUserMedia({ audio: true })
+                            .then(stream => {
+                                addMessage('✅ Microfone acessado com sucesso!', 'bot');
+                                stream.getTracks().forEach(track => track.stop());
+                            })
+                            .catch(err => {
+                                addMessage('❌ Erro ao acessar microfone: ' + err.message, 'bot');
+                            });
+                    } else {
+                        addMessage('❌ MediaDevices não suportado', 'bot');
+                    }
+                });
+                console.log('✅ Botão de teste 2 configurado');
             }
         }
 
