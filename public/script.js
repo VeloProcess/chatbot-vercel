@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typingIndicator) typingIndicator.classList.add('hidden');
     }
 
-        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null } = {}) {
+        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
             const messageContainer = document.createElement('div');
             messageContainer.className = `message-container ${sender}`;
             const avatar = document.createElement('div');
@@ -431,16 +431,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) { isComplexResponse = false; }
             }
             if (!isComplexResponse) {
-                const parseInlineButtons = (rawText) => {
-                    if (typeof rawText !== 'string') return '';
-                    const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
-                    return rawText.replace(buttonRegex, (match, text, value) => {
-                        const escapedValue = value.trim().replace(/"/g, '&quot;');
-                        return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
-                    });
-                };
-                const textWithButtons = parseInlineButtons(text);
-                messageDiv.innerHTML = marked.parse(textWithButtons);
+                if (html) {
+                    // Se for HTML, inserir diretamente
+                    messageDiv.innerHTML = text;
+                } else {
+                    const parseInlineButtons = (rawText) => {
+                        if (typeof rawText !== 'string') return '';
+                        const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
+                        return rawText.replace(buttonRegex, (match, text, value) => {
+                            const escapedValue = value.trim().replace(/"/g, '&quot;');
+                            return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
+                        });
+                    };
+                    const textWithButtons = parseInlineButtons(text);
+                    messageDiv.innerHTML = marked.parse(textWithButtons);
+                }
             }
             messageContentDiv.appendChild(messageDiv);
             messageContainer.appendChild(avatar);

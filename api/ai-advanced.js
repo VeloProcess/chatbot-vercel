@@ -585,23 +585,61 @@ async function processarComIA(pergunta, faqData, historico = [], email = null) {
   console.log('🤖 Iniciando processamento com IA avançada...');
 
   try {
-    // 1. Análise inicial
-    const intencao = await classificarIntencao(pergunta, historico);
-    const urgencia = await analisarUrgenciaESentimento(pergunta);
-    const contexto = await manterContextoConversacional(pergunta, historico);
+    // 1. Busca rápida primeiro (sem IA)
+    const buscaResultados = await buscaHibrida(pergunta, faqData, historico);
+    
+    // 2. Se encontrou resultados bons, usar IA apenas para melhorar a resposta
+    if (buscaResultados.confianca_geral > 0.8 && buscaResultados.resultados.length > 0) {
+      console.log('⚡ Resposta rápida - usando IA apenas para melhorar');
+      
+      const contextoCompleto = buscaResultados.resultados.map(r => `P: ${r.pergunta}\nR: ${r.resposta}`).join('\n\n');
+      
+      // Análise rápida (sem chamadas extras)
+      const intencao = { categoria: 'CONSULTA', justificativa: 'Busca rápida' };
+      const urgencia = { urgencia: 2, sentimento: 'NEUTRO', palavras_chave_emocionais: [] };
+      
+      const resposta = await gerarRespostaContextual(
+        pergunta, 
+        contextoCompleto, 
+        historico, 
+        intencao, 
+        urgencia
+      );
+
+      return {
+        status: "sucesso_ia_avancada",
+        resposta,
+        intencao: intencao.categoria,
+        urgencia: urgencia.urgencia,
+        sentimento: urgencia.sentimento,
+        confianca: buscaResultados.confianca_geral,
+        recomendacao: buscaResultados.recomendacao,
+        followups: [],
+        sugestoes_relacionadas: [],
+        sugestoes_proativas: [],
+        contexto_usado: buscaResultados.resultados.length,
+        source: "IA Avançada (Rápida)"
+      };
+    }
+
+    // 3. Para casos complexos, usar análise completa (mas otimizada)
+    console.log('🔍 Análise completa - caso complexo');
+    
+    // Análise paralela (mais rápida)
+    const [intencao, urgencia] = await Promise.all([
+      classificarIntencao(pergunta, historico),
+      analisarUrgenciaESentimento(pergunta)
+    ]);
 
     console.log('📊 Análise:', { intencao: intencao.categoria, urgencia: urgencia.urgencia });
 
-    // 2. Busca híbrida
-    const buscaResultados = await buscaHibrida(pergunta, faqData, historico);
-    
-    // 3. Busca em documentos externos se necessário
+    // 4. Busca em documentos externos apenas se necessário
     let contextoExterno = "";
-    if (buscaResultados.confianca_geral < 0.7) {
+    if (buscaResultados.confianca_geral < 0.5) {
       contextoExterno = await buscarEmDocumentosExternos(pergunta);
     }
 
-    // 4. Gerar resposta contextual
+    // 5. Gerar resposta contextual
     const contextoCompleto = `
 ${buscaResultados.resultados.map(r => `P: ${r.pergunta}\nR: ${r.resposta}`).join('\n\n')}
 
@@ -616,11 +654,19 @@ ${contextoExterno}
       urgencia
     );
 
-    // 5. Gerar follow-ups e sugestões
-    const followUps = await gerarFollowUps(pergunta, resposta, contextoCompleto);
-    const sugestoesProativas = await gerarSugestoesProativas(pergunta, historico, contextoCompleto);
+    // 6. Gerar follow-ups e sugestões apenas se necessário
+    let followUps = { followups: [], sugestoes_relacionadas: [] };
+    let sugestoesProativas = { sugestoes_proativas: [] };
+    
+    if (buscaResultados.confianca_geral > 0.7) {
+      // Gerar sugestões apenas para respostas de alta confiança
+      [followUps, sugestoesProativas] = await Promise.all([
+        gerarFollowUps(pergunta, resposta, contextoCompleto),
+        gerarSugestoesProativas(pergunta, historico, contextoCompleto)
+      ]);
+    }
 
-    // 6. Preparar resposta final
+    // 7. Preparar resposta final
     const respostaFinal = {
       status: "sucesso_ia_avancada",
       resposta,
