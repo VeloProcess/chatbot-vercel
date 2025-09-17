@@ -964,14 +964,16 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const lastBotMessage = document.querySelector('.message-container.bot:last-child .message-content');
                 if (!lastBotMessage) {
-                    addMessage('Nenhuma resposta para reproduzir.', 'bot');
+                    addMessage('❌ Nenhuma resposta do bot encontrada para reproduzir', 'bot');
                     return;
                 }
 
                 const text = lastBotMessage.textContent;
-                const voiceId = voiceSelector.value;
-
-                addMessage('🔊 Gerando áudio...', 'bot');
+                const voiceId = voiceSelector.value || 'pNInz6obpgDQGcFmaJgB';
+                
+                console.log('🔊 Texto para converter:', text);
+                console.log('🔊 Voice ID:', voiceId);
+                addMessage('🔊 Convertendo resposta para áudio...', 'bot');
 
                 const response = await fetch('/api/voice?action=text-to-speech', {
                     method: 'POST',
@@ -981,7 +983,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ text, voiceId })
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+                }
+
                 const result = await response.json();
+                console.log('🔊 Resultado da conversão:', result);
 
                 if (result.success) {
                     const audio = new Audio(`data:audio/mpeg;base64,${result.audio}`);
@@ -990,20 +998,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     audio.onended = () => {
                         playResponseButton.classList.add('hidden');
                         stopAudioButton.classList.add('hidden');
+                        console.log('🔊 Áudio finalizado');
                     };
 
-                    audio.play();
+                    audio.onerror = (e) => {
+                        console.error('❌ Erro no áudio:', e);
+                        addMessage('❌ Erro ao reproduzir áudio', 'bot');
+                    };
+
+                    await audio.play();
                     playResponseButton.classList.add('hidden');
                     stopAudioButton.classList.remove('hidden');
                     
-                    addMessage('🔊 Reproduzindo áudio...', 'bot');
+                    addMessage('🔊 Reproduzindo resposta...', 'bot');
                 } else {
-                    addMessage('❌ Erro ao gerar áudio. Tente novamente.', 'bot');
+                    addMessage(`❌ Erro ao converter para áudio: ${result.error}`, 'bot');
                 }
 
             } catch (error) {
                 console.error('❌ Erro ao reproduzir áudio:', error);
-                addMessage('❌ Erro ao reproduzir áudio. Tente novamente.', 'bot');
+                addMessage(`❌ Erro ao reproduzir áudio: ${error.message}`, 'bot');
             }
         }
 
@@ -1042,7 +1056,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Mostrar controles de voz quando bot responde
         function showVoiceControls() {
-            playResponseButton.classList.remove('hidden');
+            if (playResponseButton) {
+                playResponseButton.classList.remove('hidden');
+                console.log('🔊 Botão de play mostrado');
+            }
         }
 
         // Inicialização simples e direta
