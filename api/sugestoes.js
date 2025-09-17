@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb';
 
+
 const MONGODB_URI = 'mongodb+srv://gabrielaraujo:sGoeqQgbxlsIwnjc@clustercentral.quqgq6x.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCentral';
 const DB_NAME = 'console_conteudo';
 const COLLECTION_NAME = 'Bot_perguntas';
@@ -109,11 +110,28 @@ export default async function handler(req, res) {
     };
 
     // Criar opções baseadas nos resultados do MongoDB
-    const opcoes = resultados.map(item => ({
-      texto: item.pergunta,
-      pergunta: item.pergunta,
-      resposta: item.palavras_chave || item.resposta
-    }));
+    const opcoes = resultados.map(item => {
+      // Limpar e formatar os dados
+      const pergunta = item.pergunta || 'Pergunta não disponível';
+      const resposta = item.resposta || item.palavras_chave || 'Resposta não disponível';
+      
+      // Limpar caracteres especiais e quebras de linha
+      const perguntaLimpa = pergunta
+        .replace(/[\r\n\t]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      const respostaLimpa = resposta
+        .replace(/[\r\n\t]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      return {
+        texto: perguntaLimpa,
+        pergunta: perguntaLimpa,
+        resposta: respostaLimpa
+      };
+    });
 
     const resposta = {
       status: 'sucesso',

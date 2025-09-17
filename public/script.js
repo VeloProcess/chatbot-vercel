@@ -1432,14 +1432,19 @@ function criarHTMLSugestoes(data) {
 }
 
 function selecionarSugestao(texto, pergunta, resposta) {
-    if (resposta && resposta.length > 0) {
+    console.log('🎯 Selecionando sugestão:', { texto, pergunta, resposta });
+    
+    if (resposta && resposta.length > 0 && resposta !== 'Resposta não disponível') {
         // Se tem resposta direta, mostrar
+        console.log('✅ Mostrando resposta direta:', resposta);
         addMessage(resposta, "bot", { source: "Base de Dados" });
-    } else if (pergunta) {
+    } else if (pergunta && pergunta !== 'Pergunta não disponível') {
         // Se tem pergunta específica, fazer nova busca
+        console.log('🔍 Fazendo nova busca com pergunta:', pergunta);
         handleSendMessage(pergunta);
     } else {
         // Se é uma subcategoria, mostrar sugestões da subcategoria
+        console.log('📋 Mostrando sugestões para subcategoria:', texto);
         mostrarSugestoes(texto.toLowerCase().replace(/\s+/g, '_'));
     }
 }
