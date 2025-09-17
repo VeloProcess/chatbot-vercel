@@ -1074,3 +1074,107 @@ body.dark-theme .inline-chat-button:hover {
     transform: translateY(0);
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
+
+/* === SISTEMA DE SUGESTÕES INTELIGENTES === */
+.sugestoes-container {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+    border: 2px solid var(--cor-azul-claro);
+    border-radius: var(--borda-raio);
+    padding: var(--espaco-lg);
+    margin: var(--espaco-md) 0;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
+}
+
+.sugestoes-container h4 {
+    color: var(--cor-azul-escuro);
+    margin: 0 0 var(--espaco-md) 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 2px solid var(--cor-azul-claro);
+    padding-bottom: var(--espaco-sm);
+}
+
+.sugestoes-lista {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--espaco-sm);
+    margin-bottom: var(--espaco-md);
+}
+
+.sugestao-item {
+    background: var(--cor-container);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--borda-raio-sm);
+    padding: var(--espaco-md);
+    cursor: pointer;
+    transition: all var(--transicao-rapida);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sugestao-item:hover {
+    background: var(--cor-balao-bot);
+    border-color: var(--cor-azul-medio);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+}
+
+.sugestao-item.com-resposta {
+    border-left: 4px solid var(--cor-sucesso);
+    background: linear-gradient(90deg, #f0fff4 0%, var(--cor-container) 100%);
+}
+
+.sugestao-item.com-resposta:hover {
+    background: linear-gradient(90deg, #e8f5e8 0%, var(--cor-balao-bot) 100%);
+}
+
+.sugestao-texto {
+    color: var(--cor-texto-principal);
+    font-weight: 500;
+    flex: 1;
+    margin-right: var(--espaco-sm);
+}
+
+.sugestao-indicador {
+    background: var(--cor-sucesso);
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.sugestoes-info {
+    text-align: center;
+    color: var(--cor-texto-principal);
+    opacity: 0.7;
+    font-style: italic;
+}
+
+.sugestoes-info small {
+    font-size: 0.85em;
+}
+
+/* Responsividade para sugestões */
+@media (max-width: 768px) {
+    .sugestoes-lista {
+        grid-template-columns: 1fr;
+        gap: var(--espaco-xs);
+    }
+    
+    .sugestao-item {
+        padding: var(--espaco-sm);
+    }
+    
+    .sugestao-texto {
+        font-size: 0.9em;
+    }
+}

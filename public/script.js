@@ -346,6 +346,14 @@ if (sender === 'bot') {
                         return;
                     } else {
                         console.log('❌ Nenhuma resposta encontrada na base local');
+                        
+                        // Verificar se deve mostrar sugestões
+                        const sugestoes = verificarSugestoes(pergunta);
+                        if (sugestoes) {
+                            console.log('💡 Mostrando sugestões para:', pergunta);
+                            mostrarSugestoes(sugestoes);
+                            return;
+                        }
                     }
                 } else {
                     console.log('❌ Estrutura da base inválida:', baseData);
@@ -1155,3 +1163,97 @@ if (feedbackSendBtn) {
     // Inicia diretamente o Google Sign-In
     initGoogleSignIn();
 });
+
+// === SISTEMA DE SUGESTÕES INTELIGENTES ===
+
+function verificarSugestoes(pergunta) {
+    const perguntaLower = pergunta.toLowerCase().trim();
+    
+    // Mapeamento de palavras-chave para categorias
+    const mapeamentoSugestoes = {
+        'credito': 'credito',
+        'crédito': 'credito',
+        'antecipacao': 'antecipacao',
+        'antecipação': 'antecipacao',
+        'antecipar': 'antecipacao',
+        'restituicao': 'antecipacao',
+        'restituição': 'antecipacao',
+        'trabalhador': 'credito_trabalhador',
+        'pessoal': 'credito_pessoal',
+        'emprestimo': 'credito_pessoal',
+        'empréstimo': 'credito_pessoal',
+        'lote': 'lotes',
+        'lotes': 'lotes',
+        'data': 'lotes'
+    };
+    
+    // Verificar se a pergunta contém palavras-chave para sugestões
+    for (const [palavra, categoria] of Object.entries(mapeamentoSugestoes)) {
+        if (perguntaLower.includes(palavra)) {
+            return categoria;
+        }
+    }
+    
+    return null;
+}
+
+async function mostrarSugestoes(categoria) {
+    try {
+        console.log(`🔍 Buscando sugestões para categoria: ${categoria}`);
+        
+        const response = await fetch(`/api/sugestoes?categoria=${categoria}`);
+        const data = await response.json();
+        
+        if (data.status === 'sucesso') {
+            const sugestaoHTML = criarHTMLSugestoes(data);
+            addMessage(sugestaoHTML, "bot", { source: "Sugestões Inteligentes" });
+        } else {
+            console.log('❌ Erro ao carregar sugestões:', data.error);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao buscar sugestões:', error);
+    }
+}
+
+function criarHTMLSugestoes(data) {
+    let html = `
+        <div class="sugestoes-container">
+            <h4>${data.titulo}</h4>
+            <div class="sugestoes-lista">
+    `;
+    
+    data.opcoes.forEach((opcao, index) => {
+        const temResposta = opcao.resposta && opcao.resposta.length > 0;
+        const classeItem = temResposta ? 'sugestao-item com-resposta' : 'sugestao-item';
+        
+        html += `
+            <div class="${classeItem}" onclick="selecionarSugestao('${opcao.texto}', '${opcao.pergunta || ''}', '${opcao.resposta || ''}')">
+                <span class="sugestao-texto">${opcao.texto}</span>
+                ${temResposta ? '<span class="sugestao-indicador">✓</span>' : ''}
+            </div>
+        `;
+    });
+    
+    html += `
+            </div>
+            <div class="sugestoes-info">
+                <small>Clique em uma opção para obter mais informações</small>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function selecionarSugestao(texto, pergunta, resposta) {
+    if (resposta && resposta.length > 0) {
+        // Se tem resposta direta, mostrar
+        addMessage(resposta, "bot", { source: "Base de Dados" });
+    } else if (pergunta) {
+        // Se tem pergunta específica, fazer nova busca
+        enviarPergunta(pergunta);
+    } else {
+        // Se é uma subcategoria, mostrar sugestões da subcategoria
+        mostrarSugestoes(texto.toLowerCase().replace(/\s+/g, '_'));
+    }
+}
