@@ -1,9 +1,26 @@
 import { MongoClient } from 'mongodb';
 
-// Versão simplificada para teste
 const MONGODB_URI = 'mongodb+srv://gabrielaraujo:sGoeqQgbxlsIwnjc@clustercentral.quqgq6x.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCentral';
 const DB_NAME = 'console_conteudo';
 const COLLECTION_NAME = 'Bot_perguntas';
+
+let client = null;
+let db = null;
+
+async function conectarMongoDB() {
+  if (!client) {
+    try {
+      client = new MongoClient(MONGODB_URI);
+      await client.connect();
+      db = client.db(DB_NAME);
+      console.log('✅ Conectado ao MongoDB');
+    } catch (error) {
+      console.error('❌ Erro ao conectar MongoDB:', error.message);
+      throw error;
+    }
+  }
+  return db;
+}
 
 // Mapeamento de palavras-chave para categorias
 const CATEGORIAS_KEYWORDS = {
@@ -53,8 +70,31 @@ export default async function handler(req, res) {
     }
 
     console.log(`🔍 Keywords encontradas: ${keywords.join(', ')}`);
+    
+    // Conectar ao MongoDB
+    const database = await conectarMongoDB();
+    const collection = database.collection(COLLECTION_NAME);
+    
+    // Buscar perguntas relacionadas no MongoDB
+    const resultados = await collection.find({
+      $or: keywords.map(keyword => ({
+        $or: [
+          { pergunta: { $regex: keyword, $options: 'i' } },
+          { palavras_chave: { $regex: keyword, $options: 'i' } }
+        ]
+      }))
+    }).limit(10).toArray();
+    
+    console.log(`🔍 Resultados encontrados: ${resultados.length}`);
+    
+    if (resultados.length === 0) {
+      return res.status(404).json({
+        status: 'erro',
+        error: 'Nenhuma sugestão encontrada para esta categoria'
+      });
+    }
 
-    // Por enquanto, retornar dados mockados para testar se a API funciona
+    // Gerar título baseado na categoria
     const titulos = {
       'credito': 'Você deseja saber mais sobre qual assunto de crédito?',
       'antecipacao': 'Sobre Antecipação da Restituição:',
@@ -68,19 +108,12 @@ export default async function handler(req, res) {
       'veloprime': 'VeloPrime e Investimentos:'
     };
 
-    // Dados mockados para teste
-    const opcoes = [
-      {
-        texto: `Teste de sugestão para ${categoria}`,
-        pergunta: `Como funciona ${categoria}?`,
-        resposta: `Esta é uma resposta de teste para a categoria ${categoria}.`
-      },
-      {
-        texto: `Outra sugestão para ${categoria}`,
-        pergunta: `Quais são os benefícios de ${categoria}?`,
-        resposta: `Benefícios de teste para ${categoria}.`
-      }
-    ];
+    // Criar opções baseadas nos resultados do MongoDB
+    const opcoes = resultados.map(item => ({
+      texto: item.pergunta,
+      pergunta: item.pergunta,
+      resposta: item.palavras_chave || item.resposta
+    }));
 
     const resposta = {
       status: 'sucesso',
