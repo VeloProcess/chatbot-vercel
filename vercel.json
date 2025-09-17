@@ -4,9 +4,6 @@
       "maxDuration": 30
     }
   },
-  "analytics": {
-    "enabled": false
-  },
   "headers": [
     {
       "source": "/(.*)",
