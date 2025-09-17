@@ -141,10 +141,22 @@ async function handleSpeechToText(req, res) {
   }
 
   try {
+    console.log('🎤 Recebendo requisição de Speech-to-Text');
+    console.log('🎤 ELEVENLABS_API_KEY existe:', !!ELEVENLABS_API_KEY);
+    
     const { audio } = req.body;
     
     if (!audio) {
       return res.status(400).json({ error: 'Áudio não fornecido' });
+    }
+
+    console.log('🎤 Áudio recebido, tamanho:', audio.length);
+    
+    if (!ELEVENLABS_API_KEY) {
+      return res.status(500).json({ 
+        error: 'Chave da API ElevenLabs não configurada',
+        success: false
+      });
     }
 
     const result = await speechToText(audio);
@@ -154,7 +166,8 @@ async function handleSpeechToText(req, res) {
     console.error('Erro no endpoint Speech-to-Text:', error);
     return res.status(500).json({ 
       error: 'Erro interno do servidor',
-      details: error.message 
+      details: error.message,
+      success: false
     });
   }
 }

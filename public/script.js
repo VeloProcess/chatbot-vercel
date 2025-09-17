@@ -916,7 +916,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const arrayBuffer = await audioBlob.arrayBuffer();
                 console.log('🎤 ArrayBuffer criado, tamanho:', arrayBuffer.byteLength);
                 
-                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                // Converter para base64 de forma mais segura
+                const uint8Array = new Uint8Array(arrayBuffer);
+                let binaryString = '';
+                const chunkSize = 8192; // Processar em pedaços para evitar stack overflow
+                
+                for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                    const chunk = uint8Array.slice(i, i + chunkSize);
+                    binaryString += String.fromCharCode.apply(null, chunk);
+                }
+                
+                const base64Audio = btoa(binaryString);
                 console.log('🎤 Base64 criado, tamanho:', base64Audio.length);
                 
                 const response = await fetch('/api/voice?action=speech-to-text', {
@@ -1121,20 +1131,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('🧪 TESTE 2 - Botão clicado!');
                     addMessage('🧪 TESTE 2 - Função executada!', 'bot');
                     
-                    // Teste direto de gravação
-                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                        addMessage('🎤 Testando acesso ao microfone...', 'bot');
-                        navigator.mediaDevices.getUserMedia({ audio: true })
-                            .then(stream => {
-                                addMessage('✅ Microfone acessado com sucesso!', 'bot');
-                                stream.getTracks().forEach(track => track.stop());
-                            })
-                            .catch(err => {
-                                addMessage('❌ Erro ao acessar microfone: ' + err.message, 'bot');
-                            });
-                    } else {
-                        addMessage('❌ MediaDevices não suportado', 'bot');
-                    }
+                    // Teste da API de vozes
+                    addMessage('🔊 Testando API de vozes...', 'bot');
+                    fetch('/api/voice?action=voices')
+                        .then(response => {
+                            console.log('🔊 Resposta da API de vozes:', response.status);
+                            if (response.ok) {
+                                return response.json();
+                            } else {
+                                throw new Error(`API retornou ${response.status}`);
+                            }
+                        })
+                        .then(data => {
+                            console.log('🔊 Dados das vozes:', data);
+                            if (data.success) {
+                                addMessage(`✅ API de vozes funcionando! Encontradas ${data.voices.length} vozes`, 'bot');
+                            } else {
+                                addMessage(`❌ Erro na API de vozes: ${data.error}`, 'bot');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('❌ Erro ao testar API:', error);
+                            addMessage(`❌ Erro ao testar API: ${error.message}`, 'bot');
+                        });
                 });
                 console.log('✅ Botão de teste 2 configurado');
             }
