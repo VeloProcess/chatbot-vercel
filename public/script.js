@@ -1134,13 +1134,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Teste das variáveis de ambiente
                     addMessage('🔍 Testando variáveis de ambiente...', 'bot');
                     console.log('🔍 Fazendo requisição para /api/test-env');
-                    fetch('/api/test-env')
+                    
+                    // Teste direto da URL
+                    const testUrl = window.location.origin + '/api/test-env';
+                    console.log('🔍 URL de teste:', testUrl);
+                    
+                    fetch(testUrl)
                         .then(response => {
                             console.log('🔍 Resposta do teste de env:', response.status);
+                            console.log('🔍 Headers:', response.headers);
                             if (response.ok) {
                                 return response.json();
                             } else {
-                                throw new Error(`API retornou ${response.status}`);
+                                return response.text().then(text => {
+                                    throw new Error(`API retornou ${response.status}: ${text}`);
+                                });
                             }
                         })
                         .then(data => {
