@@ -1002,39 +1002,108 @@ document.addEventListener('DOMContentLoaded', () => {
             playResponseButton.classList.remove('hidden');
         }
 
-        // Inicializar funcionalidades de voz quando DOM carregar
+        // Inicialização simples e direta
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 DOM carregado, inicializando funcionalidades de voz...');
+            console.log('🚀 DOM carregado, configurando botões...');
             
-            // Aguardar um pouco para garantir que todos os elementos estejam prontos
-            setTimeout(() => {
-                initVoiceFeatures();
-            }, 500);
+            // Configurar todos os botões
+            setupTestButton();
+            setupVoiceButton();
+            setupPlayButton();
+            setupStopButton();
+            
+            // Carregar vozes
+            loadAvailableVoices();
         });
 
-        // Também tentar quando a janela carregar completamente
+        // Também tentar quando a janela carregar
         window.addEventListener('load', () => {
-            console.log('🌐 Janela carregada, verificando funcionalidades de voz...');
+            console.log('🌐 Janela carregada, verificando botões...');
             setTimeout(() => {
-                if (!voiceButton || !playResponseButton || !stopAudioButton) {
-                    console.log('🔄 Re-inicializando após carregamento completo...');
-                    initVoiceFeatures();
-                }
+                setupTestButton();
+                setupVoiceButton();
+                setupPlayButton();
+                setupStopButton();
             }, 1000);
         });
 
-        // Botão de teste
-        document.addEventListener('DOMContentLoaded', () => {
+        // Botão de teste - abordagem mais simples
+        function setupTestButton() {
             const testBtn = document.getElementById('test-voice');
             if (testBtn) {
-                testBtn.addEventListener('click', () => {
+                testBtn.onclick = function() {
                     console.log('🧪 Botão de teste clicado!');
                     addMessage('🧪 Teste de funcionalidade executado!', 'bot');
                     toggleRecording();
-                });
+                };
                 console.log('✅ Botão de teste configurado');
             }
-        });
+        }
+
+        // Configurar botão de voz - abordagem mais simples
+        function setupVoiceButton() {
+            const voiceBtn = document.getElementById('voice-button');
+            if (voiceBtn) {
+                voiceBtn.onclick = function() {
+                    console.log('🎤 Botão de voz clicado!');
+                    toggleRecording();
+                };
+                console.log('✅ Botão de voz configurado');
+            } else {
+                console.error('❌ Botão de voz não encontrado');
+            }
+        }
+
+        // Configurar botão de play
+        function setupPlayButton() {
+            const playBtn = document.getElementById('play-response');
+            if (playBtn) {
+                playBtn.onclick = function() {
+                    console.log('🔊 Botão de play clicado!');
+                    playLastResponse();
+                };
+                console.log('✅ Botão de play configurado');
+            }
+        }
+
+        // Configurar botão de stop
+        function setupStopButton() {
+            const stopBtn = document.getElementById('stop-audio');
+            if (stopBtn) {
+                stopBtn.onclick = function() {
+                    console.log('⏹️ Botão de stop clicado!');
+                    stopAudio();
+                };
+                console.log('✅ Botão de stop configurado');
+            }
+        }
+
+        // Funções globais para teste (chamadas pelo onclick)
+        window.testVoiceFunction = function() {
+            console.log('🧪 TESTE 1 - Função global chamada!');
+            addMessage('🧪 TESTE 1 - Função global executada!', 'bot');
+            toggleRecording();
+        };
+
+        window.testVoiceFunction2 = function() {
+            console.log('🧪 TESTE 2 - Função global chamada!');
+            addMessage('🧪 TESTE 2 - Função global executada!', 'bot');
+            
+            // Teste direto de gravação
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                addMessage('🎤 Testando acesso ao microfone...', 'bot');
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        addMessage('✅ Microfone acessado com sucesso!', 'bot');
+                        stream.getTracks().forEach(track => track.stop());
+                    })
+                    .catch(err => {
+                        addMessage('❌ Erro ao acessar microfone: ' + err.message, 'bot');
+                    });
+            } else {
+                addMessage('❌ MediaDevices não suportado', 'bot');
+            }
+        };
 
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
