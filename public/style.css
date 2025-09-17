@@ -26,7 +26,7 @@
     --cor-erro: #f44336;
     --cor-alerta: #FF9800;
     --cor-info: #2196F3;
-    
+
     /* Cores para IA Avançada */
     --cor-ia-avancada: #6c5ce7;
     --cor-followup: #00b894;
@@ -1301,4 +1301,137 @@ body.dark-theme .sugestoes-relacionadas-container {
 body.dark-theme .message-container[data-source="IA Avançada"] {
     background: linear-gradient(135deg, #2a2a3d, #1a1a2e);
     border-left-color: #8b5cf6;
+}
+
+/* ==================== CONTROLES DE VOZ ==================== */
+
+.voice-button {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: all var(--transicao-rapida);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2em;
+    margin-right: var(--espaco-sm);
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+.voice-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+}
+
+.voice-button.recording {
+    background: linear-gradient(135deg, #ff4757, #c44569);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.voice-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-sm);
+    margin-top: var(--espaco-sm);
+    padding: var(--espaco-sm);
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: var(--borda-raio-sm);
+    border: 1px solid var(--cor-borda);
+}
+
+.play-button, .stop-button {
+    background: linear-gradient(135deg, #2ed573, #1e90ff);
+    border: none;
+    border-radius: var(--borda-raio-sm);
+    padding: var(--espaco-sm) var(--espaco-md);
+    cursor: pointer;
+    transition: all var(--transicao-rapida);
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 2px 6px rgba(46, 213, 115, 0.3);
+}
+
+.play-button:hover, .stop-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(46, 213, 115, 0.4);
+}
+
+.stop-button {
+    background: linear-gradient(135deg, #ff4757, #ff6b6b);
+    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.3);
+}
+
+.stop-button:hover {
+    box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
+}
+
+.voice-selector {
+    background: var(--cor-container);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--borda-raio-sm);
+    padding: var(--espaco-sm);
+    font-size: 0.9em;
+    color: var(--cor-texto-principal);
+    cursor: pointer;
+    transition: all var(--transicao-rapida);
+}
+
+.voice-selector:hover {
+    border-color: var(--cor-azul-medio);
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.1);
+}
+
+.voice-selector:focus {
+    outline: none;
+    border-color: var(--cor-azul-medio);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Responsividade para controles de voz */
+@media (max-width: 768px) {
+    .voice-controls {
+        flex-wrap: wrap;
+        gap: var(--espaco-xs);
+    }
+    
+    .voice-button {
+        width: 35px;
+        height: 35px;
+        font-size: 1em;
+    }
+    
+    .play-button, .stop-button {
+        padding: var(--espaco-xs) var(--espaco-sm);
+        font-size: 0.9em;
+    }
+}
+
+/* Tema escuro para controles de voz */
+body.dark-theme .voice-controls {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #555;
+}
+
+body.dark-theme .voice-selector {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+
+body.dark-theme .voice-selector:hover {
+    border-color: #4d90fe;
+}
+
+body.dark-theme .voice-selector:focus {
+    border-color: #4d90fe;
+    box-shadow: 0 0 0 3px rgba(77, 144, 254, 0.1);
 }

@@ -507,6 +507,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 messageContentDiv.appendChild(optionsContainer);
             }
+
+            // Mostrar controles de voz para respostas do bot
+            if (sender === 'bot') {
+                showVoiceControls();
+            }
             chatBox.appendChild(messageContainer);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
@@ -699,6 +704,203 @@ document.addEventListener('DOMContentLoaded', () => {
         // Tornar funções globais para onclick
         window.handleFollowUp = handleFollowUp;
         window.handleSugestaoRelacionada = handleSugestaoRelacionada;
+
+        // ==================== FUNCIONALIDADES DE VOZ ====================
+
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let currentAudio = null;
+
+        // Elementos de voz
+        const voiceButton = document.getElementById('voice-button');
+        const playResponseButton = document.getElementById('play-response');
+        const stopAudioButton = document.getElementById('stop-audio');
+        const voiceSelector = document.getElementById('voice-selector');
+
+        // Inicializar funcionalidades de voz
+        function initVoiceFeatures() {
+            if (voiceButton) {
+                voiceButton.addEventListener('click', toggleRecording);
+            }
+            if (playResponseButton) {
+                playResponseButton.addEventListener('click', playLastResponse);
+            }
+            if (stopAudioButton) {
+                stopAudioButton.addEventListener('click', stopAudio);
+            }
+            
+            // Carregar vozes disponíveis
+            loadAvailableVoices();
+        }
+
+        // Alternar gravação de voz
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+
+        // Iniciar gravação
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    await processAudioToText(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                voiceButton.textContent = '⏹️';
+                voiceButton.classList.add('recording');
+                console.log('🎤 Gravação iniciada');
+
+            } catch (error) {
+                console.error('❌ Erro ao iniciar gravação:', error);
+                addMessage('Erro ao acessar o microfone. Verifique as permissões.', 'bot');
+            }
+        }
+
+        // Parar gravação
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                voiceButton.textContent = '🎤';
+                voiceButton.classList.remove('recording');
+                console.log('⏹️ Gravação parada');
+            }
+        }
+
+        // Processar áudio para texto
+        async function processAudioToText(audioBlob) {
+            try {
+                addMessage('🎤 Processando áudio...', 'bot');
+                
+                const formData = new FormData();
+                formData.append('audio', audioBlob);
+
+                const response = await fetch('/api/voice?action=speech-to-text', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addMessage(`🎤 Você disse: "${result.text}"`, 'user');
+                    buscarResposta(result.text);
+                } else {
+                    addMessage('❌ Erro ao processar áudio. Tente novamente.', 'bot');
+                }
+
+            } catch (error) {
+                console.error('❌ Erro ao processar áudio:', error);
+                addMessage('❌ Erro ao processar áudio. Tente novamente.', 'bot');
+            }
+        }
+
+        // Reproduzir última resposta
+        async function playLastResponse() {
+            try {
+                const lastBotMessage = document.querySelector('.message-container.bot:last-child .message-content');
+                if (!lastBotMessage) {
+                    addMessage('Nenhuma resposta para reproduzir.', 'bot');
+                    return;
+                }
+
+                const text = lastBotMessage.textContent;
+                const voiceId = voiceSelector.value;
+
+                addMessage('🔊 Gerando áudio...', 'bot');
+
+                const response = await fetch('/api/voice?action=text-to-speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text, voiceId })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const audio = new Audio(`data:audio/mpeg;base64,${result.audio}`);
+                    currentAudio = audio;
+                    
+                    audio.onended = () => {
+                        playResponseButton.classList.add('hidden');
+                        stopAudioButton.classList.add('hidden');
+                    };
+
+                    audio.play();
+                    playResponseButton.classList.add('hidden');
+                    stopAudioButton.classList.remove('hidden');
+                    
+                    addMessage('🔊 Reproduzindo áudio...', 'bot');
+                } else {
+                    addMessage('❌ Erro ao gerar áudio. Tente novamente.', 'bot');
+                }
+
+            } catch (error) {
+                console.error('❌ Erro ao reproduzir áudio:', error);
+                addMessage('❌ Erro ao reproduzir áudio. Tente novamente.', 'bot');
+            }
+        }
+
+        // Parar áudio
+        function stopAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+                playResponseButton.classList.remove('hidden');
+                stopAudioButton.classList.add('hidden');
+            }
+        }
+
+        // Carregar vozes disponíveis
+        async function loadAvailableVoices() {
+            try {
+                const response = await fetch('/api/voice?action=voices');
+                const result = await response.json();
+
+                if (result.success && result.voices.length > 0) {
+                    voiceSelector.innerHTML = '';
+                    result.voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice.id;
+                        option.textContent = voice.name;
+                        voiceSelector.appendChild(option);
+                    });
+                    voiceSelector.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error('❌ Erro ao carregar vozes:', error);
+            }
+        }
+
+        // Mostrar controles de voz quando bot responde
+        function showVoiceControls() {
+            playResponseButton.classList.remove('hidden');
+        }
+
+        // Inicializar funcionalidades de voz quando DOM carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            initVoiceFeatures();
+        });
 
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {

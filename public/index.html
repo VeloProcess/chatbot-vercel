@@ -108,9 +108,17 @@
             <div class="chat-box" id="chat-box"></div>
             <div class="input-area">
                 <input type="text" id="user-input" placeholder="Digite sua mensagem..." autocomplete="off">
+                <button id="voice-button" class="voice-button" title="Falar pergunta">🎤</button>
                 <button id="send-button" class="action-button" title="Enviar mensagem">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z"></path></svg>
                 </button>
+            </div>
+            <div class="voice-controls">
+                <button id="play-response" class="play-button hidden" title="Reproduzir resposta">🔊</button>
+                <button id="stop-audio" class="stop-button hidden" title="Parar áudio">⏹️</button>
+                <select id="voice-selector" class="voice-selector hidden">
+                    <option value="pNInz6obpgDQGcFmaJgB">Voz Padrão</option>
+                </select>
             </div>
         </div>
         <div id="news-panel" class="panel">
