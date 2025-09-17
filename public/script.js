@@ -813,20 +813,31 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 console.log('🎤 Iniciando gravação...');
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
                 audioChunks = [];
 
                 mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
+                    console.log('🎤 Dados de áudio recebidos:', event.data);
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
                 };
 
                 mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    await processAudioToText(audioBlob);
+                    console.log('🎤 Parando gravação, chunks:', audioChunks.length);
+                    if (audioChunks.length > 0) {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        console.log('🎤 Blob criado:', audioBlob);
+                        await processAudioToText(audioBlob);
+                    } else {
+                        addMessage('❌ Nenhum áudio foi gravado', 'bot');
+                    }
                     stream.getTracks().forEach(track => track.stop());
                 };
 
-                mediaRecorder.start();
+                mediaRecorder.start(1000); // Coletar dados a cada 1 segundo
                 isRecording = true;
                 
                 // Buscar elementos dinamicamente
@@ -893,9 +904,20 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 addMessage('🎤 Processando áudio...', 'bot');
                 
+                console.log('🎤 Tipo do audioBlob:', typeof audioBlob);
+                console.log('🎤 audioBlob:', audioBlob);
+                
+                // Verificar se é um Blob válido
+                if (!audioBlob || typeof audioBlob.arrayBuffer !== 'function') {
+                    throw new Error('AudioBlob inválido ou não é um Blob');
+                }
+                
                 // Converter blob para base64
                 const arrayBuffer = await audioBlob.arrayBuffer();
+                console.log('🎤 ArrayBuffer criado, tamanho:', arrayBuffer.byteLength);
+                
                 const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                console.log('🎤 Base64 criado, tamanho:', base64Audio.length);
                 
                 const response = await fetch('/api/voice?action=speech-to-text', {
                     method: 'POST',
