@@ -37,9 +37,11 @@ const CATEGORIAS_KEYWORDS = {
 };
 
 module.exports = async function handler(req, res) {
+  // Configurar CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Content-Type', 'application/json');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -48,6 +50,8 @@ module.exports = async function handler(req, res) {
   try {
     const { categoria } = req.query;
     
+    console.log(`🔍 API Sugestões chamada - Categoria: ${categoria}`);
+    
     if (!categoria) {
       return res.status(400).json({
         status: 'erro',
@@ -55,12 +59,6 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    console.log(`🔍 Buscando sugestões para categoria: ${categoria}`);
-    
-    // Conectar ao MongoDB
-    const database = await conectarMongoDB();
-    const collection = database.collection(COLLECTION_NAME);
-    
     // Buscar palavras-chave para a categoria
     const keywords = CATEGORIAS_KEYWORDS[categoria];
     
@@ -71,17 +69,23 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // Criar regex para buscar perguntas relacionadas à categoria
-    const regexPattern = keywords.map(keyword => `(?=.*${keyword})`).join('');
-    const regex = new RegExp(regexPattern, 'i');
+    console.log(`🔍 Keywords encontradas: ${keywords.join(', ')}`);
     
-    // Buscar perguntas relacionadas no MongoDB
+    // Conectar ao MongoDB
+    const database = await conectarMongoDB();
+    const collection = database.collection(COLLECTION_NAME);
+    
+    // Buscar perguntas relacionadas no MongoDB usando uma abordagem mais simples
     const resultados = await collection.find({
-      $or: [
-        { pergunta: { $regex: regex } },
-        { palavras_chave: { $regex: regex } }
-      ]
+      $or: keywords.map(keyword => ({
+        $or: [
+          { pergunta: { $regex: keyword, $options: 'i' } },
+          { palavras_chave: { $regex: keyword, $options: 'i' } }
+        ]
+      }))
     }).limit(10).toArray();
+    
+    console.log(`🔍 Resultados encontrados: ${resultados.length}`);
     
     if (resultados.length === 0) {
       return res.status(404).json({
@@ -111,11 +115,15 @@ module.exports = async function handler(req, res) {
       resposta: item.palavras_chave || item.resposta
     }));
 
-    return res.status(200).json({
+    const resposta = {
       status: 'sucesso',
       titulo: titulos[categoria] || 'Sugestões relacionadas:',
       opcoes: opcoes
-    });
+    };
+
+    console.log(`✅ Resposta enviada: ${JSON.stringify(resposta).substring(0, 100)}...`);
+    
+    return res.status(200).json(resposta);
 
   } catch (error) {
     console.error('❌ Erro na API de sugestões:', error);
