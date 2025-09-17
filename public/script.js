@@ -310,6 +310,9 @@ if (sender === 'bot') {
 
     // Função para buscar resposta da IA com debug
     async function buscarRespostaAI(pergunta) {
+        // Esconder indicador de "digitando..."
+        hideTypingIndicator();
+        
         if (!pergunta || !pergunta.trim()) {
             addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
             return;
@@ -323,6 +326,14 @@ if (sender === 'bot') {
         try {
             console.log('=== INICIANDO BUSCA ===');
             console.log('Pergunta:', pergunta);
+            
+            // Verificar se deve mostrar sugestões PRIMEIRO
+            const sugestoes = verificarSugestoes(pergunta);
+            if (sugestoes) {
+                console.log('💡 Mostrando sugestões para:', pergunta);
+                mostrarSugestoes(sugestoes);
+                return;
+            }
             
             // Primeiro tenta buscar na base local
             console.log('🔍 Buscando na base local...');
@@ -346,14 +357,6 @@ if (sender === 'bot') {
                         return;
                     } else {
                         console.log('❌ Nenhuma resposta encontrada na base local');
-                        
-                        // Verificar se deve mostrar sugestões
-                        const sugestoes = verificarSugestoes(pergunta);
-                        if (sugestoes) {
-                            console.log('💡 Mostrando sugestões para:', pergunta);
-                            mostrarSugestoes(sugestoes);
-                            return;
-                        }
                     }
                 } else {
                     console.log('❌ Estrutura da base inválida:', baseData);
@@ -1066,7 +1069,15 @@ function buscarNaBaseLocal(pergunta, baseData) {
             if (!trimmedText) return;
             addMessage(trimmedText, 'user');
             logQuestionOnSheet(trimmedText, dadosAtendente.email);
-            buscarRespostaAI(trimmedText);
+            
+            // Mostrar indicador de "digitando..."
+            showTypingIndicator();
+            
+            // Buscar resposta com delay para mostrar o indicador
+            setTimeout(() => {
+                buscarRespostaAI(trimmedText);
+            }, 500);
+            
             userInput.value = '';
         }
 
@@ -1158,11 +1169,122 @@ if (feedbackSendBtn) {
         setInitialTheme();
         carregarNoticias();
         carregarStatusProdutos();
+        
+        // Inicializar melhorias de interface
+        addClearChatButton();
+        addKeyboardShortcuts();
     }
 
     // Inicia diretamente o Google Sign-In
     initGoogleSignIn();
 });
+
+// === MELHORIAS DE INTERFACE DO CHAT ===
+
+function scrollToBottom() {
+    const chatBox = document.getElementById('chat-box');
+    if (chatBox) {
+        chatBox.scrollTo({
+            top: chatBox.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+}
+
+function showTypingIndicator() {
+    const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
+    
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message-container bot typing-indicator';
+    typingDiv.id = 'typing-indicator';
+    
+    typingDiv.innerHTML = `
+        <div class="avatar bot">🤖</div>
+        <div class="message-content">
+            <div class="message">
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <span class="typing-text">Digitando...</span>
+            </div>
+        </div>
+    `;
+    
+    chatBox.appendChild(typingDiv);
+    scrollToBottom();
+}
+
+function hideTypingIndicator() {
+    const typingIndicator = document.getElementById('typing-indicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
+function addTimestampToMessage(messageContainer) {
+    const timestamp = new Date().toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    const timestampDiv = document.createElement('div');
+    timestampDiv.className = 'message-timestamp';
+    timestampDiv.textContent = timestamp;
+    messageContainer.appendChild(timestampDiv);
+}
+
+function addClearChatButton() {
+    const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
+    
+    const clearButton = document.createElement('button');
+    clearButton.id = 'clear-chat-btn';
+    clearButton.className = 'clear-chat-button';
+    clearButton.innerHTML = '🗑️ Limpar Conversa';
+    clearButton.onclick = clearChat;
+    
+    // Adicionar botão no topo do chat
+    chatBox.parentNode.insertBefore(clearButton, chatBox);
+}
+
+function clearChat() {
+    const chatBox = document.getElementById('chat-box');
+    if (chatBox) {
+        chatBox.innerHTML = '';
+        // Adicionar mensagem de boas-vindas
+        addMessage('Conversa limpa! Como posso ajudá-lo hoje?', 'bot', { source: 'Sistema' });
+    }
+}
+
+function addKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Ctrl + Enter para enviar mensagem
+        if (e.ctrlKey && e.key === 'Enter') {
+            const sendButton = document.getElementById('sendButton');
+            if (sendButton) {
+                sendButton.click();
+            }
+        }
+        
+        // Ctrl + L para limpar chat
+        if (e.ctrlKey && e.key === 'l') {
+            e.preventDefault();
+            clearChat();
+        }
+        
+        // Ctrl + K para focar no input
+        if (e.ctrlKey && e.key === 'k') {
+            e.preventDefault();
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) {
+                messageInput.focus();
+            }
+        }
+    });
+}
 
 // === SISTEMA DE SUGESTÕES INTELIGENTES ===
 
@@ -1184,12 +1306,23 @@ function verificarSugestoes(pergunta) {
         'empréstimo': 'credito_pessoal',
         'lote': 'lotes',
         'lotes': 'lotes',
-        'data': 'lotes'
+        'data': 'lotes',
+        'pix': 'pix',
+        'conta': 'conta',
+        'app': 'app',
+        'declaracao': 'declaracao',
+        'declaração': 'declaracao',
+        'irpf': 'declaracao',
+        'imposto': 'declaracao',
+        'veloprime': 'veloprime',
+        'investimento': 'veloprime',
+        'investir': 'veloprime'
     };
     
     // Verificar se a pergunta contém palavras-chave para sugestões
     for (const [palavra, categoria] of Object.entries(mapeamentoSugestoes)) {
         if (perguntaLower.includes(palavra)) {
+            console.log(`🎯 Palavra-chave detectada: "${palavra}" → categoria: ${categoria}`);
             return categoria;
         }
     }

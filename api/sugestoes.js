@@ -118,6 +118,66 @@ const CATEGORIAS_SUGESTOES = {
       { texto: 'Restituição - Não creditada', pergunta: 'Restituição - Não creditada' },
       { texto: 'Terceiro lote', pergunta: 'Terceiro lote !!!' }
     ]
+  },
+  'pix': {
+    titulo: 'PIX e Pagamentos:',
+    opcoes: [
+      { texto: 'PIX - Cadastro na Celcoin', pergunta: 'Pix - Cadastro na Celcoin' },
+      { texto: 'PIX - Como fazer portabilidade', pergunta: 'Pix - Como fazer portabilidade' },
+      { texto: 'PIX - Limite', pergunta: 'PIX - Limite' },
+      { texto: 'PIX - Envio por engano', pergunta: 'PIX - Envio por engano' },
+      { texto: 'PIX - Retirada com dívida', pergunta: 'PIX - Retirada com dívida em aberto' },
+      { texto: 'Problemas com PIX na Caixa', pergunta: 'Problemas com PIX na Caixa' }
+    ]
+  },
+  'conta': {
+    titulo: 'Abertura e Gestão de Conta:',
+    opcoes: [
+      { texto: 'Abertura de Conta Celcoin', pergunta: 'Abertura de Conta Celcoin' },
+      { texto: 'Alteração de Conta ou Chave PIX', pergunta: 'Alteração de Conta ou Chave PIX' },
+      { texto: 'App - Como acessar a conta', pergunta: 'App - Como acessar a conta' },
+      { texto: 'App - Atualizar dados', pergunta: 'App - Atualizar dados' },
+      { texto: 'App - Cancelamento de conta Celcoin', pergunta: 'App - Cancelamento de conta Celcoin' },
+      { texto: 'Conta - Bloqueio Judicial', pergunta: 'conta - Bloqueio Judicial' },
+      { texto: 'Conta - Saldo Insuficiente', pergunta: 'conta - Saldo Insuficiente' }
+    ]
+  },
+  'app': {
+    titulo: 'Aplicativo e Funcionalidades:',
+    opcoes: [
+      { texto: 'App - Como acessar a conta', pergunta: 'App - Como acessar a conta' },
+      { texto: 'App - Atualizar dados', pergunta: 'App - Atualizar dados' },
+      { texto: 'App - Atualizar situação', pergunta: 'App - Atualizar situação' },
+      { texto: 'App - Cancelamento de conta Celcoin', pergunta: 'App - Cancelamento de conta Celcoin' },
+      { texto: 'App - Cancelar procuração', pergunta: 'App - Cancelar procuração' },
+      { texto: 'App - Excluir conta Velotax', pergunta: 'App - Excluir conta Velotax' },
+      { texto: 'App - Reativar conta', pergunta: 'App - Reativar conta' }
+    ]
+  },
+  'declaracao': {
+    titulo: 'Declaração de Imposto de Renda (IRPF):',
+    opcoes: [
+      { texto: 'Acompanhamento de Malha Fina', pergunta: 'Acompanhamento de Malha Fina' },
+      { texto: 'Declaração/IRPF - Como consultar pendências', pergunta: 'Declaração/IRPF - Como consultar pendências' },
+      { texto: 'Declaração/IRPF - Malha Fina', pergunta: 'Declaração/IRPF - Malha Fina' },
+      { texto: 'Declaração/IRPF - Retificar', pergunta: 'Declaração/IRPF - Retificar' },
+      { texto: 'Declaração/IRPF - Cancelamento', pergunta: 'Declaração/IRPF- Cancelamento' },
+      { texto: 'Status de Declaração', pergunta: 'Status de Declaração' },
+      { texto: 'Erro no Envio de Declaração', pergunta: 'Erro no Envio de Declaração' }
+    ]
+  },
+  'veloprime': {
+    titulo: 'VeloPrime e Investimentos:',
+    opcoes: [
+      { texto: 'Veloprime - Planos', pergunta: 'Veloprime - Planos' },
+      { texto: 'Veloprime - Gratuito', pergunta: 'Veloprime - Gratuito' },
+      { texto: 'Veloprime - Cancelamento', pergunta: 'Veloprime - Cancelamento' },
+      { texto: 'Veloprime - Pagamento', pergunta: 'Veloprime - Pagamento' },
+      { texto: 'Veloprime - Ações no Exterior', pergunta: 'Veloprime - Ações no Exterior' },
+      { texto: 'Veloprime - Bolsa de Valores (B3)', pergunta: 'Veloprime - Bolsa de Valores (B3)' },
+      { texto: 'O que é renda fixa?', pergunta: 'O que é renda fixa?' },
+      { texto: 'O que é renda variável?', pergunta: 'O que é renda variável?' }
+    ]
   }
 };
 
