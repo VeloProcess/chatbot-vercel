@@ -1241,22 +1241,23 @@ body.dark-theme .inline-chat-button:hover {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: var(--cor-erro);
-    color: white;
-    border: none;
+    background: transparent;
+    color: var(--cor-texto-principal);
+    border: 1px solid var(--cor-borda);
     border-radius: var(--borda-raio-sm);
-    padding: 8px 12px;
-    font-size: 0.85em;
+    padding: 6px 10px;
+    font-size: 0.8em;
     cursor: pointer;
     transition: all var(--transicao-rapida);
     z-index: 10;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    opacity: 0.7;
 }
 
 .clear-chat-button:hover {
-    background: #d32f2f;
+    background: var(--cor-balao-bot);
+    border-color: var(--cor-azul-medio);
+    opacity: 1;
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .clear-chat-button:active {

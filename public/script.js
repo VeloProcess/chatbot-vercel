@@ -1384,7 +1384,7 @@ function selecionarSugestao(texto, pergunta, resposta) {
         addMessage(resposta, "bot", { source: "Base de Dados" });
     } else if (pergunta) {
         // Se tem pergunta específica, fazer nova busca
-        enviarPergunta(pergunta);
+        handleSendMessage(pergunta);
     } else {
         // Se é uma subcategoria, mostrar sugestões da subcategoria
         mostrarSugestoes(texto.toLowerCase().replace(/\s+/g, '_'));
