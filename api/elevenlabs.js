@@ -12,43 +12,63 @@ console.log('🔑 ELEVENLABS_API_KEY valor:', ELEVENLABS_API_KEY ? ELEVENLABS_AP
 
 async function speechToText(audioBlob) {
   try {
-    console.log('🎤 Convertendo áudio para texto...');
-    console.log('🎤 Chave da API:', ELEVENLABS_API_KEY ? 'Configurada' : 'Não configurada');
+    console.log('🎤 Convertendo áudio para texto usando OpenAI Whisper...');
+    console.log('🎤 Tamanho do áudio base64:', audioBlob.length);
     
-    if (!ELEVENLABS_API_KEY) {
-      throw new Error('Chave da API ElevenLabs não configurada');
+    // Usar OpenAI Whisper em vez da ElevenLabs
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    
+    if (!OPENAI_API_KEY) {
+      throw new Error('Chave da API OpenAI não configurada');
     }
     
     // Converter base64 para buffer
     const audioBuffer = Buffer.from(audioBlob, 'base64');
+    console.log('🎤 Tamanho do buffer:', audioBuffer.length);
     
-    // Fazer requisição para ElevenLabs Speech-to-Text
-    const response = await axios.post(`${ELEVENLABS_BASE_URL}/speech-to-text`, {
-      audio: audioBlob, // Já está em base64
-      model: 'whisper-1'
-    }, {
+    // Criar FormData para OpenAI Whisper
+    const FormData = require('form-data');
+    const form = new FormData();
+    
+    form.append('file', audioBuffer, {
+      filename: 'audio.webm',
+      contentType: 'audio/webm'
+    });
+    form.append('model', 'whisper-1');
+    form.append('language', 'pt');
+    form.append('response_format', 'json');
+    
+    // Fazer requisição para OpenAI Whisper
+    const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', form, {
       headers: {
-        'Authorization': `Bearer ${ELEVENLABS_API_KEY}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        ...form.getHeaders()
       },
       timeout: 30000
     });
 
-    const transcript = response.data.text;
+    console.log('🎤 Resposta da API:', response.status);
+    console.log('🎤 Dados da resposta:', response.data);
+    
+    const transcript = response.data.text || '';
     console.log('✅ Transcrição:', transcript);
     
     return {
       success: true,
       text: transcript,
-      confidence: response.data.confidence || 0.9
+      confidence: 0.9
     };
 
   } catch (error) {
     console.error('❌ Erro no Speech-to-Text:', error);
+    console.error('❌ Status:', error.response?.status);
+    console.error('❌ Dados do erro:', error.response?.data);
+    
     return {
       success: false,
       error: error.message,
-      text: ''
+      text: '',
+      details: error.response?.data
     };
   }
 }

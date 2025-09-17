@@ -1,4 +1,4 @@
-// api/getNews.js (Versão com cache e ordenação cronológica)
+:heapi/getNews.js (Versão com cache e ordenação cronológica)
 
 const { google } = require('googleapis');
 
