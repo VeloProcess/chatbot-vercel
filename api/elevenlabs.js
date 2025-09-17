@@ -22,6 +22,10 @@ async function speechToText(audioBlob) {
       throw new Error('Chave da API OpenAI não configurada');
     }
     
+    // Limpar a chave da API de caracteres especiais
+    const cleanApiKey = OPENAI_API_KEY.trim().replace(/[\r\n\t]/g, '');
+    console.log('🎤 Chave da API limpa:', cleanApiKey.substring(0, 10) + '...');
+    
     // Converter base64 para buffer
     const audioBuffer = Buffer.from(audioBlob, 'base64');
     console.log('🎤 Tamanho do buffer:', audioBuffer.length);
@@ -41,10 +45,12 @@ async function speechToText(audioBlob) {
     // Fazer requisição para OpenAI Whisper
     const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', form, {
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${cleanApiKey}`,
         ...form.getHeaders()
       },
-      timeout: 30000
+      timeout: 30000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
     });
 
     console.log('🎤 Resposta da API:', response.status);
