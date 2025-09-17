@@ -1,3 +1,6 @@
+// Variáveis globais
+let dadosAtendente = null;
+
 // Função formatarAssinatura no escopo global
 function formatarAssinatura(nomeCompleto) {
     if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
@@ -205,7 +208,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let ultimaPergunta = '';
     let ultimaLinhaDaFonte = null;
     let isTyping = false;
-    let dadosAtendente = null;
     let tokenClient = null;
     let sessionId = generateUUID();
 
@@ -1440,10 +1442,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('⌨️ Adicionando atalhos de teclado...');
         addKeyboardShortcuts();
         
-        // Adicionar mensagem inicial de boas-vindas
-        console.log('🎯 Adicionando mensagem inicial...');
-        addMessage('Olá! Sou o assistente virtual da Velo. Como posso ajudá-lo hoje?<br><br>💡 <strong>Dica:</strong> Acesse nossa plataforma de cursos <a href="https://veloacademy.vercel.app/cursos.html" target="_blank" style="color: #4CAF50; text-decoration: none;">VeloAcademy</a> para aprender mais sobre nossos produtos!', 'bot', { source: 'Sistema', html: true });
-        console.log('✅ Mensagem inicial adicionada');
         
         
         console.log('✅ Melhorias inicializadas com sucesso');
