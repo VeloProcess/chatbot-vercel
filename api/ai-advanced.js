@@ -86,8 +86,9 @@ async function buscaSemantica(pergunta, faqData) {
   if (idxPergunta === -1 || idxResposta === -1) return [];
 
   const resultados = [];
+  const maxItems = Math.min(dados.length, 50); // Limitar a 50 itens para ser mais rápido
 
-  for (let i = 0; i < dados.length; i++) {
+  for (let i = 0; i < maxItems; i++) {
     const linha = dados[i];
     const perguntaItem = linha[idxPergunta];
     const respostaItem = linha[idxResposta];
@@ -102,7 +103,7 @@ async function buscaSemantica(pergunta, faqData) {
     if (itemEmbedding) {
       const similaridade = cosineSimilarity(perguntaEmbedding, itemEmbedding);
       
-      if (similaridade > 0.7) { // Threshold de similaridade
+      if (similaridade > 0.6) { // Threshold reduzido para ser mais rápido
         resultados.push({
           pergunta: perguntaItem,
           resposta: respostaItem,
@@ -114,7 +115,7 @@ async function buscaSemantica(pergunta, faqData) {
     }
   }
 
-  return resultados.sort((a, b) => b.similaridade - a.similaridade);
+  return resultados.sort((a, b) => b.similaridade - a.similaridade).slice(0, 10); // Limitar a 10 resultados
 }
 
 // ==================== 2. CLASSIFICAÇÃO DE INTENÇÃO ====================
@@ -219,23 +220,55 @@ SENTIMENTO:
 async function buscaHibrida(pergunta, faqData, historico = []) {
   console.log('🔍 Iniciando busca híbrida para:', pergunta);
 
-  // 1. Busca semântica
-  const resultadosSemanticos = await buscaSemantica(pergunta, faqData);
-  console.log(`📊 Resultados semânticos: ${resultadosSemanticos.length}`);
-
-  // 2. Busca por palavras-chave (método atual)
+  // 1. Busca por palavras-chave primeiro (mais rápida)
   const resultadosKeywords = await buscaPorPalavrasChave(pergunta, faqData);
   console.log(`📊 Resultados keywords: ${resultadosKeywords.length}`);
 
-  // 3. IA combina e ranqueia resultados
-  const resultadosCombinados = await combinarERanquearResultados(
-    pergunta, 
-    resultadosSemanticos, 
-    resultadosKeywords, 
-    historico
-  );
+  // 2. Se encontrou resultados bons, não fazer busca semântica
+  if (resultadosKeywords.length > 0 && resultadosKeywords[0].score > 0.5) {
+    console.log('⚡ Usando apenas resultados keywords - muito rápidos');
+    return {
+      resultados: resultadosKeywords.slice(0, 5),
+      confianca_geral: resultadosKeywords[0].score,
+      recomendacao: 'RESPOSTA_DIRETA'
+    };
+  }
 
-  return resultadosCombinados;
+  // 3. Busca semântica apenas se necessário (com timeout)
+  try {
+    const resultadosSemanticos = await Promise.race([
+      buscaSemantica(pergunta, faqData),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout semântica')), 10000))
+    ]);
+    console.log(`📊 Resultados semânticos: ${resultadosSemanticos.length}`);
+
+    // 4. Combinar resultados manualmente (mais rápido que IA)
+    const todos = [...resultadosSemanticos, ...resultadosKeywords];
+    const unicos = new Map();
+
+    todos.forEach(item => {
+      const key = item.pergunta;
+      if (!unicos.has(key) || (item.similaridade || item.score) > (unicos.get(key).similaridade || unicos.get(key).score)) {
+        unicos.set(key, item);
+      }
+    });
+
+    const resultadosCombinados = Array.from(unicos.values()).slice(0, 5);
+    
+    return {
+      resultados: resultadosCombinados,
+      confianca_geral: resultadosCombinados[0]?.similaridade || resultadosCombinados[0]?.score || 0.5,
+      recomendacao: 'RESPOSTA_DIRETA'
+    };
+
+  } catch (error) {
+    console.log('⚠️ Busca semântica falhou, usando apenas keywords:', error.message);
+    return {
+      resultados: resultadosKeywords.slice(0, 5),
+      confianca_geral: resultadosKeywords[0]?.score || 0.3,
+      recomendacao: 'RESPOSTA_DIRETA'
+    };
+  }
 }
 
 async function buscaPorPalavrasChave(pergunta, faqData) {
@@ -584,9 +617,9 @@ Responda em JSON:
 async function processarComIA(pergunta, faqData, historico = [], email = null) {
   console.log('🤖 Iniciando processamento com IA avançada...');
 
-  // Timeout de 25 segundos para evitar 504
+  // Timeout de 15 segundos para evitar 504
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Timeout da IA avançada')), 25000);
+    setTimeout(() => reject(new Error('Timeout da IA avançada')), 15000);
   });
 
   try {
