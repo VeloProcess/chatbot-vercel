@@ -10,13 +10,18 @@ const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
 async function speechToText(audioBlob) {
   try {
     console.log('🎤 Convertendo áudio para texto...');
+    console.log('🎤 Chave da API:', ELEVENLABS_API_KEY ? 'Configurada' : 'Não configurada');
     
-    // Converter blob para buffer
-    const audioBuffer = Buffer.from(await audioBlob.arrayBuffer());
+    if (!ELEVENLABS_API_KEY) {
+      throw new Error('Chave da API ElevenLabs não configurada');
+    }
+    
+    // Converter base64 para buffer
+    const audioBuffer = Buffer.from(audioBlob, 'base64');
     
     // Fazer requisição para ElevenLabs Speech-to-Text
     const response = await axios.post(`${ELEVENLABS_BASE_URL}/speech-to-text`, {
-      audio: audioBuffer.toString('base64'),
+      audio: audioBlob, // Já está em base64
       model: 'whisper-1'
     }, {
       headers: {
