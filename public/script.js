@@ -91,7 +91,16 @@ async function enviarFeedback(action, question, sourceRow, sugestao = '') {
 
     // Função addMessage movida para escopo global
     function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
+        console.log(`📝 Adicionando mensagem: ${sender} - ${text.substring(0, 50)}...`);
         const chatBox = document.getElementById('chat-box');
+        
+        if (!chatBox) {
+            console.error('❌ Chat box não encontrado!');
+            console.log('🔍 Elementos disponíveis:', document.querySelectorAll('[id*="chat"]'));
+            return;
+        }
+        
+        console.log('✅ Chat box encontrado:', chatBox);
 
         // Container principal da mensagem
         const messageContainer = document.createElement('div');
@@ -258,6 +267,9 @@ if (sender === 'bot') {
 
         chatBox.appendChild(messageContainer);
         chatBox.scrollTop = chatBox.scrollHeight;
+        console.log(`✅ Mensagem adicionada com sucesso. Total de mensagens: ${chatBox.children.length}`);
+        console.log('🔍 Elemento da mensagem:', messageContainer);
+        console.log('🔍 Conteúdo da mensagem:', messageContainer.innerHTML);
     }
 
     // Função autônoma para definir o tema inicial
@@ -310,8 +322,10 @@ if (sender === 'bot') {
 
     // Função para buscar resposta da IA com debug
     async function buscarRespostaAI(pergunta) {
-        // Esconder indicador de "digitando..."
-        hideTypingIndicator();
+        // Esconder indicador de "digitando..." apenas se estiver ativo
+        if (isTyping) {
+            hideTypingIndicator();
+        }
         
         if (!pergunta || !pergunta.trim()) {
             addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
@@ -334,6 +348,8 @@ if (sender === 'bot') {
                 mostrarSugestoes(sugestoes);
                 return;
             }
+            
+            console.log('🔍 Prosseguindo com busca normal...');
             
             // Primeiro tenta buscar na base local
             console.log('🔍 Buscando na base local...');
@@ -1065,8 +1081,12 @@ function buscarNaBaseLocal(pergunta, baseData) {
         }
 
         function handleSendMessage(text) {
+            console.log(`📤 Enviando mensagem: ${text}`);
             const trimmedText = text.trim();
-            if (!trimmedText) return;
+            if (!trimmedText) {
+                console.log('❌ Mensagem vazia, ignorando');
+                return;
+            }
             addMessage(trimmedText, 'user');
             logQuestionOnSheet(trimmedText, dadosAtendente.email);
             
@@ -1169,10 +1189,6 @@ if (feedbackSendBtn) {
         setInitialTheme();
         carregarNoticias();
         carregarStatusProdutos();
-        
-        // Inicializar melhorias de interface
-        addClearChatButton();
-        addKeyboardShortcuts();
     }
 
     // Inicia diretamente o Google Sign-In
@@ -1251,11 +1267,31 @@ function addClearChatButton() {
 }
 
 function clearChat() {
+    console.log('🗑️ Limpando conversa...');
     const chatBox = document.getElementById('chat-box');
     if (chatBox) {
         chatBox.innerHTML = '';
-        // Adicionar mensagem de boas-vindas
-        addMessage('Conversa limpa! Como posso ajudá-lo hoje?', 'bot', { source: 'Sistema' });
+        // Adicionar mensagem de boas-vindas usando a função correta
+        const messageContainer = document.createElement('div');
+        messageContainer.className = 'message-container bot';
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar bot';
+        avatar.textContent = '🤖';
+        
+        const messageContentDiv = document.createElement('div');
+        messageContentDiv.className = 'message-content';
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
+        messageDiv.innerHTML = '<p>Conversa limpa! Como posso ajudá-lo hoje?</p>';
+        
+        messageContentDiv.appendChild(messageDiv);
+        messageContainer.appendChild(avatar);
+        messageContainer.appendChild(messageContentDiv);
+        
+        chatBox.appendChild(messageContainer);
+        scrollToBottom();
     }
 }
 
@@ -1339,12 +1375,14 @@ async function mostrarSugestoes(categoria) {
         
         if (data.status === 'sucesso') {
             const sugestaoHTML = criarHTMLSugestoes(data);
-            addMessage(sugestaoHTML, "bot", { source: "Sugestões Inteligentes" });
+            addMessage(sugestaoHTML, "bot", { source: "Sugestões Inteligentes", html: true });
         } else {
             console.log('❌ Erro ao carregar sugestões:', data.error);
+            addMessage("Desculpe, não consegui carregar as sugestões no momento. Tente novamente.", "bot", { source: "Sistema" });
         }
     } catch (error) {
         console.error('❌ Erro ao buscar sugestões:', error);
+        addMessage("Desculpe, ocorreu um erro ao carregar as sugestões. Tente novamente.", "bot", { source: "Sistema" });
     }
 }
 
@@ -1390,3 +1428,40 @@ function selecionarSugestao(texto, pergunta, resposta) {
         mostrarSugestoes(texto.toLowerCase().replace(/\s+/g, '_'));
     }
 }
+
+// Inicializar melhorias de interface quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🎯 DOM carregado, inicializando melhorias...');
+    // Aguardar um pouco para garantir que todos os elementos estejam carregados
+    setTimeout(() => {
+        console.log('🔧 Adicionando botão de limpar conversa...');
+        addClearChatButton();
+        console.log('⌨️ Adicionando atalhos de teclado...');
+        addKeyboardShortcuts();
+        
+        // Adicionar mensagem inicial de boas-vindas
+        console.log('🎯 Adicionando mensagem inicial...');
+        addMessage('Olá! Sou o assistente virtual da Velo. Como posso ajudá-lo hoje?', 'bot', { source: 'Sistema' });
+        console.log('✅ Mensagem inicial adicionada');
+        
+        // Adicionar botão de teste temporário
+        const testButton = document.createElement('button');
+        testButton.textContent = 'TESTE - Adicionar Mensagem';
+        testButton.style.position = 'fixed';
+        testButton.style.top = '10px';
+        testButton.style.right = '10px';
+        testButton.style.zIndex = '9999';
+        testButton.style.padding = '10px';
+        testButton.style.backgroundColor = 'red';
+        testButton.style.color = 'white';
+        testButton.style.border = 'none';
+        testButton.style.borderRadius = '5px';
+        testButton.onclick = () => {
+            console.log('🧪 Teste: Adicionando mensagem de teste...');
+            addMessage('Esta é uma mensagem de teste!', 'bot', { source: 'Teste' });
+        };
+        document.body.appendChild(testButton);
+        
+        console.log('✅ Melhorias inicializadas com sucesso');
+    }, 1000);
+});

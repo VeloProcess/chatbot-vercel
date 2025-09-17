@@ -383,8 +383,8 @@ body.dark-theme #feedback-cancel {
     display: flex;
     margin-bottom: var(--espaco-md);
     max-width: 85%;
-    opacity: 0;
-    animation: fadeIn var(--transicao-normal) forwards;
+    opacity: 1;
+    animation: fadeIn 0.3s ease forwards;
 }
 .message-container.user {
     align-self: flex-end;
