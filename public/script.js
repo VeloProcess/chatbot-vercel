@@ -1133,6 +1133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Teste das variáveis de ambiente
                     addMessage('🔍 Testando variáveis de ambiente...', 'bot');
+                    console.log('🔍 Fazendo requisição para /api/test-env');
                     fetch('/api/test-env')
                         .then(response => {
                             console.log('🔍 Resposta do teste de env:', response.status);
