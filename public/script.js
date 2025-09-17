@@ -720,14 +720,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Inicializar funcionalidades de voz
         function initVoiceFeatures() {
+            console.log('🎤 Inicializando funcionalidades de voz...');
+            console.log('Voice button:', voiceButton);
+            console.log('Play button:', playResponseButton);
+            console.log('Stop button:', stopAudioButton);
+            console.log('Voice selector:', voiceSelector);
+            
             if (voiceButton) {
                 voiceButton.addEventListener('click', toggleRecording);
+                console.log('✅ Event listener adicionado ao botão de voz');
+            } else {
+                console.error('❌ Botão de voz não encontrado');
             }
+            
             if (playResponseButton) {
                 playResponseButton.addEventListener('click', playLastResponse);
+                console.log('✅ Event listener adicionado ao botão de play');
+            } else {
+                console.error('❌ Botão de play não encontrado');
             }
+            
             if (stopAudioButton) {
                 stopAudioButton.addEventListener('click', stopAudio);
+                console.log('✅ Event listener adicionado ao botão de stop');
+            } else {
+                console.error('❌ Botão de stop não encontrado');
             }
             
             // Carregar vozes disponíveis
@@ -899,7 +916,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Inicializar funcionalidades de voz quando DOM carregar
         document.addEventListener('DOMContentLoaded', () => {
-            initVoiceFeatures();
+            setTimeout(() => {
+                initVoiceFeatures();
+            }, 1000); // Aguardar 1 segundo para garantir que tudo carregou
         });
 
         userInput.addEventListener('keydown', (e) => {
