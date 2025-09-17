@@ -1,5 +1,14 @@
 // Variáveis globais
 let dadosAtendente = null;
+let sessionId = generateUUID();
+
+// Função para gerar UUID no escopo global
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
 
 // Função logQuestionOnSheet no escopo global
 async function logQuestionOnSheet(question, email) {
@@ -21,6 +30,117 @@ async function logQuestionOnSheet(question, email) {
         console.log('✅ Pergunta logada com sucesso');
     } catch (error) {
         console.error('❌ Erro ao logar pergunta:', error);
+    }
+}
+
+// Função buscarRespostaAI no escopo global
+async function buscarRespostaAI(pergunta) {
+    // Esconder indicador de "digitando..." apenas se estiver ativo
+    if (isTyping) {
+        hideTypingIndicator();
+    }
+    
+    if (!pergunta || !pergunta.trim()) {
+        addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
+        return;
+    }
+
+    if (!dadosAtendente || !dadosAtendente.email) {
+        addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
+        return;
+    }
+
+    try {
+        console.log('=== INICIANDO BUSCA ===');
+        console.log('Pergunta:', pergunta);
+        
+        // Verificar se deve mostrar sugestões PRIMEIRO
+        const sugestoes = verificarSugestoes(pergunta);
+        if (sugestoes) {
+            console.log('💡 Mostrando sugestões para:', pergunta);
+            mostrarSugestoes(sugestoes);
+            return;
+        }
+        
+        console.log('🔍 Prosseguindo com busca normal...');
+        
+        // Primeiro tenta buscar na base local
+        console.log('🔍 Buscando na base local...');
+        const baseResponse = await fetch('/api/base');
+        console.log('Status da resposta da API:', baseResponse.status);
+        
+        if (baseResponse.ok) {
+            const baseData = await baseResponse.json();
+            console.log('✅ Base carregada com sucesso');
+            console.log('Tipo de dados:', typeof baseData);
+            console.log('Estrutura:', Object.keys(baseData));
+            
+            if (baseData.base && Array.isArray(baseData.base)) {
+                console.log('📊 Total de itens na base:', baseData.base.length);
+                console.log(' Primeiros 3 títulos:', baseData.base.slice(0, 3).map(item => item.title));
+                
+                const respostaLocal = buscarNaBaseLocal(pergunta, baseData.base);
+                if (respostaLocal) {
+                    console.log('✅ Resposta encontrada na base local');
+                    addMessage(respostaLocal, "bot", { source: "Base Local" });
+                    return;
+                } else {
+                    console.log('❌ Nenhuma resposta encontrada na base local');
+                }
+            } else {
+                console.log('❌ Estrutura da base inválida:', baseData);
+            }
+        } else {
+            console.log('❌ Erro ao carregar base:', baseResponse.status);
+        }
+
+        console.log('🌐 Buscando em sites externos...');
+        // Se não encontrou na base local, busca em sites externos
+        const sitesAutorizados = [
+            "https://www.gov.br/receitafederal/pt-br",
+            "https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda",
+            "https://velotax.com.br/"
+        ];
+        
+        const contextoExterno = `Consulte as seguintes fontes oficiais para responder à pergunta: ${sitesAutorizados.join(', ')}`;
+        
+        const response = await fetch("/api/askOpenAI", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                pergunta, 
+                contextoPlanilha: contextoExterno, 
+                email: dadosAtendente.email 
+            })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error("Erro do backend:", response.status, text);
+            addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
+            return;
+        }
+
+        const resposta = await response.text();
+        console.log("Resposta bruta da API:", resposta);
+        
+        if (resposta.trim()) {
+            try {
+                const respostaJson = JSON.parse(resposta);
+                if (respostaJson.resposta) {
+                    addMessage(respostaJson.resposta, "bot", { source: "Sites Externos" });
+                } else {
+                    addMessage(resposta, "bot", { source: "Sites Externos" });
+                }
+            } catch (e) {
+                addMessage(resposta, "bot", { source: "Sites Externos" });
+            }
+        } else {
+            addMessage("Desculpe, não consegui encontrar uma resposta adequada para sua pergunta.", "bot", { source: "IA" });
+        }
+    } catch (err) {
+        console.error("Erro na requisição:", err);
+        addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
     }
 }
 
@@ -258,13 +378,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let tokenClient = null;
     let sessionId = generateUUID();
 
-    // Função para gerar UUID
-    function generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
 
 
     // === SISTEMA DE FEEDBACK INTELIGENTE ===
@@ -370,116 +483,6 @@ async function enviarFeedback(action, question, sourceRow, sugestao = '') {
         }
     }
 
-    // Função para buscar resposta da IA com debug
-    async function buscarRespostaAI(pergunta) {
-        // Esconder indicador de "digitando..." apenas se estiver ativo
-        if (isTyping) {
-            hideTypingIndicator();
-        }
-        
-        if (!pergunta || !pergunta.trim()) {
-            addMessage("Por favor, digite uma pergunta antes de enviar.", "bot", { source: "IA" });
-            return;
-        }
-
-        if (!dadosAtendente || !dadosAtendente.email) {
-            addMessage("Erro: Email do atendente não definido.", "bot", { source: "IA" });
-            return;
-        }
-
-        try {
-            console.log('=== INICIANDO BUSCA ===');
-            console.log('Pergunta:', pergunta);
-            
-            // Verificar se deve mostrar sugestões PRIMEIRO
-            const sugestoes = verificarSugestoes(pergunta);
-            if (sugestoes) {
-                console.log('💡 Mostrando sugestões para:', pergunta);
-                mostrarSugestoes(sugestoes);
-                return;
-            }
-            
-            console.log('🔍 Prosseguindo com busca normal...');
-            
-            // Primeiro tenta buscar na base local
-            console.log('🔍 Buscando na base local...');
-            const baseResponse = await fetch('/api/base');
-            console.log('Status da resposta da API:', baseResponse.status);
-            
-            if (baseResponse.ok) {
-                const baseData = await baseResponse.json();
-                console.log('✅ Base carregada com sucesso');
-                console.log('Tipo de dados:', typeof baseData);
-                console.log('Estrutura:', Object.keys(baseData));
-                
-                if (baseData.base && Array.isArray(baseData.base)) {
-                    console.log('📊 Total de itens na base:', baseData.base.length);
-                    console.log(' Primeiros 3 títulos:', baseData.base.slice(0, 3).map(item => item.title));
-                    
-                    const respostaLocal = buscarNaBaseLocal(pergunta, baseData.base);
-                    if (respostaLocal) {
-                        console.log('✅ Resposta encontrada na base local');
-                        addMessage(respostaLocal, "bot", { source: "Base Local" });
-                        return;
-                    } else {
-                        console.log('❌ Nenhuma resposta encontrada na base local');
-                    }
-                } else {
-                    console.log('❌ Estrutura da base inválida:', baseData);
-                }
-            } else {
-                console.log('❌ Erro ao carregar base:', baseResponse.status);
-            }
-
-            console.log('🌐 Buscando em sites externos...');
-            // Se não encontrou na base local, busca em sites externos
-            const sitesAutorizados = [
-                "https://www.gov.br/receitafederal/pt-br",
-                "https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda",
-                "https://velotax.com.br/"
-            ];
-            
-            const contextoExterno = `Consulte as seguintes fontes oficiais para responder à pergunta: ${sitesAutorizados.join(', ')}`;
-            
-            const response = await fetch("/api/askOpenAI", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    pergunta, 
-                    contextoPlanilha: contextoExterno, 
-                    email: dadosAtendente.email 
-                })
-            });
-
-            if (!response.ok) {
-                const text = await response.text();
-                console.error("Erro do backend:", response.status, text);
-                addMessage("Erro ao processar a pergunta no backend. Tente novamente.", "bot", { source: "IA" });
-                return;
-            }
-
-            const resposta = await response.text();
-            console.log("Resposta bruta da API:", resposta);
-            
-            if (resposta.trim()) {
-                try {
-                    const respostaJson = JSON.parse(resposta);
-                    if (respostaJson.resposta) {
-                        addMessage(respostaJson.resposta, "bot", { source: "Sites Externos" });
-                    } else {
-                        addMessage(resposta, "bot", { source: "Sites Externos" });
-                    }
-                } catch (e) {
-                    addMessage(resposta, "bot", { source: "Sites Externos" });
-                }
-            } else {
-                addMessage("Desculpe, não consegui encontrar uma resposta adequada para sua pergunta.", "bot", { source: "IA" });
-            }
-        } catch (err) {
-            console.error("Erro na requisição:", err);
-            addMessage("Erro ao processar sua pergunta. Tente novamente.", "bot", { source: "IA" });
-        }
-    }
     
     // Função para limpar palavras de apoio (stop words)
 function limparPalavrasApoio(texto) {
