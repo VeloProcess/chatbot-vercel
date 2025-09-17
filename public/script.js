@@ -1379,6 +1379,18 @@ async function mostrarSugestoes(categoria) {
         if (data.status === 'sucesso') {
             const sugestaoHTML = criarHTMLSugestoes(data);
             addMessage(sugestaoHTML, "bot", { source: "Sugestões Inteligentes", html: true });
+            
+            // Adicionar event listeners para os itens de sugestão
+            setTimeout(() => {
+                document.querySelectorAll('.sugestao-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const texto = item.getAttribute('data-texto');
+                        const pergunta = item.getAttribute('data-pergunta');
+                        const resposta = item.getAttribute('data-resposta');
+                        selecionarSugestao(texto, pergunta, resposta);
+                    });
+                });
+            }, 100);
         } else {
             console.log('❌ Erro ao carregar sugestões:', data.error);
             addMessage("Desculpe, não consegui carregar as sugestões no momento. Tente novamente.", "bot", { source: "Sistema" });
@@ -1401,7 +1413,7 @@ function criarHTMLSugestoes(data) {
         const classeItem = temResposta ? 'sugestao-item com-resposta' : 'sugestao-item';
         
         html += `
-            <div class="${classeItem}" onclick="selecionarSugestao('${opcao.texto}', '${opcao.pergunta || ''}', '${opcao.resposta || ''}')">
+            <div class="${classeItem}" data-texto="${opcao.texto}" data-pergunta="${opcao.pergunta || ''}" data-resposta="${opcao.resposta || ''}">
                 <span class="sugestao-texto">${opcao.texto}</span>
                 ${temResposta ? '<span class="sugestao-indicador">✓</span>' : ''}
             </div>
