@@ -584,12 +584,34 @@ Responda em JSON:
 async function processarComIA(pergunta, faqData, historico = [], email = null) {
   console.log('🤖 Iniciando processamento com IA avançada...');
 
+  // Timeout de 25 segundos para evitar 504
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Timeout da IA avançada')), 25000);
+  });
+
+  try {
+    const result = await Promise.race([
+      processarComIACore(pergunta, faqData, historico, email),
+      timeoutPromise
+    ]);
+    return result;
+  } catch (error) {
+    console.error('❌ Erro no processamento IA:', error);
+    return {
+      status: "erro_ia",
+      resposta: "Desculpe, ocorreu um erro no processamento. Tente novamente.",
+      source: "Sistema"
+    };
+  }
+}
+
+async function processarComIACore(pergunta, faqData, historico = [], email = null) {
   try {
     // 1. Busca rápida primeiro (sem IA)
     const buscaResultados = await buscaHibrida(pergunta, faqData, historico);
     
     // 2. Se encontrou resultados bons, usar IA apenas para melhorar a resposta
-    if (buscaResultados.confianca_geral > 0.8 && buscaResultados.resultados.length > 0) {
+    if (buscaResultados.confianca_geral > 0.7 && buscaResultados.resultados.length > 0) {
       console.log('⚡ Resposta rápida - usando IA apenas para melhorar');
       
       const contextoCompleto = buscaResultados.resultados.map(r => `P: ${r.pergunta}\nR: ${r.resposta}`).join('\n\n');
@@ -658,7 +680,7 @@ ${contextoExterno}
     let followUps = { followups: [], sugestoes_relacionadas: [] };
     let sugestoesProativas = { sugestoes_proativas: [] };
     
-    if (buscaResultados.confianca_geral > 0.7) {
+    if (buscaResultados.confianca_geral > 0.8) {
       // Gerar sugestões apenas para respostas de alta confiança
       [followUps, sugestoesProativas] = await Promise.all([
         gerarFollowUps(pergunta, resposta, contextoCompleto),
@@ -691,7 +713,7 @@ ${contextoExterno}
     return respostaFinal;
 
   } catch (error) {
-    console.error('❌ Erro no processamento IA:', error);
+    console.error('❌ Erro no processamento IA core:', error);
     return {
       status: "erro_ia",
       resposta: "Desculpe, ocorreu um erro no processamento. Tente novamente.",
