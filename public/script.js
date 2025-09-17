@@ -1,6 +1,30 @@
 // Variáveis globais
 let dadosAtendente = null;
 
+// Função handleSendMessage no escopo global
+function handleSendMessage(text) {
+    console.log(`📤 Enviando mensagem: ${text}`);
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+        console.log('❌ Mensagem vazia, ignorando');
+        return;
+    }
+    addMessage(trimmedText, 'user');
+    logQuestionOnSheet(trimmedText, dadosAtendente?.email || 'anônimo');
+    
+    // Mostrar indicador de "digitando..."
+    showTypingIndicator();
+    
+    // Buscar resposta com delay para mostrar o indicador
+    setTimeout(() => {
+        buscarRespostaAI(trimmedText);
+    }, 500);
+    
+    // Limpar input
+    const userInput = document.getElementById('user-input');
+    if (userInput) userInput.value = '';
+}
+
 // Função formatarAssinatura no escopo global
 function formatarAssinatura(nomeCompleto) {
     if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
@@ -1083,26 +1107,6 @@ function buscarNaBaseLocal(pergunta, baseData) {
             if (typingIndicator) typingIndicator.remove();
         }
 
-        function handleSendMessage(text) {
-            console.log(`📤 Enviando mensagem: ${text}`);
-            const trimmedText = text.trim();
-            if (!trimmedText) {
-                console.log('❌ Mensagem vazia, ignorando');
-                return;
-            }
-            addMessage(trimmedText, 'user');
-            logQuestionOnSheet(trimmedText, dadosAtendente.email);
-            
-            // Mostrar indicador de "digitando..."
-            showTypingIndicator();
-            
-            // Buscar resposta com delay para mostrar o indicador
-            setTimeout(() => {
-            buscarRespostaAI(trimmedText);
-            }, 500);
-            
-            userInput.value = '';
-        }
 
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {

@@ -22,103 +22,18 @@ async function conectarMongoDB() {
   return db;
 }
 
-// Mapeamento de categorias para sugestões
-const SUGESTOES_MAP = {
-  'credito': {
-    titulo: 'Você deseja saber mais sobre qual assunto de crédito?',
-    opcoes: [
-      { texto: 'Antecipação da Restituição', categoria: 'antecipacao' },
-      { texto: 'Crédito do Trabalhador', categoria: 'credito_trabalhador' },
-      { texto: 'Crédito Pessoal', categoria: 'credito_pessoal' },
-      { texto: 'Data dos Créditos (Lotes)', categoria: 'lotes' }
-    ]
-  },
-  'antecipacao': {
-    titulo: 'Sobre Antecipação da Restituição:',
-    opcoes: [
-      { texto: 'Abertura e Gestão de Conta', pergunta: 'Abertura de Conta Celcoin' },
-      { texto: 'Como contratar', pergunta: 'Antecipação contratação' },
-      { texto: 'Valores e Taxas', pergunta: 'Antecipação - Valores' },
-      { texto: 'Problemas e Erros', pergunta: 'Antecipação - Erro na Finalização' },
-      { texto: 'Quitação e Pagamento', pergunta: 'Antecipação - Como quitar' }
-    ]
-  },
-  'credito_trabalhador': {
-    titulo: 'Sobre Crédito do Trabalhador:',
-    opcoes: [
-      { texto: 'Como funciona', pergunta: 'Crédito do trabalhador - Como funciona' },
-      { texto: 'Contratação', pergunta: 'Crédito do trabalhador - Contratação' },
-      { texto: 'Liberação do valor', pergunta: 'Crédito do trabalhador - Liberação do valor' },
-      { texto: 'Como é descontado', pergunta: 'Crédito do trabalhador - Como é descontado?' },
-      { texto: 'Quitação', pergunta: 'Crédito do Trabalhador - Como quitar' }
-    ]
-  },
-  'credito_pessoal': {
-    titulo: 'Sobre Crédito Pessoal:',
-    opcoes: [
-      { texto: 'Como contratar', pergunta: 'Crédito pessoal - Como contratar' },
-      { texto: 'Critérios', pergunta: 'Crédito Pessoal - Critérios' },
-      { texto: 'Valores e taxas', pergunta: 'Crédito Pessoal - Quais são as taxas de juros?' },
-      { texto: 'Prazos e pagamento', pergunta: 'Crédito Pessoal - Qual o prazo para pagar?' },
-      { texto: 'Problemas e erros', pergunta: 'Empréstimo Pessoal - Erros' }
-    ]
-  },
-  'lotes': {
-    titulo: 'Data dos Créditos (Lotes):',
-    opcoes: [
-      { texto: 'Restituição - Data dos lotes', pergunta: 'Restituição - Data dos lotes' },
-      { texto: 'Restituição - Consulta', pergunta: 'Restituição - Consulta' },
-      { texto: 'Restituição - Em fila', pergunta: 'Restituição - Em fila' },
-      { texto: 'Restituição - No lote', pergunta: 'Restituição - No lote' },
-      { texto: 'Restituição - Não creditada', pergunta: 'Restituição - Não creditada' },
-      { texto: 'Terceiro lote', pergunta: 'Terceiro lote !!!' }
-    ]
-  },
-  'pix': {
-    titulo: 'PIX e Pagamentos:',
-    opcoes: [
-      { texto: 'PIX - Cadastro', pergunta: 'PIX - Cadastro' },
-      { texto: 'PIX - Como usar', pergunta: 'PIX - Como usar' },
-      { texto: 'PIX - Problemas', pergunta: 'PIX - Problemas' },
-      { texto: 'PIX - Valores', pergunta: 'PIX - Valores' }
-    ]
-  },
-  'conta': {
-    titulo: 'Abertura e Gestão de Conta:',
-    opcoes: [
-      { texto: 'Abertura de Conta', pergunta: 'Abertura de Conta Celcoin' },
-      { texto: 'Cadastro', pergunta: 'Cadastro' },
-      { texto: 'Documentos necessários', pergunta: 'Documentos necessários' },
-      { texto: 'Problemas no cadastro', pergunta: 'Problemas no cadastro' }
-    ]
-  },
-  'app': {
-    titulo: 'App e Tecnologia:',
-    opcoes: [
-      { texto: 'Download do App', pergunta: 'Download do App' },
-      { texto: 'Problemas no App', pergunta: 'Problemas no App' },
-      { texto: 'Atualizações', pergunta: 'Atualizações' },
-      { texto: 'Funcionalidades', pergunta: 'Funcionalidades' }
-    ]
-  },
-  'declaracao': {
-    titulo: 'Declaração de Imposto de Renda:',
-    opcoes: [
-      { texto: 'Como declarar', pergunta: 'Como declarar' },
-      { texto: 'Documentos necessários', pergunta: 'Documentos necessários' },
-      { texto: 'Prazo de entrega', pergunta: 'Prazo de entrega' },
-      { texto: 'Problemas na declaração', pergunta: 'Problemas na declaração' }
-    ]
-  },
-  'veloprime': {
-    titulo: 'VeloPrime e Investimentos:',
-    opcoes: [
-      { texto: 'O que é VeloPrime', pergunta: 'O que é VeloPrime' },
-      { texto: 'Como investir', pergunta: 'Como investir' },
-      { texto: 'Rentabilidade', pergunta: 'Rentabilidade' },
-      { texto: 'Resgate', pergunta: 'Resgate' }
-    ]
-  }
+// Mapeamento de palavras-chave para categorias
+const CATEGORIAS_KEYWORDS = {
+  'credito': ['crédito', 'credito', 'antecipação', 'antecipacao', 'trabalhador', 'pessoal', 'empréstimo', 'emprestimo'],
+  'antecipacao': ['antecipação', 'antecipacao', 'antecipar', 'restituição', 'restituicao'],
+  'credito_trabalhador': ['trabalhador', 'consignado', 'salário', 'salario'],
+  'credito_pessoal': ['pessoal', 'empréstimo', 'emprestimo', 'crédito pessoal'],
+  'lotes': ['lote', 'lotes', 'data', 'restituição', 'restituicao'],
+  'pix': ['pix', 'pagamento', 'transferência', 'transferencia'],
+  'conta': ['conta', 'cadastro', 'abertura', 'documento'],
+  'app': ['app', 'aplicativo', 'download', 'atualização', 'atualizacao'],
+  'declaracao': ['declaração', 'declaracao', 'imposto', 'renda', 'irpf'],
+  'veloprime': ['veloprime', 'investimento', 'investir', 'rentabilidade']
 };
 
 export default async function handler(req, res) {
@@ -142,51 +57,64 @@ export default async function handler(req, res) {
 
     console.log(`🔍 Buscando sugestões para categoria: ${categoria}`);
     
-    // Buscar sugestões no mapeamento
-    const sugestoes = SUGESTOES_MAP[categoria];
+    // Conectar ao MongoDB
+    const database = await conectarMongoDB();
+    const collection = database.collection(COLLECTION_NAME);
     
-    if (!sugestoes) {
+    // Buscar palavras-chave para a categoria
+    const keywords = CATEGORIAS_KEYWORDS[categoria];
+    
+    if (!keywords) {
       return res.status(404).json({
         status: 'erro',
         error: 'Categoria não encontrada'
       });
     }
 
-    // Se a categoria tem perguntas específicas, buscar respostas no MongoDB
-    const opcoesComRespostas = await Promise.all(
-      sugestoes.opcoes.map(async (opcao) => {
-        if (opcao.pergunta) {
-          try {
-            const database = await conectarMongoDB();
-            const collection = database.collection(COLLECTION_NAME);
-            
-            // Buscar resposta no MongoDB
-            const resultado = await collection.findOne({
-              $or: [
-                { pergunta: { $regex: opcao.pergunta, $options: 'i' } },
-                { palavras_chave: { $regex: opcao.pergunta, $options: 'i' } }
-              ]
-            });
-            
-            if (resultado) {
-              return {
-                ...opcao,
-                resposta: resultado.palavras_chave || resultado.resposta
-              };
-            }
-          } catch (error) {
-            console.error('❌ Erro ao buscar resposta:', error);
-          }
-        }
-        
-        return opcao;
-      })
-    );
+    // Criar regex para buscar perguntas relacionadas à categoria
+    const regexPattern = keywords.map(keyword => `(?=.*${keyword})`).join('');
+    const regex = new RegExp(regexPattern, 'i');
+    
+    // Buscar perguntas relacionadas no MongoDB
+    const resultados = await collection.find({
+      $or: [
+        { pergunta: { $regex: regex } },
+        { palavras_chave: { $regex: regex } }
+      ]
+    }).limit(10).toArray();
+    
+    if (resultados.length === 0) {
+      return res.status(404).json({
+        status: 'erro',
+        error: 'Nenhuma sugestão encontrada para esta categoria'
+      });
+    }
+
+    // Gerar título baseado na categoria
+    const titulos = {
+      'credito': 'Você deseja saber mais sobre qual assunto de crédito?',
+      'antecipacao': 'Sobre Antecipação da Restituição:',
+      'credito_trabalhador': 'Sobre Crédito do Trabalhador:',
+      'credito_pessoal': 'Sobre Crédito Pessoal:',
+      'lotes': 'Data dos Créditos (Lotes):',
+      'pix': 'PIX e Pagamentos:',
+      'conta': 'Abertura e Gestão de Conta:',
+      'app': 'App e Tecnologia:',
+      'declaracao': 'Declaração de Imposto de Renda:',
+      'veloprime': 'VeloPrime e Investimentos:'
+    };
+
+    // Criar opções baseadas nos resultados do MongoDB
+    const opcoes = resultados.map(item => ({
+      texto: item.pergunta,
+      pergunta: item.pergunta,
+      resposta: item.palavras_chave || item.resposta
+    }));
 
     return res.status(200).json({
       status: 'sucesso',
-      titulo: sugestoes.titulo,
-      opcoes: opcoesComRespostas
+      titulo: titulos[categoria] || 'Sugestões relacionadas:',
+      opcoes: opcoes
     });
 
   } catch (error) {
