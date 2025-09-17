@@ -11,6 +11,196 @@ function generateUUID() {
     });
 }
 
+// Função para limpar palavras de apoio (stop words)
+function limparPalavrasApoio(texto) {
+    const stopWords = [
+        'como', 'o', 'a', 'os', 'as', 'um', 'uma', 'uns', 'umas',
+        'de', 'da', 'do', 'das', 'dos', 'em', 'na', 'no', 'nas', 'nos',
+        'para', 'por', 'com', 'sem', 'sobre', 'sob', 'entre', 'durante',
+        'quando', 'onde', 'quem', 'que', 'qual', 'quais', 'cujo', 'cuja',
+        'cujos', 'cujas', 'meu', 'minha', 'meus', 'minhas', 'teu', 'tua',
+        'teus', 'tuas', 'seu', 'sua', 'seus', 'suas', 'nosso', 'nossa',
+        'nossos', 'nossas', 'deles', 'delas', 'ele', 'ela', 'eles', 'elas',
+        'eu', 'tu', 'nós', 'vocês', 'eles', 'elas', 'este', 'esta', 'estes',
+        'estas', 'esse', 'essa', 'esses', 'essas', 'aquele', 'aquela',
+        'aqueles', 'aquelas', 'isto', 'isso', 'aquilo', 'aqui', 'aí', 'ali',
+        'aqui', 'acolá', 'hoje', 'ontem', 'amanhã', 'agora', 'antes', 'depois',
+        'sempre', 'nunca', 'já', 'ainda', 'também', 'só', 'apenas', 'muito',
+        'pouco', 'mais', 'menos', 'bem', 'mal', 'sim', 'não', 'talvez',
+        'pode', 'poder', 'deve', 'dever', 'precisa', 'precisar', 'quer',
+        'querer', 'gosta', 'gostar', 'tem', 'ter', 'há', 'haver', 'é', 'ser',
+        'está', 'estar', 'foi', 'fui', 'vai', 'vou', 'vem', 'venho', 'vem',
+        'vem', 'vem', 'vem', 'vem', 'vem', 'vem', 'vem', 'vem', 'vem'
+    ];
+    
+    return texto.toLowerCase()
+        .split(/\s+/)
+        .filter(palavra => palavra.length > 2 && !stopWords.includes(palavra))
+        .join(' ');
+}
+
+// Função para buscar na base local com limpeza de palavras de apoio
+function buscarNaBaseLocal(pergunta, baseData) {
+    const perguntaOriginal = pergunta;
+    const perguntaLimpa = limparPalavrasApoio(pergunta);
+    
+    console.log('=== BUSCA NA BASE LOCAL ===');
+    console.log('Pergunta original:', perguntaOriginal);
+    console.log('Pergunta limpa:', perguntaLimpa);
+    console.log('Base data type:', typeof baseData);
+    console.log('É array?', Array.isArray(baseData));
+    console.log('Total de itens:', baseData ? baseData.length : 'UNDEFINED');
+    
+    if (!baseData || !Array.isArray(baseData)) {
+        console.log('❌ ERRO: baseData inválido');
+        return null;
+    }
+    
+    const resultados = [];
+    
+    // 1. BUSCA EXATA NO TÍTULO (com pergunta original)
+    for (const item of baseData) {
+        if (item.title && item.title.toLowerCase().trim() === perguntaOriginal.toLowerCase().trim()) {
+            console.log('✅ TÍTULO EXATO:', item.title);
+            return item.content;
+        }
+    }
+    
+    // 2. BUSCA EXATA NO TÍTULO (com pergunta limpa)
+    for (const item of baseData) {
+        if (item.title && limparPalavrasApoio(item.title) === perguntaLimpa) {
+            console.log('✅ TÍTULO EXATO (limpo):', item.title);
+            return item.content;
+        }
+    }
+    
+    // 3. BUSCA POR PALAVRAS-CHAVE (com pergunta limpa)
+    for (const item of baseData) {
+        if (item.keywords && Array.isArray(item.keywords)) {
+            for (const keyword of item.keywords) {
+                if (keyword) {
+                    const keywordLimpo = limparPalavrasApoio(keyword);
+                    if (keywordLimpo.includes(perguntaLimpa) || perguntaLimpa.includes(keywordLimpo)) {
+                        console.log('✅ KEYWORD encontrado (limpo):', keyword);
+                        resultados.push({ item, score: 0.9, source: 'Keyword Limpo' });
+                    }
+                }
+            }
+        }
+    }
+    
+    // 4. BUSCA POR SINÔNIMOS (com pergunta limpa)
+    for (const item of baseData) {
+        if (item.sinonimos && Array.isArray(item.sinonimos)) {
+            for (const sinonimo of item.sinonimos) {
+                if (sinonimo) {
+                    const sinonimoLimpo = limparPalavrasApoio(sinonimo);
+                    if (sinonimoLimpo.includes(perguntaLimpa) || perguntaLimpa.includes(sinonimoLimpo)) {
+                        console.log('✅ SINÔNIMO encontrado (limpo):', sinonimo);
+                        resultados.push({ item, score: 0.8, source: 'Sinônimo Limpo' });
+                    }
+                }
+            }
+        }
+    }
+    
+    // 5. BUSCA POR PALAVRAS INDIVIDUAIS (com pergunta limpa)
+    const palavrasPergunta = perguntaLimpa.split(/\s+/).filter(p => p.length > 2);
+    console.log('Palavras da pergunta limpa:', palavrasPergunta);
+    
+    for (const item of baseData) {
+        let score = 0;
+        let palavrasEncontradas = 0;
+        
+        // Verifica no título (limpo)
+        if (item.title) {
+            const tituloLimpo = limparPalavrasApoio(item.title);
+            for (const palavra of palavrasPergunta) {
+                if (tituloLimpo.includes(palavra)) {
+                    score += 0.4; // Aumenta a pontuação para palavras limpas
+                    palavrasEncontradas++;
+                    console.log(`✅ Palavra "${palavra}" no título limpo:`, item.title);
+                }
+            }
+        }
+        
+        // Verifica nas keywords (limpas)
+        if (item.keywords && Array.isArray(item.keywords)) {
+            for (const keyword of item.keywords) {
+                if (keyword) {
+                    const keywordLimpo = limparPalavrasApoio(keyword);
+                    for (const palavra of palavrasPergunta) {
+                        if (keywordLimpo.includes(palavra)) {
+                            score += 0.3; // Aumenta a pontuação para keywords limpas
+                            palavrasEncontradas++;
+                            console.log(`✅ Palavra "${palavra}" na keyword limpa:`, keyword);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Verifica no conteúdo (limpo)
+        if (item.content) {
+            const conteudoLimpo = limparPalavrasApoio(item.content);
+            for (const palavra of palavrasPergunta) {
+                if (conteudoLimpo.includes(palavra)) {
+                    score += 0.2; // Aumenta a pontuação para conteúdo limpo
+                    palavrasEncontradas++;
+                    console.log(`✅ Palavra "${palavra}" no conteúdo limpo:`, item.title);
+                }
+            }
+        }
+        
+        // Verifica nos sinônimos (limpos)
+        if (item.sinonimos && Array.isArray(item.sinonimos)) {
+            for (const sinonimo of item.sinonimos) {
+                if (sinonimo) {
+                    const sinonimoLimpo = limparPalavrasApoio(sinonimo);
+                    for (const palavra of palavrasPergunta) {
+                        if (sinonimoLimpo.includes(palavra)) {
+                            score += 0.25; // Aumenta a pontuação para sinônimos limpos
+                            palavrasEncontradas++;
+                            console.log(`✅ Palavra "${palavra}" no sinônimo limpo:`, sinonimo);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Se encontrou pelo menos uma palavra, adiciona aos resultados
+        if (palavrasEncontradas > 0) {
+            resultados.push({ 
+                item, 
+                score: score / palavrasEncontradas, // Normaliza o score
+                source: 'Palavras Individuais Limpas',
+                palavrasEncontradas 
+            });
+        }
+    }
+    
+    // 6. ORDENAR RESULTADOS POR SCORE
+    resultados.sort((a, b) => b.score - a.score);
+    
+    console.log('=== RESULTADOS DA BUSCA ===');
+    console.log('Total de resultados:', resultados.length);
+    resultados.forEach((resultado, index) => {
+        console.log(`${index + 1}. ${resultado.item.title} - Score: ${resultado.score.toFixed(3)} - Fonte: ${resultado.source}`);
+    });
+    
+    // 7. RETORNAR O MELHOR RESULTADO
+    if (resultados.length > 0) {
+        const melhorResultado = resultados[0];
+        console.log('✅ MELHOR RESULTADO:', melhorResultado.item.title);
+        console.log('Score final:', melhorResultado.score);
+        console.log('Fonte:', melhorResultado.source);
+        return melhorResultado.item.content;
+    }
+    
+    console.log('❌ Nenhum resultado encontrado na base local');
+    return null;
+}
+
 // Função logQuestionOnSheet no escopo global
 async function logQuestionOnSheet(question, email) {
     if (!question || !email) return;
@@ -513,218 +703,7 @@ async function enviarFeedback(action, question, sourceRow, sugestao = '') {
         }
     }
 
-    
-    // Função para limpar palavras de apoio (stop words)
-function limparPalavrasApoio(texto) {
-    const stopWords = [
-        'como', 'o', 'a', 'os', 'as', 'um', 'uma', 'uns', 'umas',
-        'de', 'da', 'do', 'das', 'dos', 'em', 'na', 'no', 'nas', 'nos',
-        'para', 'por', 'com', 'sem', 'sobre', 'sob', 'entre', 'durante',
-        'quando', 'onde', 'quem', 'que', 'qual', 'quais', 'cujo', 'cuja',
-        'meu', 'minha', 'meus', 'minhas', 'seu', 'sua', 'seus', 'suas',
-        'nosso', 'nossa', 'nossos', 'nossas', 'teu', 'tua', 'teus', 'tuas',
-        'ele', 'ela', 'eles', 'elas', 'nós', 'você', 'vocês', 'eu', 'tu',
-        'este', 'esta', 'estes', 'estas', 'esse', 'essa', 'esses', 'essas',
-        'aquele', 'aquela', 'aqueles', 'aquelas', 'isto', 'isso', 'aquilo',
-        'cliente', 'pessoa', 'usuário', 'atendente', 'funcionário',
-        'é', 'são', 'foi', 'foram', 'será', 'serão', 'está', 'estão',
-        'estava', 'estavam', 'estiver', 'estiverem', 'tem', 'têm',
-        'tinha', 'tinham', 'terá', 'terão', 'tiver', 'tiverem',
-        'pode', 'podem', 'podia', 'podiam', 'poderá', 'poderão',
-        'poder', 'poderiam', 'deve', 'devem', 'devia', 'deviam',
-        'deverá', 'deverão', 'dever', 'deveriam', 'quer', 'querem',
-        'queria', 'queriam', 'quererá', 'quererão', 'querer', 'quereriam',
-        'vai', 'vão', 'ia', 'iam', 'irá', 'irão', 'ir', 'iriam',
-        'faz', 'fazem', 'fazia', 'faziam', 'fará', 'farão', 'fazer', 'fariam',
-        'diz', 'dizem', 'dizia', 'diziam', 'dirá', 'dirão', 'dizer', 'diriam',
-        'vem', 'vêm', 'vinha', 'vinham', 'virá', 'virão', 'vir', 'viriam',
-        'vê', 'veem', 'via', 'viam', 'verá', 'verão', 'ver', 'veriam',
-        'sabe', 'sabem', 'sabia', 'sabiam', 'saberá', 'saberão', 'saber', 'saberiam',
-        'conhece', 'conhecem', 'conhecia', 'conheciam', 'conhecerá', 'conhecerão', 'conhecer', 'conheceriam',
-        'tem', 'têm', 'tinha', 'tinham', 'terá', 'terão', 'ter', 'teriam',
-        'há', 'havia', 'haviam', 'haverá', 'haverão', 'haver', 'haveriam',
-        'existe', 'existem', 'existia', 'existiam', 'existirá', 'existirão', 'existir', 'existiriam',
-        'aparece', 'aparecem', 'aparecia', 'apareciam', 'aparecerá', 'aparecerão', 'aparecer', 'apareceriam',
-        'acontece', 'acontecem', 'acontecia', 'aconteciam', 'acontecerá', 'acontecerão', 'acontecer', 'aconteceriam',
-        'sempre', 'nunca', 'jamais', 'também', 'ainda', 'já', 'agora', 'hoje', 'ontem', 'amanhã',
-        'aqui', 'ali', 'lá', 'aí', 'cá', 'acolá', 'onde', 'aonde', 'donde', 'adonde',
-        'muito', 'pouco', 'bastante', 'demais', 'mais', 'menos', 'tanto', 'quanto',
-        'bem', 'mal', 'melhor', 'pior', 'grande', 'pequeno', 'alto', 'baixo',
-        'novo', 'velho', 'jovem', 'antigo', 'moderno', 'atual', 'recente',
-        'primeiro', 'último', 'segundo', 'terceiro', 'quarto', 'quinto',
-        'tudo', 'nada', 'algo', 'algum', 'alguma', 'alguns', 'algumas',
-        'nenhum', 'nenhuma', 'nenhuns', 'nenhumas', 'todo', 'toda', 'todos', 'todas',
-        'cada', 'qualquer', 'quaisquer', 'outro', 'outra', 'outros', 'outras',
-        'mesmo', 'mesma', 'mesmos', 'mesmas', 'próprio', 'própria', 'próprios', 'próprias',
-        'tal', 'tais', 'tanto', 'tanta', 'tantos', 'tantas', 'quanto', 'quanta', 'quantos', 'quantas',
-        'vário', 'vária', 'vários', 'várias', 'diverso', 'diversa', 'diversos', 'diversas',
-        'certo', 'certa', 'certos', 'certas', 'errado', 'errada', 'errados', 'erradas',
-        'verdadeiro', 'verdadeira', 'verdadeiros', 'verdadeiras', 'falso', 'falsa', 'falsos', 'falsas',
-        'sim', 'não', 'talvez', 'provavelmente', 'possivelmente', 'certamente', 'obviamente',
-        'realmente', 'verdadeiramente', 'efetivamente', 'de fato', 'na verdade',
-        'então', 'assim', 'dessa forma', 'desse modo', 'dessa maneira',
-        'portanto', 'logo', 'consequentemente', 'por isso', 'por causa disso',
-        'mas', 'porém', 'contudo', 'todavia', 'entretanto', 'no entanto',
-        'e', 'ou', 'nem', 'mas também', 'bem como', 'assim como',
-        'se', 'caso', 'quando', 'enquanto', 'durante', 'até', 'desde',
-        'porque', 'pois', 'já que', 'visto que', 'uma vez que',
-        'embora', 'ainda que', 'mesmo que', 'mesmo se', 'por mais que',
-        'a fim de', 'para que', 'de modo que', 'de forma que',
-        'sem que', 'a menos que', 'salvo se', 'exceto se',
-        'além de', 'além disso', 'ademais', 'também', 'igualmente',
-        'por outro lado', 'por sua vez', 'por sua parte',
-        'primeiro', 'segundo', 'terceiro', 'por último', 'finalmente',
-        'em primeiro lugar', 'em segundo lugar', 'em terceiro lugar',
-        'inicialmente', 'depois', 'em seguida', 'posteriormente',
-        'anteriormente', 'antes', 'previamente', 'primeiramente'
-    ];
-    
-    return texto
-        .toLowerCase()
-        .split(/\s+/)
-        .filter(palavra => palavra.length > 2 && !stopWords.includes(palavra))
-        .join(' ');
-}
 
-// Função para buscar na base local com limpeza de palavras de apoio
-function buscarNaBaseLocal(pergunta, baseData) {
-    const perguntaOriginal = pergunta;
-    const perguntaLimpa = limparPalavrasApoio(pergunta);
-    
-    console.log('=== BUSCA NA BASE LOCAL ===');
-    console.log('Pergunta original:', perguntaOriginal);
-    console.log('Pergunta limpa:', perguntaLimpa);
-    console.log('Base data type:', typeof baseData);
-    console.log('É array?', Array.isArray(baseData));
-    console.log('Total de itens:', baseData ? baseData.length : 'UNDEFINED');
-    
-    if (!baseData || !Array.isArray(baseData)) {
-        console.log('❌ ERRO: baseData inválido');
-        return null;
-    }
-    
-    const resultados = [];
-    
-    // 1. BUSCA EXATA NO TÍTULO (com pergunta original)
-    for (const item of baseData) {
-        if (item.title && item.title.toLowerCase().trim() === perguntaOriginal.toLowerCase().trim()) {
-            console.log('✅ TÍTULO EXATO:', item.title);
-            return item.content;
-        }
-    }
-    
-    // 2. BUSCA EXATA NO TÍTULO (com pergunta limpa)
-    for (const item of baseData) {
-        if (item.title && limparPalavrasApoio(item.title) === perguntaLimpa) {
-            console.log('✅ TÍTULO EXATO (limpo):', item.title);
-            return item.content;
-        }
-    }
-    
-    // 3. BUSCA POR PALAVRAS-CHAVE (com pergunta limpa)
-    for (const item of baseData) {
-        if (item.keywords && Array.isArray(item.keywords)) {
-            for (const keyword of item.keywords) {
-                if (keyword) {
-                    const keywordLimpo = limparPalavrasApoio(keyword);
-                    if (keywordLimpo.includes(perguntaLimpa) || perguntaLimpa.includes(keywordLimpo)) {
-                        console.log('✅ KEYWORD encontrado (limpo):', keyword);
-                        resultados.push({ item, score: 0.9, source: 'Keyword Limpo' });
-                    }
-                }
-            }
-        }
-    }
-    
-    // 4. BUSCA POR SINÔNIMOS (com pergunta limpa)
-    for (const item of baseData) {
-        if (item.sinonimos && Array.isArray(item.sinonimos)) {
-            for (const sinonimo of item.sinonimos) {
-                if (sinonimo) {
-                    const sinonimoLimpo = limparPalavrasApoio(sinonimo);
-                    if (sinonimoLimpo.includes(perguntaLimpa) || perguntaLimpa.includes(sinonimoLimpo)) {
-                        console.log('✅ SINÔNIMO encontrado (limpo):', sinonimo);
-                        resultados.push({ item, score: 0.8, source: 'Sinônimo Limpo' });
-                    }
-                }
-            }
-        }
-    }
-    
-    // 5. BUSCA POR PALAVRAS INDIVIDUAIS (com pergunta limpa)
-    const palavrasPergunta = perguntaLimpa.split(/\s+/).filter(p => p.length > 2);
-    console.log('Palavras da pergunta limpa:', palavrasPergunta);
-    
-    for (const item of baseData) {
-        let score = 0;
-        let palavrasEncontradas = 0;
-        
-        // Verifica no título (limpo)
-        if (item.title) {
-            const tituloLimpo = limparPalavrasApoio(item.title);
-            for (const palavra of palavrasPergunta) {
-                if (tituloLimpo.includes(palavra)) {
-                    score += 0.4; // Aumenta a pontuação para palavras limpas
-                    palavrasEncontradas++;
-                    console.log(`✅ Palavra "${palavra}" no título limpo:`, item.title);
-                }
-            }
-        }
-        
-        // Verifica nas keywords (limpas)
-        if (item.keywords && Array.isArray(item.keywords)) {
-            for (const keyword of item.keywords) {
-                if (keyword) {
-                    const keywordLimpo = limparPalavrasApoio(keyword);
-                    for (const palavra of palavrasPergunta) {
-                        if (keywordLimpo.includes(palavra)) {
-                            score += 0.3; // Aumenta a pontuação para keywords limpas
-                            palavrasEncontradas++;
-                            console.log(`✅ Palavra "${palavra}" na keyword limpa:`, keyword);
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Verifica nos sinônimos (limpos)
-        if (item.sinonimos && Array.isArray(item.sinonimos)) {
-            for (const sinonimo of item.sinonimos) {
-                if (sinonimo) {
-                    const sinonimoLimpo = limparPalavrasApoio(sinonimo);
-                    for (const palavra of palavrasPergunta) {
-                        if (sinonimoLimpo.includes(palavra)) {
-                            score += 0.2; // Aumenta a pontuação para sinônimos limpos
-                            palavrasEncontradas++;
-                            console.log(`✅ Palavra "${palavra}" no sinônimo limpo:`, sinonimo);
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (score > 0.3) {
-            resultados.push({ item, score, source: 'Palavras Limpas', match: `${palavrasEncontradas} palavras` });
-        }
-    }
-    
-    // Ordena por pontuação
-    resultados.sort((a, b) => b.score - a.score);
-    
-    console.log('Resultados encontrados:', resultados.length);
-    resultados.forEach((r, i) => {
-        console.log(`${i + 1}. ${r.item.title} (${r.score.toFixed(2)}) - ${r.source}`);
-    });
-    
-    if (resultados.length > 0) {
-        const melhor = resultados[0];
-        console.log('✅ MELHOR RESULTADO:', melhor.item.title);
-        return melhor.item.content;
-    }
-    
-    console.log('❌ Nenhum resultado encontrado');
-    return null;
-}
 
     // Função para calcular similaridade entre strings (tolerante a erros)
     function calcularSimilaridade(str1, str2) {
