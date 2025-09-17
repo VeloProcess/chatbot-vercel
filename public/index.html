@@ -17,17 +17,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script>
-        // Suprimir warnings do Vercel Analytics
-        const originalConsoleWarn = console.warn;
-        console.warn = function(...args) {
-            if (args[0] && typeof args[0] === 'string' && 
-                (args[0].includes('DialogContent') || args[0].includes('DialogTitle') || args[0].includes('Description'))) {
-                return; // Suprimir warnings de acessibilidade do Vercel
-            }
-            originalConsoleWarn.apply(console, args);
-        };
-    </script>
+    <script src="suppress-warnings.js"></script>
 </head>
 <body>
     <div id="identificacao-overlay" class="hidden">
