@@ -1133,10 +1133,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Teste das variáveis de ambiente
                     addMessage('🔍 Testando variáveis de ambiente...', 'bot');
-                    console.log('🔍 Fazendo requisição para /api/test-env');
+                    console.log('🔍 Fazendo requisição para /api/voice?action=debug');
                     
                     // Teste direto da URL
-                    const testUrl = window.location.origin + '/api/test-env';
+                    const testUrl = window.location.origin + '/api/voice?action=debug';
                     console.log('🔍 URL de teste:', testUrl);
                     
                     fetch(testUrl)
