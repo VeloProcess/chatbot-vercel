@@ -1303,15 +1303,31 @@ function addKeyboardShortcuts() {
 function verificarSugestoes(pergunta) {
     const perguntaLower = pergunta.toLowerCase().trim();
     
-    // Mapeamento de palavras-chave para categorias
+    console.log('🔍 Verificando sugestões para:', perguntaLower);
+    
+    // Verificar frases específicas primeiro (mais específicas)
+    if (perguntaLower.includes('crédito do trabalhador') || perguntaLower.includes('credito do trabalhador') || 
+        perguntaLower.includes('contratação do crédito') || perguntaLower.includes('contratacao do credito') ||
+        perguntaLower.includes('como contratar crédito') || perguntaLower.includes('como contratar credito')) {
+        console.log('✅ Detectado: Crédito do Trabalhador');
+        return 'credito_trabalhador';
+    }
+    
+    if (perguntaLower.includes('crédito pessoal') || perguntaLower.includes('credito pessoal')) {
+        console.log('✅ Detectado: Crédito Pessoal');
+        return 'credito_pessoal';
+    }
+    
+    if (perguntaLower.includes('antecipação') || perguntaLower.includes('antecipacao') || 
+        perguntaLower.includes('restituição') || perguntaLower.includes('restituicao')) {
+        console.log('✅ Detectado: Antecipação');
+        return 'antecipacao';
+    }
+    
+    // Mapeamento de palavras-chave para categorias (menos específicas)
     const mapeamentoSugestoes = {
         'credito': 'credito',
         'crédito': 'credito',
-        'antecipacao': 'antecipacao',
-        'antecipação': 'antecipacao',
-        'antecipar': 'antecipacao',
-        'restituicao': 'antecipacao',
-        'restituição': 'antecipacao',
         'trabalhador': 'credito_trabalhador',
         'pessoal': 'credito_pessoal',
         'emprestimo': 'credito_pessoal',

@@ -27,8 +27,8 @@ async function conectarMongoDB() {
 const CATEGORIAS_KEYWORDS = {
   'credito': ['crédito', 'credito', 'antecipação', 'antecipacao', 'trabalhador', 'pessoal', 'empréstimo', 'emprestimo'],
   'antecipacao': ['antecipação', 'antecipacao', 'antecipar', 'restituição', 'restituicao'],
-  'credito_trabalhador': ['trabalhador', 'consignado', 'salário', 'salario'],
-  'credito_pessoal': ['pessoal', 'empréstimo', 'emprestimo', 'crédito pessoal'],
+  'credito_trabalhador': ['trabalhador', 'consignado', 'salário', 'salario', 'contratação', 'contratacao', 'crédito do trabalhador', 'credito do trabalhador', 'como contratar', 'contratar'],
+  'credito_pessoal': ['pessoal', 'empréstimo', 'emprestimo', 'crédito pessoal', 'credito pessoal'],
   'lotes': ['lote', 'lotes', 'data', 'restituição', 'restituicao'],
   'pix': ['pix', 'pagamento', 'transferência', 'transferencia'],
   'conta': ['conta', 'cadastro', 'abertura', 'documento'],
@@ -76,15 +76,17 @@ export default async function handler(req, res) {
     const database = await conectarMongoDB();
     const collection = database.collection(COLLECTION_NAME);
     
-    // Buscar perguntas relacionadas no MongoDB
+    // Buscar perguntas relacionadas no MongoDB com busca mais específica
     const resultados = await collection.find({
-      $or: keywords.map(keyword => ({
-        $or: [
-          { pergunta: { $regex: keyword, $options: 'i' } },
-          { palavras_chave: { $regex: keyword, $options: 'i' } }
-        ]
-      }))
-    }).limit(10).toArray();
+      $or: [
+        // Busca exata na pergunta
+        { pergunta: { $regex: keywords.join('|'), $options: 'i' } },
+        // Busca nas palavras-chave
+        { palavras_chave: { $regex: keywords.join('|'), $options: 'i' } },
+        // Busca na resposta
+        { resposta: { $regex: keywords.join('|'), $options: 'i' } }
+      ]
+    }).limit(15).toArray();
     
     console.log(`🔍 Resultados encontrados: ${resultados.length}`);
     
@@ -111,9 +113,18 @@ export default async function handler(req, res) {
 
     // Criar opções baseadas nos resultados do MongoDB
     const opcoes = resultados.map(item => {
+      console.log('📋 Item do MongoDB:', {
+        pergunta: item.pergunta,
+        resposta: item.resposta,
+        palavras_chave: item.palavras_chave,
+        content: item.content
+      });
+      
       // Limpar e formatar os dados
       const pergunta = item.pergunta || 'Pergunta não disponível';
-      const resposta = item.resposta || item.palavras_chave || 'Resposta não disponível';
+      
+      // Priorizar o campo 'resposta' real, não palavras_chave
+      const resposta = item.resposta || item.content || 'Resposta não disponível';
       
       // Limpar caracteres especiais e quebras de linha
       const perguntaLimpa = pergunta
@@ -125,6 +136,11 @@ export default async function handler(req, res) {
         .replace(/[\r\n\t]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+      
+      console.log('✅ Dados processados:', {
+        perguntaLimpa,
+        respostaLimpa
+      });
       
       return {
         texto: perguntaLimpa,
