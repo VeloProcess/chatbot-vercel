@@ -1,6 +1,7 @@
 // Variáveis globais
 let dadosAtendente = null;
 let sessionId = generateUUID();
+let isTyping = false;
 
 // Função para gerar UUID no escopo global
 function generateUUID() {
@@ -31,6 +32,37 @@ async function logQuestionOnSheet(question, email) {
     } catch (error) {
         console.error('❌ Erro ao logar pergunta:', error);
     }
+}
+
+// Funções de indicador de "digitando..." no escopo global
+function showTypingIndicator() {
+    isTyping = true;
+    const chatBox = document.getElementById('chat-box');
+    if (chatBox) {
+        const typingIndicator = document.createElement('div');
+        typingIndicator.id = 'typing-indicator';
+        typingIndicator.className = 'message-container bot';
+        typingIndicator.innerHTML = `
+            <div class="avatar bot">🤖</div>
+            <div class="message-content">
+                <div class="message">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+        `;
+        chatBox.appendChild(typingIndicator);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+}
+
+function hideTypingIndicator() {
+    isTyping = false;
+    const typingIndicator = document.getElementById('typing-indicator');
+    if (typingIndicator) typingIndicator.remove();
 }
 
 // Função buscarRespostaAI no escopo global
@@ -374,9 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================== VARIÁVEIS DE ESTADO ==================
     let ultimaPergunta = '';
     let ultimaLinhaDaFonte = null;
-    let isTyping = false;
     let tokenClient = null;
-    let sessionId = generateUUID();
 
 
 
@@ -1098,22 +1128,6 @@ function buscarNaBaseLocal(pergunta, baseData) {
             }
         }
 
-        function showTypingIndicator() {
-            if (isTyping) return;
-            isTyping = true;
-            const typingContainer = document.createElement('div');
-            typingContainer.className = 'message-container bot typing-indicator';
-            typingContainer.id = 'typing-indicator';
-            typingContainer.innerHTML = `<div class="avatar bot">🤖</div><div class="message-content"><div class="message"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
-            chatBox.appendChild(typingContainer);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        function hideTypingIndicator() {
-            isTyping = false;
-            const typingIndicator = document.getElementById('typing-indicator');
-            if (typingIndicator) typingIndicator.remove();
-        }
 
 
         userInput.addEventListener('keydown', (e) => {
@@ -1222,38 +1236,6 @@ function scrollToBottom() {
     }
 }
 
-function showTypingIndicator() {
-    const chatBox = document.getElementById('chat-box');
-    if (!chatBox) return;
-    
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'message-container bot typing-indicator';
-    typingDiv.id = 'typing-indicator';
-    
-    typingDiv.innerHTML = `
-        <div class="avatar bot">🤖</div>
-        <div class="message-content">
-            <div class="message">
-                <div class="typing-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-                <span class="typing-text">Digitando...</span>
-            </div>
-        </div>
-    `;
-    
-    chatBox.appendChild(typingDiv);
-    scrollToBottom();
-}
-
-function hideTypingIndicator() {
-    const typingIndicator = document.getElementById('typing-indicator');
-    if (typingIndicator) {
-        typingIndicator.remove();
-    }
-}
 
 function addTimestampToMessage(messageContainer) {
     const timestamp = new Date().toLocaleTimeString('pt-BR', { 
