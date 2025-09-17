@@ -1,3 +1,186 @@
+// Função addMessage no escopo global
+function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
+    console.log(`📝 Adicionando mensagem: ${sender} - ${text.substring(0, 50)}...`);
+    const chatBox = document.getElementById('chat-box');
+    
+    if (!chatBox) {
+        console.error('❌ Chat box não encontrado!');
+        console.log('🔍 Elementos disponíveis:', document.querySelectorAll('[id*="chat"]'));
+        return;
+    }
+    
+    console.log('✅ Chat box encontrado:', chatBox);
+
+        // Container principal da mensagem
+        const messageContainer = document.createElement('div');
+        messageContainer.className = `message-container ${sender}`;
+
+        // Avatar da mensagem
+        const avatar = document.createElement('div');
+        avatar.className = `avatar ${sender}`;
+        if (sender === 'bot' && source === 'IA') {
+            avatar.textContent = '✦';
+            avatar.title = 'Resposta gerada por IA';
+        } else if (sender === 'bot' && source === 'Base Local') {
+            avatar.textContent = '🤖';
+            avatar.title = 'Resposta da base de dados local';
+        } else {
+        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente?.nome || 'Usuário').charAt(0) : '🤖';
+        }
+
+        // Conteúdo da mensagem
+        const messageContentDiv = document.createElement('div');
+        messageContentDiv.className = 'message-content';
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
+
+        // Função para parse de botões inline
+        const parseInlineButtons = (rawText) => {
+            if (typeof rawText !== 'string') return '';
+            return rawText.replace(/\[button:(.*?)\|(.*?)\]/g, (match, text, value) => {
+                const escapedValue = value.trim().replace(/"/g, '&quot;');
+                return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
+            });
+        };
+
+        // Função para formatar texto com parágrafos e <br>
+        const formatText = (rawText) => {
+            let formatted = rawText.replace(/\n{2,}/g, "</p><p>");
+            formatted = formatted.replace(/\n/g, "<br>");
+            return `<p>${formatted}</p>`;
+        };
+
+        // Lógica para respostas complexas (accordion)
+        let isComplexResponse = false;
+        if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
+            try {
+                const items = JSON.parse(text);
+                if (Array.isArray(items) && items.every(item => item.title && item.content)) {
+                    isComplexResponse = true;
+                    const accordionContainer = document.createElement('div');
+                    accordionContainer.className = 'accordion-container';
+
+                    items.forEach(item => {
+                        const accordionItem = document.createElement('div');
+                        accordionItem.className = 'accordion-item';
+
+                        const titleDiv = document.createElement('div');
+                        titleDiv.className = 'accordion-title';
+                        titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
+
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'accordion-content';
+                        contentDiv.innerHTML = marked.parse(item.content);
+
+                        titleDiv.addEventListener('click', () => {
+                            titleDiv.classList.toggle('active');
+                            contentDiv.classList.toggle('visible');
+                        });
+
+                        accordionItem.appendChild(titleDiv);
+                        accordionItem.appendChild(contentDiv);
+                        accordionContainer.appendChild(accordionItem);
+                    });
+
+                    messageDiv.appendChild(accordionContainer);
+                }
+            } catch (e) { isComplexResponse = false; }
+        }
+
+        // Se não for resposta complexa, aplica formatação normal
+        if (!isComplexResponse) {
+            if (html) {
+                const textWithButtons = parseInlineButtons(text);
+                messageDiv.innerHTML = textWithButtons;
+            } else {
+                const textWithButtons = parseInlineButtons(formatText(text));
+                messageDiv.innerHTML = marked.parse(textWithButtons);
+            }
+        }
+
+        messageContentDiv.appendChild(messageDiv);
+        messageContainer.appendChild(avatar);
+        messageContainer.appendChild(messageContentDiv);
+
+        // Botões inline
+        messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const value = button.getAttribute('data-value');
+                if (value) handleSendMessage(value);
+            });
+        });
+
+        // Sugestões de tabulação
+        if (sender === 'bot' && tabulacoes) {
+            const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
+            if (sugestoes.length > 0) {
+                const tabulacaoTextContainer = document.createElement('div');
+                tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
+                tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${tabulacoes.replace(/;/g, '<br>')}`;
+
+                const triggerButton = document.createElement('button');
+                triggerButton.className = 'clarification-item';
+                triggerButton.textContent = 'Veja as tabulações';
+                triggerButton.style.marginTop = '10px';
+                triggerButton.onclick = () => {
+                    triggerButton.classList.add('hidden');
+                    tabulacaoTextContainer.classList.remove('hidden');
+                };
+
+                messageContentDiv.appendChild(triggerButton);
+                messageContentDiv.appendChild(tabulacaoTextContainer);
+            }
+        }
+
+        // Feedback do bot com sistema inteligente
+if (sender === 'bot') {
+    ultimaLinhaDaFonte = sourceRow;
+    const feedbackContainer = document.createElement('div');
+    feedbackContainer.className = 'feedback-container';
+
+    const positiveBtn = document.createElement('button');
+    positiveBtn.className = 'feedback-btn';
+    positiveBtn.innerHTML = '👍';
+    positiveBtn.title = 'Resposta útil';
+    positiveBtn.onclick = () => {
+        enviarFeedback('logFeedbackPositivo', ultimaPergunta, sourceRow);
+        positiveBtn.textContent = 'Obrigado!';
+        positiveBtn.disabled = true;
+    };
+
+    const negativeBtn = document.createElement('button');
+    negativeBtn.className = 'feedback-btn';
+    negativeBtn.innerHTML = '👎';
+    negativeBtn.title = 'Resposta incorreta ou incompleta';
+    negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+
+    feedbackContainer.appendChild(positiveBtn);
+    feedbackContainer.appendChild(negativeBtn);
+    messageContentDiv.appendChild(feedbackContainer);
+}
+
+        // Opções de esclarecimento
+        if (sender === 'bot' && options.length > 0) {
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'clarification-container';
+            options.forEach(optionText => {
+                const button = document.createElement('button');
+                button.className = 'clarification-item';
+                button.textContent = optionText;
+                button.onclick = () => handleSendMessage(optionText);
+                optionsContainer.appendChild(button);
+            });
+            messageContentDiv.appendChild(optionsContainer);
+        }
+
+        chatBox.appendChild(messageContainer);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    console.log(`✅ Mensagem adicionada com sucesso. Total de mensagens: ${chatBox.children.length}`);
+    console.log('🔍 Elemento da mensagem:', messageContainer);
+    console.log('🔍 Conteúdo da mensagem:', messageContainer.innerHTML);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // >>> VARIÁVEIS DEFINIDAS NO FRONTEND <<<
     const CLIENT_ID = '827325386401-ahi2f9ume9i7lc28lau7j4qlviv5d22k.apps.googleusercontent.com';
@@ -88,189 +271,6 @@ async function enviarFeedback(action, question, sourceRow, sugestao = '') {
             if (feedbackText) feedbackText.focus();
         }
     }
-
-// Função addMessage movida para escopo global
-function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
-    console.log(`📝 Adicionando mensagem: ${sender} - ${text.substring(0, 50)}...`);
-    const chatBox = document.getElementById('chat-box');
-    
-    if (!chatBox) {
-        console.error('❌ Chat box não encontrado!');
-        console.log('🔍 Elementos disponíveis:', document.querySelectorAll('[id*="chat"]'));
-        return;
-    }
-    
-    console.log('✅ Chat box encontrado:', chatBox);
-
-    // Container principal da mensagem
-    const messageContainer = document.createElement('div');
-    messageContainer.className = `message-container ${sender}`;
-
-    // Avatar da mensagem
-    const avatar = document.createElement('div');
-    avatar.className = `avatar ${sender}`;
-    if (sender === 'bot' && source === 'IA') {
-        avatar.textContent = '✦';
-        avatar.title = 'Resposta gerada por IA';
-    } else if (sender === 'bot' && source === 'Base Local') {
-        avatar.textContent = '🤖';
-        avatar.title = 'Resposta da base de dados local';
-    } else {
-        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
-    }
-
-    // Conteúdo da mensagem
-    const messageContentDiv = document.createElement('div');
-    messageContentDiv.className = 'message-content';
-
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message';
-
-    // Função para parse de botões inline
-    const parseInlineButtons = (rawText) => {
-        if (typeof rawText !== 'string') return '';
-        return rawText.replace(/\[button:(.*?)\|(.*?)\]/g, (match, text, value) => {
-            const escapedValue = value.trim().replace(/"/g, '&quot;');
-            return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
-        });
-    };
-
-    // Função para formatar texto com parágrafos e <br>
-    const formatText = (rawText) => {
-        let formatted = rawText.replace(/\n{2,}/g, "</p><p>");
-        formatted = formatted.replace(/\n/g, "<br>");
-        return `<p>${formatted}</p>`;
-    };
-
-    // Lógica para respostas complexas (accordion)
-    let isComplexResponse = false;
-    if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
-        try {
-            const items = JSON.parse(text);
-            if (Array.isArray(items) && items.every(item => item.title && item.content)) {
-                isComplexResponse = true;
-                const accordionContainer = document.createElement('div');
-                accordionContainer.className = 'accordion-container';
-
-            items.forEach(item => {
-                const accordionItem = document.createElement('div');
-                accordionItem.className = 'accordion-item';
-
-                const titleDiv = document.createElement('div');
-                titleDiv.className = 'accordion-title';
-                titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
-
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'accordion-content';
-                contentDiv.innerHTML = marked.parse(item.content);
-
-                titleDiv.addEventListener('click', () => {
-                    titleDiv.classList.toggle('active');
-                    contentDiv.classList.toggle('visible');
-                });
-
-                accordionItem.appendChild(titleDiv);
-                accordionItem.appendChild(contentDiv);
-                accordionContainer.appendChild(accordionItem);
-            });
-
-            messageDiv.appendChild(accordionContainer);
-        }
-    } catch (e) { isComplexResponse = false; }
-}
-
-    // Se não for resposta complexa, aplica formatação normal
-    if (!isComplexResponse) {
-        if (html) {
-            const textWithButtons = parseInlineButtons(text);
-            messageDiv.innerHTML = textWithButtons;
-        } else {
-            const textWithButtons = parseInlineButtons(formatText(text));
-            messageDiv.innerHTML = marked.parse(textWithButtons);
-        }
-    }
-
-    messageContentDiv.appendChild(messageDiv);
-    messageContainer.appendChild(avatar);
-    messageContainer.appendChild(messageContentDiv);
-
-    // Botões inline
-    messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
-        button.addEventListener('click', () => {
-            const value = button.getAttribute('data-value');
-            if (value) handleSendMessage(value);
-        });
-    });
-
-    // Sugestões de tabulação
-    if (sender === 'bot' && tabulacoes) {
-        const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
-        if (sugestoes.length > 0) {
-            const tabulacaoTextContainer = document.createElement('div');
-            tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
-            tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${tabulacoes.replace(/;/g, '<br>')}`;
-
-            const triggerButton = document.createElement('button');
-            triggerButton.className = 'clarification-item';
-            triggerButton.textContent = 'Veja as tabulações';
-            triggerButton.style.marginTop = '10px';
-            triggerButton.onclick = () => {
-                triggerButton.classList.add('hidden');
-                tabulacaoTextContainer.classList.remove('hidden');
-            };
-
-            messageContentDiv.appendChild(triggerButton);
-            messageContentDiv.appendChild(tabulacaoTextContainer);
-        }
-    }
-
-    // Feedback do bot com sistema inteligente
-    if (sender === 'bot') {
-        ultimaLinhaDaFonte = sourceRow;
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.className = 'feedback-container';
-
-        const positiveBtn = document.createElement('button');
-        positiveBtn.className = 'feedback-btn';
-        positiveBtn.innerHTML = '👍';
-        positiveBtn.title = 'Resposta útil';
-        positiveBtn.onclick = () => {
-            enviarFeedback('logFeedbackPositivo', ultimaPergunta, sourceRow);
-            positiveBtn.textContent = 'Obrigado!';
-            positiveBtn.disabled = true;
-        };
-
-        const negativeBtn = document.createElement('button');
-        negativeBtn.className = 'feedback-btn';
-        negativeBtn.innerHTML = '👎';
-        negativeBtn.title = 'Resposta incorreta ou incompleta';
-        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-
-        feedbackContainer.appendChild(positiveBtn);
-        feedbackContainer.appendChild(negativeBtn);
-        messageContentDiv.appendChild(feedbackContainer);
-    }
-
-    // Opções de esclarecimento
-    if (sender === 'bot' && options.length > 0) {
-        const optionsContainer = document.createElement('div');
-        optionsContainer.className = 'clarification-container';
-        options.forEach(optionText => {
-            const button = document.createElement('button');
-            button.className = 'clarification-item';
-            button.textContent = optionText;
-            button.onclick = () => handleSendMessage(optionText);
-            optionsContainer.appendChild(button);
-        });
-        messageContentDiv.appendChild(optionsContainer);
-    }
-
-    chatBox.appendChild(messageContainer);
-    chatBox.scrollTop = chatBox.scrollHeight;
-    console.log(`✅ Mensagem adicionada com sucesso. Total de mensagens: ${chatBox.children.length}`);
-    console.log('🔍 Elemento da mensagem:', messageContainer);
-    console.log('🔍 Conteúdo da mensagem:', messageContainer.innerHTML);
-}
 
     // Função autônoma para definir o tema inicial
     function setInitialTheme() {
@@ -1095,7 +1095,7 @@ function buscarNaBaseLocal(pergunta, baseData) {
             
             // Buscar resposta com delay para mostrar o indicador
             setTimeout(() => {
-                buscarRespostaAI(trimmedText);
+            buscarRespostaAI(trimmedText);
             }, 500);
             
             userInput.value = '';
