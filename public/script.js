@@ -1131,11 +1131,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('🧪 TESTE 2 - Botão clicado!');
                     addMessage('🧪 TESTE 2 - Função executada!', 'bot');
                     
-                    // Teste da API de vozes
-                    addMessage('🔊 Testando API de vozes...', 'bot');
-                    fetch('/api/voice?action=voices')
+                    // Teste das variáveis de ambiente
+                    addMessage('🔍 Testando variáveis de ambiente...', 'bot');
+                    fetch('/api/test-env')
                         .then(response => {
-                            console.log('🔊 Resposta da API de vozes:', response.status);
+                            console.log('🔍 Resposta do teste de env:', response.status);
                             if (response.ok) {
                                 return response.json();
                             } else {
@@ -1143,16 +1143,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         })
                         .then(data => {
-                            console.log('🔊 Dados das vozes:', data);
+                            console.log('🔍 Dados das variáveis:', data);
                             if (data.success) {
-                                addMessage(`✅ API de vozes funcionando! Encontradas ${data.voices.length} vozes`, 'bot');
+                                addMessage(`✅ Variáveis verificadas!`, 'bot');
+                                addMessage(`🔑 ELEVENLABS_API_KEY: ${data.envVars.ELEVENLABS_API_KEY}`, 'bot');
+                                addMessage(`📏 Tamanho: ${data.envVars.ELEVENLABS_API_KEY_LENGTH} caracteres`, 'bot');
+                                addMessage(`🔤 Prefixo: ${data.envVars.ELEVENLABS_API_KEY_PREFIX}`, 'bot');
+                                addMessage(`🌍 Ambiente: ${data.envVars.VERCEL_ENV || 'local'}`, 'bot');
                             } else {
-                                addMessage(`❌ Erro na API de vozes: ${data.error}`, 'bot');
+                                addMessage(`❌ Erro ao verificar variáveis: ${data.error}`, 'bot');
                             }
                         })
                         .catch(error => {
-                            console.error('❌ Erro ao testar API:', error);
-                            addMessage(`❌ Erro ao testar API: ${error.message}`, 'bot');
+                            console.error('❌ Erro ao testar variáveis:', error);
+                            addMessage(`❌ Erro ao testar variáveis: ${error.message}`, 'bot');
                         });
                 });
                 console.log('✅ Botão de teste 2 configurado');

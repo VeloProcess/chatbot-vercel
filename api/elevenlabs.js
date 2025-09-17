@@ -5,6 +5,9 @@ const axios = require('axios');
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
 
+console.log('🔑 ELEVENLABS_API_KEY configurada:', !!ELEVENLABS_API_KEY);
+console.log('🔑 ELEVENLABS_API_KEY valor:', ELEVENLABS_API_KEY ? ELEVENLABS_API_KEY.substring(0, 10) + '...' : 'undefined');
+
 // ==================== SPEECH-TO-TEXT ====================
 
 async function speechToText(audioBlob) {
