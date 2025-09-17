@@ -717,6 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const playResponseButton = document.getElementById('play-response');
         const stopAudioButton = document.getElementById('stop-audio');
         const voiceSelector = document.getElementById('voice-selector');
+        const recordingIndicator = document.getElementById('recording-indicator');
 
         // Inicializar funcionalidades de voz
         function initVoiceFeatures() {
@@ -753,6 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Alternar gravação de voz
         async function toggleRecording() {
+            console.log('🎤 Toggle recording chamado, isRecording:', isRecording);
             if (isRecording) {
                 stopRecording();
             } else {
@@ -763,6 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Iniciar gravação
         async function startRecording() {
             try {
+                console.log('🎤 Iniciando gravação...');
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
@@ -779,9 +782,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 mediaRecorder.start();
                 isRecording = true;
-                voiceButton.textContent = '⏹️';
+                
+                // Indicador visual de gravação
+                voiceButton.innerHTML = '⏹️';
+                voiceButton.style.background = 'linear-gradient(135deg, #ff4757, #c44569)';
                 voiceButton.classList.add('recording');
-                console.log('🎤 Gravação iniciada');
+                
+                // Adicionar animação de pulso
+                voiceButton.style.animation = 'pulse 1s infinite';
+                
+                // Mostrar indicador de gravação
+                if (recordingIndicator) {
+                    recordingIndicator.classList.remove('hidden');
+                }
+                
+                // Mostrar mensagem de gravação
+                addMessage('🎤 Gravando... Fale agora!', 'bot');
+                
+                console.log('✅ Gravação iniciada');
 
             } catch (error) {
                 console.error('❌ Erro ao iniciar gravação:', error);
@@ -792,11 +810,25 @@ document.addEventListener('DOMContentLoaded', () => {
         // Parar gravação
         function stopRecording() {
             if (mediaRecorder && isRecording) {
+                console.log('⏹️ Parando gravação...');
                 mediaRecorder.stop();
                 isRecording = false;
-                voiceButton.textContent = '🎤';
+                
+                // Restaurar botão
+                voiceButton.innerHTML = '🎤';
+                voiceButton.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
                 voiceButton.classList.remove('recording');
-                console.log('⏹️ Gravação parada');
+                voiceButton.style.animation = 'none';
+                
+                // Esconder indicador de gravação
+                if (recordingIndicator) {
+                    recordingIndicator.classList.add('hidden');
+                }
+                
+                // Mostrar mensagem de processamento
+                addMessage('🔄 Processando áudio...', 'bot');
+                
+                console.log('✅ Gravação parada');
             }
         }
 
@@ -916,9 +948,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Inicializar funcionalidades de voz quando DOM carregar
         document.addEventListener('DOMContentLoaded', () => {
+            // Tentar inicializar imediatamente
+            initVoiceFeatures();
+            
+            // Se não funcionar, tentar novamente após 1 segundo
             setTimeout(() => {
-                initVoiceFeatures();
-            }, 1000); // Aguardar 1 segundo para garantir que tudo carregou
+                if (!voiceButton || !playResponseButton || !stopAudioButton) {
+                    console.log('🔄 Tentando inicializar novamente...');
+                    initVoiceFeatures();
+                }
+            }, 1000);
         });
 
         userInput.addEventListener('keydown', (e) => {
