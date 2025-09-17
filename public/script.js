@@ -722,35 +722,81 @@ document.addEventListener('DOMContentLoaded', () => {
         // Inicializar funcionalidades de voz
         function initVoiceFeatures() {
             console.log('🎤 Inicializando funcionalidades de voz...');
-            console.log('Voice button:', voiceButton);
-            console.log('Play button:', playResponseButton);
-            console.log('Stop button:', stopAudioButton);
-            console.log('Voice selector:', voiceSelector);
             
-            if (voiceButton) {
-                voiceButton.addEventListener('click', toggleRecording);
+            // Buscar elementos dinamicamente
+            const voiceBtn = document.getElementById('voice-button');
+            const playBtn = document.getElementById('play-response');
+            const stopBtn = document.getElementById('stop-audio');
+            const voiceSel = document.getElementById('voice-selector');
+            const recordingInd = document.getElementById('recording-indicator');
+            
+            console.log('Elementos encontrados:');
+            console.log('- Voice button:', voiceBtn);
+            console.log('- Play button:', playBtn);
+            console.log('- Stop button:', stopBtn);
+            console.log('- Voice selector:', voiceSel);
+            console.log('- Recording indicator:', recordingInd);
+            
+            // Configurar botão de voz
+            if (voiceBtn) {
+                // Remover listeners existentes
+                voiceBtn.removeEventListener('click', toggleRecording);
+                // Adicionar novo listener
+                voiceBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('🎤 Botão de voz clicado!');
+                    toggleRecording();
+                });
                 console.log('✅ Event listener adicionado ao botão de voz');
             } else {
                 console.error('❌ Botão de voz não encontrado');
             }
             
-            if (playResponseButton) {
-                playResponseButton.addEventListener('click', playLastResponse);
+            // Configurar botão de play
+            if (playBtn) {
+                playBtn.removeEventListener('click', playLastResponse);
+                playBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('🔊 Botão de play clicado!');
+                    playLastResponse();
+                });
                 console.log('✅ Event listener adicionado ao botão de play');
             } else {
                 console.error('❌ Botão de play não encontrado');
             }
             
-            if (stopAudioButton) {
-                stopAudioButton.addEventListener('click', stopAudio);
+            // Configurar botão de stop
+            if (stopBtn) {
+                stopBtn.removeEventListener('click', stopAudio);
+                stopBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('⏹️ Botão de stop clicado!');
+                    stopAudio();
+                });
                 console.log('✅ Event listener adicionado ao botão de stop');
             } else {
                 console.error('❌ Botão de stop não encontrado');
             }
             
-            // Carregar vozes disponíveis
-            loadAvailableVoices();
-        }
+        // Carregar vozes disponíveis
+        loadAvailableVoices();
+        
+        // Teste de funcionalidade
+        console.log('🧪 Testando funcionalidade dos botões...');
+        setTimeout(() => {
+            const voiceBtn = document.getElementById('voice-button');
+            if (voiceBtn) {
+                console.log('✅ Botão de voz encontrado e configurado');
+                // Adicionar um teste visual
+                voiceBtn.style.border = '2px solid #00ff00';
+                setTimeout(() => {
+                    voiceBtn.style.border = 'none';
+                }, 2000);
+            } else {
+                console.error('❌ Botão de voz ainda não encontrado');
+            }
+        }, 1000);
+    }
 
         // Alternar gravação de voz
         async function toggleRecording() {
@@ -783,17 +829,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 mediaRecorder.start();
                 isRecording = true;
                 
-                // Indicador visual de gravação
-                voiceButton.innerHTML = '⏹️';
-                voiceButton.style.background = 'linear-gradient(135deg, #ff4757, #c44569)';
-                voiceButton.classList.add('recording');
+                // Buscar elementos dinamicamente
+                const voiceBtn = document.getElementById('voice-button');
+                const recordingInd = document.getElementById('recording-indicator');
                 
-                // Adicionar animação de pulso
-                voiceButton.style.animation = 'pulse 1s infinite';
+                // Indicador visual de gravação
+                if (voiceBtn) {
+                    voiceBtn.innerHTML = '⏹️';
+                    voiceBtn.style.background = 'linear-gradient(135deg, #ff4757, #c44569)';
+                    voiceBtn.classList.add('recording');
+                    voiceBtn.style.animation = 'pulse 1s infinite';
+                }
                 
                 // Mostrar indicador de gravação
-                if (recordingIndicator) {
-                    recordingIndicator.classList.remove('hidden');
+                if (recordingInd) {
+                    recordingInd.classList.remove('hidden');
                 }
                 
                 // Mostrar mensagem de gravação
@@ -814,15 +864,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 mediaRecorder.stop();
                 isRecording = false;
                 
+                // Buscar elementos dinamicamente
+                const voiceBtn = document.getElementById('voice-button');
+                const recordingInd = document.getElementById('recording-indicator');
+                
                 // Restaurar botão
-                voiceButton.innerHTML = '🎤';
-                voiceButton.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
-                voiceButton.classList.remove('recording');
-                voiceButton.style.animation = 'none';
+                if (voiceBtn) {
+                    voiceBtn.innerHTML = '🎤';
+                    voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+                    voiceBtn.classList.remove('recording');
+                    voiceBtn.style.animation = 'none';
+                }
                 
                 // Esconder indicador de gravação
-                if (recordingIndicator) {
-                    recordingIndicator.classList.add('hidden');
+                if (recordingInd) {
+                    recordingInd.classList.add('hidden');
                 }
                 
                 // Mostrar mensagem de processamento
@@ -948,16 +1004,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Inicializar funcionalidades de voz quando DOM carregar
         document.addEventListener('DOMContentLoaded', () => {
-            // Tentar inicializar imediatamente
-            initVoiceFeatures();
+            console.log('🚀 DOM carregado, inicializando funcionalidades de voz...');
             
-            // Se não funcionar, tentar novamente após 1 segundo
+            // Aguardar um pouco para garantir que todos os elementos estejam prontos
+            setTimeout(() => {
+                initVoiceFeatures();
+            }, 500);
+        });
+
+        // Também tentar quando a janela carregar completamente
+        window.addEventListener('load', () => {
+            console.log('🌐 Janela carregada, verificando funcionalidades de voz...');
             setTimeout(() => {
                 if (!voiceButton || !playResponseButton || !stopAudioButton) {
-                    console.log('🔄 Tentando inicializar novamente...');
+                    console.log('🔄 Re-inicializando após carregamento completo...');
                     initVoiceFeatures();
                 }
             }, 1000);
+        });
+
+        // Botão de teste
+        document.addEventListener('DOMContentLoaded', () => {
+            const testBtn = document.getElementById('test-voice');
+            if (testBtn) {
+                testBtn.addEventListener('click', () => {
+                    console.log('🧪 Botão de teste clicado!');
+                    addMessage('🧪 Teste de funcionalidade executado!', 'bot');
+                    toggleRecording();
+                });
+                console.log('✅ Botão de teste configurado');
+            }
         });
 
         userInput.addEventListener('keydown', (e) => {
