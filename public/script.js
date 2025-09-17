@@ -1348,9 +1348,13 @@ async function mostrarSugestoes(categoria) {
         
         const response = await fetch(`/api/sugestoes?categoria=${categoria}`);
         const data = await response.json();
+        console.log('📊 Dados recebidos da API de sugestões:', data);
         
         if (data.status === 'sucesso') {
+            console.log('✅ Status de sucesso, criando HTML das sugestões...');
+            console.log('📋 Opções recebidas:', data.opcoes);
             const sugestaoHTML = criarHTMLSugestoes(data);
+            console.log('🎨 HTML gerado:', sugestaoHTML.substring(0, 200) + '...');
             addMessage(sugestaoHTML, "bot", { source: "Sugestões Inteligentes", html: true });
             
             // Adicionar event listeners para os itens de sugestão
@@ -1375,19 +1379,41 @@ async function mostrarSugestoes(categoria) {
 }
 
 function criarHTMLSugestoes(data) {
+    console.log('🎨 Criando HTML para sugestões...');
+    console.log('📋 Data recebida:', data);
+    console.log('📋 Título:', data.titulo);
+    console.log('📋 Opções:', data.opcoes);
+    
+    if (!data.opcoes || !Array.isArray(data.opcoes)) {
+        console.error('❌ Opções inválidas:', data.opcoes);
+        return '<div class="sugestoes-container"><p>Erro ao carregar sugestões</p></div>';
+    }
+    
     let html = `
         <div class="sugestoes-container">
-            <h4>${data.titulo}</h4>
+            <h4>${data.titulo || 'Sugestões'}</h4>
             <div class="sugestoes-lista">
     `;
     
     data.opcoes.forEach((opcao, index) => {
-        const temResposta = opcao.resposta && opcao.resposta.length > 0;
+        console.log(`📋 Processando opção ${index}:`, opcao);
+        
+        // Garantir que temos os campos necessários
+        const texto = opcao.texto || opcao.pergunta || 'Opção sem texto';
+        const pergunta = opcao.pergunta || opcao.texto || '';
+        const resposta = opcao.resposta || '';
+        
+        const temResposta = resposta && resposta.length > 0;
         const classeItem = temResposta ? 'sugestao-item com-resposta' : 'sugestao-item';
         
+        // Escapar caracteres especiais para HTML
+        const textoEscapado = texto.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const perguntaEscapada = pergunta.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const respostaEscapada = resposta.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        
         html += `
-            <div class="${classeItem}" data-texto="${opcao.texto}" data-pergunta="${opcao.pergunta || ''}" data-resposta="${opcao.resposta || ''}">
-                <span class="sugestao-texto">${opcao.texto}</span>
+            <div class="${classeItem}" data-texto="${textoEscapado}" data-pergunta="${perguntaEscapada}" data-resposta="${respostaEscapada}">
+                <span class="sugestao-texto">${textoEscapado}</span>
                 ${temResposta ? '<span class="sugestao-indicador">✓</span>' : ''}
             </div>
         `;
@@ -1401,6 +1427,7 @@ function criarHTMLSugestoes(data) {
         </div>
     `;
     
+    console.log('✅ HTML criado com sucesso');
     return html;
 }
 
