@@ -1,8 +1,9 @@
-// api/ask.js (Versão OpenAI Completa – Memória de Sessão e Busca em Sites)
+// api/ask.js (Versão OpenAI Completa – Memória de Sessão e Busca em Sites + IA Avançada)
 
 const { google } = require('googleapis');
 const axios = require('axios');
 const OpenAI = require('openai');
+const { processarComIA } = require('./ai-advanced');
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
@@ -169,9 +170,46 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { pergunta, email, reformular } = req.query;
+    const { pergunta, email, reformular, usar_ia_avancada = 'true' } = req.query;
     if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
 
+    console.log('🤖 Nova pergunta recebida:', { pergunta, email, usar_ia_avancada });
+
+    // --- VERIFICAR SE DEVE USAR IA AVANÇADA ---
+    if (usar_ia_avancada === 'true') {
+      try {
+        const faqData = await getFaqData();
+        const historico = userSessions[email]?.historico || [];
+        
+        console.log('🚀 Usando IA Avançada...');
+        const resultadoIA = await processarComIA(pergunta, faqData, historico, email);
+        
+        // Atualizar histórico da sessão
+        if (email) {
+          if (!userSessions[email]) {
+            userSessions[email] = { contexto: "", ultimaPergunta: "", historico: [] };
+          }
+          userSessions[email].historico.push(
+            { role: "user", content: pergunta },
+            { role: "assistant", content: resultadoIA.resposta }
+          );
+          // Manter apenas últimas 10 interações
+          if (userSessions[email].historico.length > 20) {
+            userSessions[email].historico = userSessions[email].historico.slice(-20);
+          }
+        }
+
+        // Log de uso da IA
+        await logIaUsage(email, pergunta);
+
+        return res.status(200).json(resultadoIA);
+      } catch (error) {
+        console.error('❌ Erro na IA Avançada, usando fallback:', error);
+        // Continuar com o método tradicional
+      }
+    }
+
+    // --- MÉTODO TRADICIONAL (FALLBACK) ---
     const perguntaNormalizada = normalizarTexto(pergunta);
 
     // --- MENU ESPECÍFICO: CRÉDITO ---

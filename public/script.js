@@ -67,11 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const blob = new Blob([data], { type: 'application/json' });
             navigator.sendBeacon(url, blob);
         } else {
-            fetch(url, {
-                method: 'POST',
+        fetch(url, {
+            method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: data,
-                keepalive: true
+            keepalive: true
             }).catch(error => {
                 console.error(`Erro ao registrar status ${status}:`, error);
             });
@@ -538,16 +538,44 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!textoDaPergunta.trim()) return;
             showTypingIndicator();
             try {
-                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
+                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}&usar_ia_avancada=true`;
                 const response = await fetch(url);
                 hideTypingIndicator();
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
 
-                // Bloco corrigido para repassar TODAS as informações para addMessage
-                if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
+                console.log('🤖 Resposta da IA:', data);
+
+                // Processar resposta da IA Avançada
+                if (data.status === 'sucesso_ia_avancada') {
                     addMessage(data.resposta, 'bot', { 
-                        sourceRow: data.sourceRow, // sourceRow pode ser um número ou 'Resposta da IA'
+                        sourceRow: data.sourceRow || 'IA Avançada',
+                        source: data.source || 'IA Avançada',
+                        intencao: data.intencao,
+                        urgencia: data.urgencia,
+                        sentimento: data.sentimento,
+                        confianca: data.confianca
+                    });
+                    
+                    // Mostrar follow-ups se disponíveis
+                    if (data.followups && data.followups.length > 0) {
+                        mostrarFollowUps(data.followups);
+                    }
+                    
+                    // Mostrar sugestões proativas se disponíveis
+                    if (data.sugestoes_proativas && data.sugestoes_proativas.length > 0) {
+                        mostrarSugestoesProativas(data.sugestoes_proativas);
+                    }
+                    
+                    // Mostrar sugestões relacionadas se disponíveis
+                    if (data.sugestoes_relacionadas && data.sugestoes_relacionadas.length > 0) {
+                        mostrarSugestoesRelacionadas(data.sugestoes_relacionadas);
+                    }
+                    
+                } else if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
+                    // Resposta tradicional
+                    addMessage(data.resposta, 'bot', { 
+                        sourceRow: data.sourceRow,
                         source: data.source, 
                         tabulacoes: data.tabulacoes
                     });
@@ -555,11 +583,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     addMessage(data.resposta, 'bot', { 
                         options: data.options, 
                         source: data.source,
-                        sourceRow: data.sourceRow // sourceRow será 'Pergunta de Esclarecimento'
+                        sourceRow: data.sourceRow
                     });
                 } else {
                     addMessage(data.resposta, 'bot', {
-                        sourceRow: 'Erro do Bot' // Adiciona uma referência para erros
+                        sourceRow: 'Erro do Bot'
                     });
                 }
             } catch (error) {
@@ -578,6 +606,95 @@ document.addEventListener('DOMContentLoaded', () => {
             userInput.value = '';
         }
 
+        // ==================== FUNÇÕES DA IA AVANÇADA ====================
+
+        function mostrarFollowUps(followups) {
+            if (!followups || followups.length === 0) return;
+            
+            const followUpHTML = `
+                <div class="followups-container">
+                    <h4>💡 Perguntas relacionadas:</h4>
+                    <div class="followups-lista">
+                        ${followups.map(followup => `
+                            <div class="followup-item" onclick="handleFollowUp('${followup.replace(/'/g, "\\'")}')">
+                                <span class="followup-texto">${followup}</span>
+                                <span class="followup-arrow">→</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            addMessage(followUpHTML, "bot", { source: "IA Avançada", html: true });
+        }
+
+        function mostrarSugestoesProativas(sugestoes) {
+            if (!sugestoes || sugestoes.length === 0) return;
+            
+            const sugestoesHTML = `
+                <div class="sugestoes-proativas-container">
+                    <h4>🔍 Informações adicionais:</h4>
+                    <div class="sugestoes-proativas-lista">
+                        ${sugestoes.map(sugestao => `
+                            <div class="sugestao-proativa-item">
+                                <span class="sugestao-tipo">${getTipoIcon(sugestao.tipo)}</span>
+                                <div class="sugestao-conteudo">
+                                    <strong>${sugestao.titulo}</strong>
+                                    <p>${sugestao.conteudo}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            addMessage(sugestoesHTML, "bot", { source: "IA Avançada", html: true });
+        }
+
+        function mostrarSugestoesRelacionadas(sugestoes) {
+            if (!sugestoes || sugestoes.length === 0) return;
+            
+            const sugestoesHTML = `
+                <div class="sugestoes-relacionadas-container">
+                    <h4>🔗 Tópicos relacionados:</h4>
+                    <div class="sugestoes-relacionadas-lista">
+                        ${sugestoes.map(sugestao => `
+                            <div class="sugestao-relacionada-item" onclick="handleSugestaoRelacionada('${sugestao.replace(/'/g, "\\'")}')">
+                                <span class="sugestao-relacionada-texto">${sugestao}</span>
+                                <span class="sugestao-relacionada-arrow">→</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            addMessage(sugestoesHTML, "bot", { source: "IA Avançada", html: true });
+        }
+
+        function getTipoIcon(tipo) {
+            const icons = {
+                'INFO': 'ℹ️',
+                'AVISO': '⚠️',
+                'LINK': '🔗',
+                'PROCEDIMENTO': '📋'
+            };
+            return icons[tipo] || 'ℹ️';
+        }
+
+        function handleFollowUp(followup) {
+            addMessage(followup, 'user');
+            buscarResposta(followup);
+        }
+
+        function handleSugestaoRelacionada(sugestao) {
+            addMessage(sugestao, 'user');
+            buscarResposta(sugestao);
+        }
+
+        // Tornar funções globais para onclick
+        window.handleFollowUp = handleFollowUp;
+        window.handleSugestaoRelacionada = handleSugestaoRelacionada;
+
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -590,10 +707,10 @@ document.addEventListener('DOMContentLoaded', () => {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
 
-        const feedbackOverlay = document.getElementById('feedback-overlay');
-        const feedbackSendBtn = document.getElementById('feedback-send');
-        const feedbackCancelBtn = document.getElementById('feedback-cancel');
-        const feedbackText = document.getElementById('feedback-comment');
+const feedbackOverlay = document.getElementById('feedback-overlay');
+const feedbackSendBtn = document.getElementById('feedback-send');
+const feedbackCancelBtn = document.getElementById('feedback-cancel');
+const feedbackText = document.getElementById('feedback-comment');
         let activeFeedbackContainer = null;
 
         function abrirModalFeedback(container) {
@@ -602,27 +719,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (feedbackText) feedbackText.focus();
         }
 
-        function fecharModalFeedback() {
-            feedbackOverlay.classList.add('hidden');
-            if (feedbackText) feedbackText.value = '';
+function fecharModalFeedback() {
+        feedbackOverlay.classList.add('hidden');
+        if (feedbackText) feedbackText.value = '';
             activeFeedbackContainer = null;
-        }
+}
 
-        if (feedbackCancelBtn) {
-            feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
-        }
+if (feedbackCancelBtn) {
+    feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
+}
 
-        if (feedbackSendBtn) {
-            feedbackSendBtn.addEventListener('click', () => {
-                const sugestao = feedbackText ? feedbackText.value.trim() : '';
+if (feedbackSendBtn) {
+    feedbackSendBtn.addEventListener('click', () => {
+        const sugestao = feedbackText ? feedbackText.value.trim() : '';
                 if (activeFeedbackContainer) {
                     enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
-                    fecharModalFeedback();
+        fecharModalFeedback();
                 } else {
                     console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
                 }
-            });
-        }
+    });
+}
 
         function setInitialTheme() {
             const savedTheme = localStorage.getItem('theme');

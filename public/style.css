@@ -26,6 +26,12 @@
     --cor-erro: #f44336;
     --cor-alerta: #FF9800;
     --cor-info: #2196F3;
+    
+    /* Cores para IA Avançada */
+    --cor-ia-avancada: #6c5ce7;
+    --cor-followup: #00b894;
+    --cor-sugestao: #fdcb6e;
+    --cor-proativa: #e17055;
 
     /* Espaçamentos */
     --espaco-xs: 4px;
@@ -1049,4 +1055,250 @@ body.dark-theme .inline-chat-button {
 
 body.dark-theme .inline-chat-button:hover {
     background-color: #1565C0;
+}
+
+/* ==================== ESTILOS DA IA AVANÇADA ==================== */
+
+/* Follow-ups */
+.followups-container {
+    margin-top: var(--espaco-md);
+    padding: var(--espaco-md);
+    background: linear-gradient(135deg, var(--cor-followup), #00a085);
+    border-radius: var(--borda-raio);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+}
+
+.followups-container h4 {
+    margin: 0 0 var(--espaco-md) 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-sm);
+}
+
+.followups-lista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-sm);
+}
+
+.followup-item {
+    background: rgba(255, 255, 255, 0.15);
+    padding: var(--espaco-md);
+    border-radius: var(--borda-raio-sm);
+    cursor: pointer;
+    transition: all var(--transicao-rapida);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.followup-item:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateX(4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.followup-texto {
+    flex: 1;
+    font-weight: 500;
+}
+
+.followup-arrow {
+    font-size: 1.2em;
+    opacity: 0.7;
+    transition: all var(--transicao-rapida);
+}
+
+.followup-item:hover .followup-arrow {
+    opacity: 1;
+    transform: translateX(4px);
+}
+
+/* Sugestões Proativas */
+.sugestoes-proativas-container {
+    margin-top: var(--espaco-md);
+    padding: var(--espaco-md);
+    background: linear-gradient(135deg, var(--cor-proativa), #d63031);
+    border-radius: var(--borda-raio);
+    color: white;
+    box-shadow: 0 4px 12px rgba(225, 112, 85, 0.3);
+}
+
+.sugestoes-proativas-container h4 {
+    margin: 0 0 var(--espaco-md) 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-sm);
+}
+
+.sugestoes-proativas-lista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-md);
+}
+
+.sugestao-proativa-item {
+    background: rgba(255, 255, 255, 0.15);
+    padding: var(--espaco-md);
+    border-radius: var(--borda-raio-sm);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--espaco-md);
+}
+
+.sugestao-tipo {
+    font-size: 1.5em;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.sugestao-conteudo {
+    flex: 1;
+}
+
+.sugestao-conteudo strong {
+    display: block;
+    margin-bottom: var(--espaco-sm);
+    font-size: 1.05em;
+}
+
+.sugestao-conteudo p {
+    margin: 0;
+    opacity: 0.9;
+    line-height: 1.4;
+}
+
+/* Sugestões Relacionadas */
+.sugestoes-relacionadas-container {
+    margin-top: var(--espaco-md);
+    padding: var(--espaco-md);
+    background: linear-gradient(135deg, var(--cor-sugestao), #e17055);
+    border-radius: var(--borda-raio);
+    color: white;
+    box-shadow: 0 4px 12px rgba(253, 203, 110, 0.3);
+}
+
+.sugestoes-relacionadas-container h4 {
+    margin: 0 0 var(--espaco-md) 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-sm);
+}
+
+.sugestoes-relacionadas-lista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espaco-sm);
+}
+
+.sugestao-relacionada-item {
+    background: rgba(255, 255, 255, 0.15);
+    padding: var(--espaco-md);
+    border-radius: var(--borda-raio-sm);
+    cursor: pointer;
+    transition: all var(--transicao-rapida);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sugestao-relacionada-item:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateX(4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sugestao-relacionada-texto {
+    flex: 1;
+    font-weight: 500;
+}
+
+.sugestao-relacionada-arrow {
+    font-size: 1.2em;
+    opacity: 0.7;
+    transition: all var(--transicao-rapida);
+}
+
+.sugestao-relacionada-item:hover .sugestao-relacionada-arrow {
+    opacity: 1;
+    transform: translateX(4px);
+}
+
+/* Indicadores de IA Avançada */
+.message-container[data-source="IA Avançada"] {
+    border-left: 4px solid var(--cor-ia-avancada);
+    background: linear-gradient(135deg, #f8f9ff, #e8f2ff);
+}
+
+.message-container[data-source="IA Avançada"] .message-content {
+    position: relative;
+}
+
+.message-container[data-source="IA Avançada"]::before {
+    content: "🤖 IA Avançada";
+    position: absolute;
+    top: -8px;
+    right: 12px;
+    background: var(--cor-ia-avancada);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 600;
+    z-index: 1;
+}
+
+/* Responsividade para IA Avançada */
+@media (max-width: 768px) {
+    .followups-container,
+    .sugestoes-proativas-container,
+    .sugestoes-relacionadas-container {
+        padding: var(--espaco-sm);
+        margin-top: var(--espaco-sm);
+    }
+    
+    .followup-item,
+    .sugestao-proativa-item,
+    .sugestao-relacionada-item {
+        padding: var(--espaco-sm);
+    }
+    
+    .followup-texto,
+    .sugestao-relacionada-texto {
+        font-size: 0.9em;
+    }
+}
+
+/* Tema escuro para IA Avançada */
+body.dark-theme .followups-container {
+    background: linear-gradient(135deg, #2d5a4a, #1e3a32);
+    box-shadow: 0 4px 12px rgba(0, 184, 148, 0.2);
+}
+
+body.dark-theme .sugestoes-proativas-container {
+    background: linear-gradient(135deg, #5d2a2a, #3d1a1a);
+    box-shadow: 0 4px 12px rgba(225, 112, 85, 0.2);
+}
+
+body.dark-theme .sugestoes-relacionadas-container {
+    background: linear-gradient(135deg, #5d4a2a, #3d2a1a);
+    box-shadow: 0 4px 12px rgba(253, 203, 110, 0.2);
+}
+
+body.dark-theme .message-container[data-source="IA Avançada"] {
+    background: linear-gradient(135deg, #2a2a3d, #1a1a2e);
+    border-left-color: #8b5cf6;
 }
