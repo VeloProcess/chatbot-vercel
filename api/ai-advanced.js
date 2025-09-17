@@ -9,6 +9,25 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const embeddingsCache = new Map();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 horas
 
+// ==================== UTILITÁRIOS ====================
+
+function limparJSON(content) {
+  let cleaned = content.trim();
+  
+  // Remover markdown se presente
+  if (cleaned.includes('```json')) {
+    cleaned = cleaned.replace(/```json\s*/, '').replace(/```\s*$/, '');
+  }
+  
+  // Remover texto antes do JSON se houver
+  const jsonStart = cleaned.indexOf('{');
+  if (jsonStart > 0) {
+    cleaned = cleaned.substring(jsonStart);
+  }
+  
+  return cleaned;
+}
+
 // ==================== 1. ANÁLISE SEMÂNTICA COM EMBEDDINGS ====================
 
 async function getEmbedding(text) {
@@ -181,7 +200,8 @@ SENTIMENTO:
       max_tokens: 200
     });
 
-    const resultado = JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content;
+    const resultado = JSON.parse(limparJSON(content));
     return resultado;
   } catch (error) {
     console.error('Erro na análise de urgência:', error);
@@ -295,7 +315,8 @@ Responda em JSON com os 5 melhores resultados ranqueados:
       max_tokens: 1000
     });
 
-    const resultado = JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content;
+    const resultado = JSON.parse(limparJSON(content));
     return resultado;
   } catch (error) {
     console.error('Erro ao combinar resultados:', error);
@@ -407,7 +428,14 @@ Responda em JSON:
       max_tokens: 300
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    let content = response.choices[0].message.content.trim();
+    
+    // Remover markdown se presente
+    if (content.includes('```json')) {
+      content = content.replace(/```json\s*/, '').replace(/```\s*$/, '');
+    }
+    
+    return JSON.parse(content);
   } catch (error) {
     console.error('Erro ao gerar follow-ups:', error);
     return {
@@ -453,7 +481,14 @@ Responda em JSON:
       max_tokens: 400
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    let content = response.choices[0].message.content.trim();
+    
+    // Remover markdown se presente
+    if (content.includes('```json')) {
+      content = content.replace(/```json\s*/, '').replace(/```\s*$/, '');
+    }
+    
+    return JSON.parse(content);
   } catch (error) {
     console.error('Erro ao gerar sugestões proativas:', error);
     return { sugestoes_proativas: [] };
@@ -525,7 +560,14 @@ Responda em JSON:
       max_tokens: 300
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    let content = response.choices[0].message.content.trim();
+    
+    // Remover markdown se presente
+    if (content.includes('```json')) {
+      content = content.replace(/```json\s*/, '').replace(/```\s*$/, '');
+    }
+    
+    return JSON.parse(content);
   } catch (error) {
     console.error('Erro ao analisar contexto:', error);
     return {
