@@ -1067,8 +1067,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('🚀 DOM carregado, configurando botões...');
             
             // Configurar todos os botões
-            setupTestButton();
-            setupTestButton2();
             setupVoiceButton();
             setupPlayButton();
             setupStopButton();
@@ -1081,26 +1079,12 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('load', () => {
             console.log('🌐 Janela carregada, verificando botões...');
             setTimeout(() => {
-                setupTestButton();
-                setupTestButton2();
                 setupVoiceButton();
                 setupPlayButton();
                 setupStopButton();
             }, 1000);
         });
 
-        // Botão de teste - abordagem mais simples
-        function setupTestButton() {
-            const testBtn = document.getElementById('test-voice');
-            if (testBtn) {
-                testBtn.addEventListener('click', function() {
-                    console.log('🧪 Botão de teste clicado!');
-                    addMessage('🧪 Teste de funcionalidade executado!', 'bot');
-                    toggleRecording();
-                });
-                console.log('✅ Botão de teste configurado');
-            }
-        }
 
         // Configurar botão de voz - abordagem mais simples
         function setupVoiceButton() {
@@ -1140,81 +1124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Configurar segundo botão de teste
-        function setupTestButton2() {
-            const testBtn2 = document.getElementById('test-voice2');
-            if (testBtn2) {
-                testBtn2.addEventListener('click', function() {
-                    console.log('🧪 TESTE 2 - Botão clicado!');
-                    addMessage('🧪 TESTE 2 - Função executada!', 'bot');
-                    
-                    // Teste das variáveis de ambiente
-                    addMessage('🔍 Testando variáveis de ambiente...', 'bot');
-                    console.log('🔍 Fazendo requisição para /api/voice?action=debug');
-                    
-                    // Teste direto da URL
-                    const testUrl = window.location.origin + '/api/voice?action=debug';
-                    console.log('🔍 URL de teste:', testUrl);
-                    
-                    fetch(testUrl)
-                        .then(response => {
-                            console.log('🔍 Resposta do teste de env:', response.status);
-                            console.log('🔍 Headers:', response.headers);
-                            if (response.ok) {
-                                return response.json();
-                            } else {
-                                return response.text().then(text => {
-                                    throw new Error(`API retornou ${response.status}: ${text}`);
-                                });
-                            }
-                        })
-                        .then(data => {
-                            console.log('🔍 Dados das variáveis:', data);
-                            if (data.success) {
-                                addMessage(`✅ Variáveis verificadas!`, 'bot');
-                                addMessage(`🔑 ELEVENLABS_API_KEY: ${data.envVars.ELEVENLABS_API_KEY}`, 'bot');
-                                addMessage(`📏 Tamanho: ${data.envVars.ELEVENLABS_API_KEY_LENGTH} caracteres`, 'bot');
-                                addMessage(`🔤 Prefixo: ${data.envVars.ELEVENLABS_API_KEY_PREFIX}`, 'bot');
-                                addMessage(`🌍 Ambiente: ${data.envVars.VERCEL_ENV || 'local'}`, 'bot');
-                            } else {
-                                addMessage(`❌ Erro ao verificar variáveis: ${data.error}`, 'bot');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('❌ Erro ao testar variáveis:', error);
-                            addMessage(`❌ Erro ao testar variáveis: ${error.message}`, 'bot');
-                        });
-                });
-                console.log('✅ Botão de teste 2 configurado');
-            }
-        }
 
-        // Funções globais para teste (chamadas pelo onclick)
-        window.testVoiceFunction = function() {
-            console.log('🧪 TESTE 1 - Função global chamada!');
-            addMessage('🧪 TESTE 1 - Função global executada!', 'bot');
-            toggleRecording();
-        };
-
-        window.testVoiceFunction2 = function() {
-            console.log('🧪 TESTE 2 - Função global chamada!');
-            addMessage('🧪 TESTE 2 - Função global executada!', 'bot');
-            
-            // Teste direto de gravação
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                addMessage('🎤 Testando acesso ao microfone...', 'bot');
-                navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(stream => {
-                        addMessage('✅ Microfone acessado com sucesso!', 'bot');
-                        stream.getTracks().forEach(track => track.stop());
-                    })
-                    .catch(err => {
-                        addMessage('❌ Erro ao acessar microfone: ' + err.message, 'bot');
-                    });
-            } else {
-                addMessage('❌ MediaDevices não suportado', 'bot');
-            }
-        };
 
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
