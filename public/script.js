@@ -1067,6 +1067,155 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // ==================== SISTEMA DE ADMINISTRAÇÃO ====================
+        
+        // Verificar se usuário é admin
+        function isAdmin() {
+            if (!dadosAtendente) return false;
+            const adminRoles = ['Admin', 'Supervisor', 'Diretor'];
+            return adminRoles.includes(dadosAtendente.funcao);
+        }
+
+        // Mostrar/ocultar botão de admin
+        function toggleAdminButton() {
+            const adminBtn = document.getElementById('admin-panel-btn');
+            if (adminBtn) {
+                if (isAdmin()) {
+                    adminBtn.classList.remove('hidden');
+                    console.log('🔧 Botão de admin mostrado para:', dadosAtendente.funcao);
+                } else {
+                    adminBtn.classList.add('hidden');
+                }
+            }
+        }
+
+        // Inicializar painel administrativo
+        function initAdminPanel() {
+            const adminBtn = document.getElementById('admin-panel-btn');
+            const adminPanel = document.getElementById('admin-panel');
+            const closeBtn = document.getElementById('close-admin-panel');
+            const refreshBtn = document.getElementById('refresh-users');
+            const forceLogoutBtn = document.getElementById('force-logout-btn');
+
+            if (adminBtn) {
+                adminBtn.addEventListener('click', () => {
+                    adminPanel.classList.remove('hidden');
+                    loadOnlineUsers();
+                });
+            }
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    adminPanel.classList.add('hidden');
+                });
+            }
+
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', loadOnlineUsers);
+            }
+
+            if (forceLogoutBtn) {
+                forceLogoutBtn.addEventListener('click', forceLogoutUser);
+            }
+        }
+
+        // Carregar usuários online
+        async function loadOnlineUsers() {
+            try {
+                console.log('🔄 Carregando usuários online...');
+                const response = await fetch('/api/adminUsers?action=getOnlineUsers');
+                const data = await response.json();
+
+                if (data.success) {
+                    displayOnlineUsers(data.onlineUsers);
+                    updateUsersCount(data.total);
+                } else {
+                    console.error('Erro ao carregar usuários:', data.error);
+                    alert('Erro ao carregar usuários online');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar usuários online:', error);
+                alert('Erro de conexão ao carregar usuários');
+            }
+        }
+
+        // Exibir usuários online
+        function displayOnlineUsers(users) {
+            const usersList = document.getElementById('users-list');
+            if (!usersList) return;
+
+            if (users.length === 0) {
+                usersList.innerHTML = '<div class="user-item"><div class="user-info">Nenhum usuário online no momento</div></div>';
+                return;
+            }
+
+            usersList.innerHTML = users.map(user => `
+                <div class="user-item">
+                    <div class="user-info">
+                        <div class="user-email">${user.email}</div>
+                        <div class="user-name">${user.nome}</div>
+                        <div class="user-role">${user.cargo}</div>
+                    </div>
+                    <div class="user-actions">
+                        <span class="user-status">Online</span>
+                        <button class="admin-button danger" onclick="forceLogoutUserByEmail('${user.email}')">
+                            🚪 Deslogar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Atualizar contador de usuários
+        function updateUsersCount(count) {
+            const countElement = document.getElementById('users-count');
+            if (countElement) {
+                countElement.textContent = `${count} usuário${count !== 1 ? 's' : ''} online`;
+            }
+        }
+
+        // Forçar logout de usuário específico
+        async function forceLogoutUserByEmail(email) {
+            if (!confirm(`Tem certeza que deseja deslogar o usuário ${email}?`)) {
+                return;
+            }
+
+            try {
+                console.log(`🔴 Deslogando usuário: ${email}`);
+                const response = await fetch(`/api/adminUsers?action=forceLogout&email=${encodeURIComponent(email)}&adminEmail=${encodeURIComponent(dadosAtendente.email)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Usuário ${email} foi deslogado com sucesso!`);
+                    loadOnlineUsers(); // Recarregar lista
+                } else {
+                    alert(`Erro ao deslogar usuário: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Erro ao deslogar usuário:', error);
+                alert('Erro de conexão ao deslogar usuário');
+            }
+        }
+
+        // Forçar logout via input
+        async function forceLogoutUser() {
+            const emailInput = document.getElementById('force-logout-email');
+            const email = emailInput.value.trim();
+
+            if (!email) {
+                alert('Por favor, digite o email do usuário');
+                return;
+            }
+
+            if (!email.includes('@velotax.com.br')) {
+                alert('Email deve ser do domínio @velotax.com.br');
+                return;
+            }
+
+            await forceLogoutUserByEmail(email);
+            emailInput.value = ''; // Limpar input
+        }
+
         // Inicialização simples e direta
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🚀 DOM carregado, configurando botões...');
@@ -1075,6 +1224,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setupVoiceButton();
             setupPlayButton();
             setupStopButton();
+            
+            // Inicializar painel administrativo
+            initAdminPanel();
             
             // Carregar vozes
             loadAvailableVoices();
@@ -1218,6 +1370,9 @@ if (feedbackSendBtn) {
         setInitialTheme();
         carregarNoticias();
         carregarStatusProdutos();
+        
+        // Mostrar botão de admin se for admin
+        toggleAdminButton();
     }
 
     // Inicia todo o processo de autenticação

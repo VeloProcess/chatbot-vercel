@@ -122,6 +122,36 @@
                 <div class="recording-dot"></div>
                 <span>Gravando...</span>
             </div>
+            
+            <!-- Botão de Administração (só para admins) -->
+            <button id="admin-panel-btn" class="admin-btn hidden">🔧 Admin</button>
+        </div>
+        
+        <!-- Painel de Administração -->
+        <div id="admin-panel" class="admin-panel hidden">
+            <div class="admin-header">
+                <h2>🔧 Painel de Administração</h2>
+                <button id="close-admin-panel" class="close-btn">×</button>
+            </div>
+            
+            <div class="admin-content">
+                <div class="admin-section">
+                    <h3>👥 Usuários Online</h3>
+                    <div class="admin-controls">
+                        <button id="refresh-users" class="admin-button">🔄 Atualizar</button>
+                        <span id="users-count" class="users-count">0 usuários online</span>
+                    </div>
+                    <div id="users-list" class="users-list"></div>
+                </div>
+                
+                <div class="admin-section">
+                    <h3>📊 Ações Administrativas</h3>
+                    <div class="admin-actions">
+                        <input type="email" id="force-logout-email" placeholder="Email do usuário para deslogar">
+                        <button id="force-logout-btn" class="admin-button danger">🚪 Deslogar Usuário</button>
+                    </div>
+                </div>
+            </div>
         </div>
         <div id="news-panel" class="panel">
             <div class="panel-header">
