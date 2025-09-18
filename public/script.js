@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`📝 Registrando status ${status} para ${dadosAtendente.email}...`);
             
             const response = await fetch(url, {
-                method: 'POST',
+            method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
@@ -1071,21 +1071,44 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Verificar se usuário é admin
         function isAdmin() {
-            if (!dadosAtendente) return false;
+            if (!dadosAtendente) {
+                console.log('❌ dadosAtendente não encontrado');
+                return false;
+            }
+            
             const adminRoles = ['Admin', 'Supervisor', 'Diretor'];
-            return adminRoles.includes(dadosAtendente.funcao);
+            const userRole = dadosAtendente.funcao;
+            const isAdminUser = adminRoles.includes(userRole);
+            
+            console.log('🔍 Verificação de admin:', {
+                email: dadosAtendente.email,
+                funcao: userRole,
+                adminRoles: adminRoles,
+                isAdmin: isAdminUser
+            });
+            
+            return isAdminUser;
         }
 
         // Mostrar/ocultar botão de admin
         function toggleAdminButton() {
             const adminBtn = document.getElementById('admin-panel-btn');
+            console.log('🔧 toggleAdminButton chamado:', {
+                adminBtn: !!adminBtn,
+                dadosAtendente: !!dadosAtendente,
+                funcao: dadosAtendente?.funcao
+            });
+            
             if (adminBtn) {
                 if (isAdmin()) {
                     adminBtn.classList.remove('hidden');
-                    console.log('🔧 Botão de admin mostrado para:', dadosAtendente.funcao);
+                    console.log('✅ Botão de admin mostrado para:', dadosAtendente.funcao);
                 } else {
                     adminBtn.classList.add('hidden');
+                    console.log('❌ Botão de admin ocultado para:', dadosAtendente?.funcao || 'função não encontrada');
                 }
+            } else {
+                console.error('❌ Botão admin-panel-btn não encontrado no DOM');
             }
         }
 
@@ -1372,7 +1395,9 @@ if (feedbackSendBtn) {
         carregarStatusProdutos();
         
         // Mostrar botão de admin se for admin
-        toggleAdminButton();
+        setTimeout(() => {
+            toggleAdminButton();
+        }, 1000); // Aguardar 1 segundo para garantir que o DOM esteja pronto
     }
 
     // Inicia todo o processo de autenticação
