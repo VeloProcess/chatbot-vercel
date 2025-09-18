@@ -156,9 +156,14 @@ module.exports = async function handler(req, res) {
         });
         break;
       case 'question':
-        newRow.push(payload.email || 'nao_fornecido');
+        // Estrutura: Data | Pergunta | Email
         newRow.push(payload.question || 'N/A');
-        console.log(`❓ Log de pergunta registrado: ${payload.email} - ${payload.question?.substring(0, 50)}...`);
+        newRow.push(payload.email || 'nao_fornecido');
+        console.log(`❓ Log de pergunta registrado na aba Log_Perguntas:`, {
+          data: newRow[0],
+          pergunta: newRow[1],
+          email: newRow[2]
+        });
         break;
       case 'error':
         newRow.push(payload.email || 'nao_fornecido');
