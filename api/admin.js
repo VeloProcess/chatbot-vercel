@@ -1,4 +1,4 @@
-// api/adminUsers.js - Sistema de Administração de Usuários
+// api/admin.js - API Unificada de Administração
 
 const { google } = require('googleapis');
 
@@ -9,9 +9,6 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
-
-// Cache de usuários online (em memória)
-let onlineUsers = new Map();
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -36,6 +33,12 @@ module.exports = async function handler(req, res) {
         }
         return await getUserHistory(email, res);
       
+      case 'getUserProfile':
+        if (!email) {
+          return res.status(400).json({ error: 'Email do usuário é obrigatório' });
+        }
+        return await getUserProfile(email, res);
+      
       default:
         return res.status(400).json({ error: 'Ação não reconhecida' });
     }
@@ -48,7 +51,6 @@ module.exports = async function handler(req, res) {
 // Buscar usuários online
 async function getOnlineUsers(res) {
   try {
-    // Buscar logs de acesso recentes
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Log_Acessos!A:D',
@@ -59,15 +61,13 @@ async function getOnlineUsers(res) {
     const onlineThreshold = 5 * 60 * 1000; // 5 minutos
     const onlineUsersList = [];
 
-    // Processar logs para encontrar usuários online
     for (let i = 1; i < rows.length; i++) {
       const [timestamp, email, status, sessionId] = rows[i];
       
       if (status === 'online') {
         const loginTime = new Date(timestamp);
         if (now - loginTime < onlineThreshold) {
-          // Buscar perfil do usuário
-          const userProfile = await getUserProfile(email);
+          const userProfile = await getUserProfileData(email);
           onlineUsersList.push({
             email,
             nome: userProfile.nome || 'Usuário',
@@ -79,7 +79,6 @@ async function getOnlineUsers(res) {
       }
     }
 
-    // Ordenar por último login (mais recente primeiro)
     onlineUsersList.sort((a, b) => new Date(b.ultimoLogin) - new Date(a.ultimoLogin));
 
     return res.status(200).json({
@@ -97,7 +96,6 @@ async function getOnlineUsers(res) {
 // Forçar logout de um usuário
 async function forceLogoutUser(email, adminEmail, res) {
   try {
-    // Registrar logout forçado
     const timestamp = new Date().toLocaleString('pt-BR', {
       timeZone: 'America/Sao_Paulo'
     });
@@ -116,7 +114,6 @@ async function forceLogoutUser(email, adminEmail, res) {
       }
     });
 
-    // Registrar ação do admin
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Log_Admin',
@@ -168,7 +165,6 @@ async function getUserHistory(email, res) {
       }
     }
 
-    // Ordenar por timestamp (mais recente primeiro)
     userHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     return res.status(200).json({
@@ -183,8 +179,19 @@ async function getUserHistory(email, res) {
   }
 }
 
+// Buscar perfil do usuário
+async function getUserProfile(email, res) {
+  try {
+    const userProfile = await getUserProfileData(email);
+    return res.status(200).json(userProfile);
+  } catch (error) {
+    console.error('Erro ao buscar perfil do usuário:', error);
+    return res.status(500).json({ error: 'Erro ao buscar perfil do usuário' });
+  }
+}
+
 // Função auxiliar para buscar perfil do usuário
-async function getUserProfile(email) {
+async function getUserProfileData(email) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -197,15 +204,16 @@ async function getUserProfile(email) {
       const [userEmail, nomeCompleto, cargo] = rows[i];
       if (userEmail && userEmail.toLowerCase() === email.toLowerCase()) {
         return {
+          email: email,
           nome: nomeCompleto || 'Usuário',
           funcao: cargo || 'Atendente'
         };
       }
     }
 
-    return { nome: 'Usuário', funcao: 'Atendente' };
+    return { email: email, nome: 'Usuário', funcao: 'Atendente' };
   } catch (error) {
     console.error('Erro ao buscar perfil:', error);
-    return { nome: 'Usuário', funcao: 'Atendente' };
+    return { email: email, nome: 'Usuário', funcao: 'Atendente' };
   }
 }

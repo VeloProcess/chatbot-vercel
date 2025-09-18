@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const user = await googleResponse.json();
 
             if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
-                const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
+                const profileResponse = await fetch(`/api/admin?action=getUserProfile&email=${encodeURIComponent(user.email)}`);
                 if (!profileResponse.ok) throw new Error('Falha ao buscar perfil do usuário.');
                 
                 const userProfile = await profileResponse.json();
@@ -1123,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async function loadOnlineUsers() {
             try {
                 console.log('🔄 Carregando usuários online...');
-                const response = await fetch('/api/adminUsers?action=getOnlineUsers');
+                const response = await fetch('/api/admin?action=getOnlineUsers');
                 const data = await response.json();
 
                 if (data.success) {
@@ -1182,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 console.log(`🔴 Deslogando usuário: ${email}`);
-                const response = await fetch(`/api/adminUsers?action=forceLogout&email=${encodeURIComponent(email)}&adminEmail=${encodeURIComponent(dadosAtendente.email)}`);
+                const response = await fetch(`/api/admin?action=forceLogout&email=${encodeURIComponent(email)}&adminEmail=${encodeURIComponent(dadosAtendente.email)}`);
                 const data = await response.json();
 
                 if (data.success) {
