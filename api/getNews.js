@@ -1,4 +1,4 @@
-:heapi/getNews.js (Versão com cache e ordenação cronológica)
+api/getNews.js (Versão com cache e ordenação cronológica)
 
 const { google } = require('googleapis');
 
@@ -7,7 +7,7 @@ const NEWS_SHEET_NAME = "Noticias!A:D";
 const CACHE_DURATION_SECONDS = 180; // Cache de 3 minutos
 
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
+  credentials: process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : {},
   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
@@ -28,6 +28,10 @@ module.exports = async function handler(req, res) {
 
   try {
     console.log("Buscando notícias da Planilha Google.");
+    console.log("GOOGLE_CREDENTIALS disponível:", !!process.env.GOOGLE_CREDENTIALS);
+    console.log("SPREADSHEET_ID:", SPREADSHEET_ID);
+    console.log("NEWS_SHEET_NAME:", NEWS_SHEET_NAME);
+    
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: NEWS_SHEET_NAME,
@@ -59,6 +63,16 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     res.setHeader('Cache-Control', 'no-cache');
     console.error("ERRO AO BUSCAR NOTÍCIAS:", error);
-    return res.status(500).json({ error: "Erro interno ao buscar as notícias." });
+    console.error("Detalhes do erro:", {
+      message: error.message,
+      code: error.code,
+      status: error.status
+    });
+    
+    // Retornar dados vazios em caso de erro para não quebrar a interface
+    return res.status(200).json({ 
+      news: [],
+      error: "Não foi possível carregar as notícias no momento."
+    });
   }
 };
