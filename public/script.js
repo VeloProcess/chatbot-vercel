@@ -50,31 +50,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Função para registrar status de login/logout no backend
-    function logUserStatus(status) {
+    async function logUserStatus(status) {
         if (!dadosAtendente?.email) return;
         
         const url = '/api/logQuestion';
-        const data = JSON.stringify({
+        const data = {
             type: 'access',
             payload: {
                 email: dadosAtendente.email,
                 status: status,
                 sessionId: sessionId
             }
-        });
+        };
 
-        if (navigator.sendBeacon) {
-            const blob = new Blob([data], { type: 'application/json' });
-            navigator.sendBeacon(url, blob);
-        } else {
-        fetch(url, {
-            method: 'POST',
+        try {
+            console.log(`📝 Registrando status ${status} para ${dadosAtendente.email}...`);
+            
+            const response = await fetch(url, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: data,
-            keepalive: true
-            }).catch(error => {
-                console.error(`Erro ao registrar status ${status}:`, error);
+                body: JSON.stringify(data)
             });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ Status ${status} registrado com sucesso:`, result);
+            } else {
+                console.error(`❌ Erro ao registrar status ${status}:`, response.status);
+            }
+        } catch (error) {
+            console.error(`❌ Erro ao registrar status ${status}:`, error);
         }
     }
 

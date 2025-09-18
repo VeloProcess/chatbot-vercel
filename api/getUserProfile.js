@@ -23,21 +23,23 @@ module.exports = async function handler(req, res) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Usuarios!A:B', // Lê as colunas Email e Funcao da nova aba
+      range: 'Usuarios!A:C', // Lê as colunas Email, Nome Completo e Cargo
     });
 
     const rows = response.data.values || [];
-    let userProfile = { email: email, funcao: 'Atendente' }; // Define 'Atendente' como padrão
+    let userProfile = { email: email, funcao: 'Atendente', nome: 'Usuário' }; // Define padrões
 
     // Procura o email na lista, começando da segunda linha para ignorar o cabeçalho
     for (let i = 1; i < rows.length; i++) {
-      const [userEmail, userFuncao] = rows[i];
+      const [userEmail, nomeCompleto, cargo] = rows[i];
       if (userEmail && userEmail.toLowerCase() === email.toLowerCase()) {
-        userProfile.funcao = userFuncao;
+        userProfile.funcao = cargo || 'Atendente';
+        userProfile.nome = nomeCompleto || 'Usuário';
         break; // Para a busca assim que encontrar o usuário
       }
     }
 
+    console.log(`Perfil encontrado para ${email}:`, userProfile);
     return res.status(200).json(userProfile);
 
   } catch (error) {

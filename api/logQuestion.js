@@ -14,7 +14,7 @@ const SHEET_NAMES = {
 
 // --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
+  credentials: process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : {},
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
@@ -144,21 +144,33 @@ module.exports = async function handler(req, res) {
     // Monta a linha com base no tipo de log
     switch (type) {
       case 'access':
+        // Estrutura: Timestamp | Email | Status | SessionID
         newRow.push(payload.email || 'nao_fornecido');
         newRow.push(payload.status || 'unknown');
         newRow.push(payload.sessionId || 'N/A');
+        console.log(`📝 Log de acesso registrado na aba Log_Acessos:`, {
+          timestamp: newRow[0],
+          email: newRow[1],
+          status: newRow[2],
+          sessionId: newRow[3]
+        });
         break;
       case 'question':
-      case 'error':
         newRow.push(payload.email || 'nao_fornecido');
         newRow.push(payload.question || 'N/A');
+        console.log(`❓ Log de pergunta registrado: ${payload.email} - ${payload.question?.substring(0, 50)}...`);
+        break;
+      case 'error':
+        newRow.push(payload.email || 'nao_fornecido');
+        newRow.push(payload.question || payload.error || 'N/A');
+        console.log(`❌ Log de erro registrado: ${payload.email} - ${payload.question || payload.error}`);
         break;
       default:
         return res.status(400).json({ error: `Tipo de log desconhecido: ${type}` });
     }
 
     // Envia os dados para a planilha
-    await sheets.spreadsheets.values.append({
+    const appendResponse = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: sheetName,
       valueInputOption: 'USER_ENTERED',
@@ -167,7 +179,16 @@ module.exports = async function handler(req, res) {
       },
     });
 
-    return res.status(200).json({ status: 'sucesso', message: `Log do tipo '${type}' registrado.` });
+    console.log(`✅ Log registrado com sucesso na planilha ${sheetName}:`, newRow);
+    return res.status(200).json({ 
+      status: 'sucesso', 
+      message: `Log do tipo '${type}' registrado.`,
+      details: {
+        sheet: sheetName,
+        row: newRow,
+        updatedRange: appendResponse.data.updatedRange
+      }
+    });
 
   } catch (error) {
     console.error(`ERRO NO ENDPOINT DE LOG (tipo: ${req.body?.type}):`, error);
