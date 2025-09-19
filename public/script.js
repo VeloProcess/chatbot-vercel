@@ -391,6 +391,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
         function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
+            // Verificação de segurança para evitar erro de trim em undefined
+            if (!text || typeof text !== 'string') {
+                text = "Mensagem não disponível";
+            }
+            
             const messageContainer = document.createElement('div');
             messageContainer.className = `message-container ${sender}`;
             const avatar = document.createElement('div');
@@ -601,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         sourceRow: data.sourceRow
                     });
                 } else {
-                    addMessage(data.resposta, 'bot', {
+                    addMessage(data.resposta || data.error || "Resposta não disponível", 'bot', {
                         sourceRow: 'Erro do Bot'
                     });
                 }
