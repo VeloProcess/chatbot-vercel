@@ -148,96 +148,111 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=240');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // Timeout de 15 segundos para evitar 504
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Timeout da API ask')), 15000);
+  });
+
   try {
-    const { pergunta, email, reformular, usar_ia_avancada = 'true' } = req.query;
-    if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
-
-    console.log('🤖 Nova pergunta recebida:', { pergunta, email, usar_ia_avancada });
-
-    // --- VERIFICAR SE DEVE USAR IA AVANÇADA ---
-    if (usar_ia_avancada === 'true') {
-      try {
-        const faqData = await getFaqData();
-        const historico = userSessions[email]?.historico || [];
-        
-        console.log('🚀 Usando IA Avançada...');
-        const resultadoIA = await processarComIA(pergunta, faqData, historico, email);
-        
-        // Atualizar histórico da sessão
-        if (email) {
-          if (!userSessions[email]) {
-            userSessions[email] = { contexto: "", ultimaPergunta: "", historico: [] };
-          }
-          userSessions[email].historico.push(
-            { role: "user", content: pergunta },
-            { role: "assistant", content: resultadoIA.resposta }
-          );
-          // Manter apenas últimas 10 interações
-          if (userSessions[email].historico.length > 20) {
-            userSessions[email].historico = userSessions[email].historico.slice(-20);
-          }
-        }
-
-        // Log de uso da IA
-        await logIaUsage(email, pergunta);
-
-        return res.status(200).json(resultadoIA);
-      } catch (error) {
-        console.error('❌ Erro na IA Avançada, usando fallback:', error);
-        // Continuar com o método tradicional
-      }
-    }
-
-    // --- MÉTODO TRADICIONAL (FALLBACK) ---
-    const perguntaNormalizada = normalizarTexto(pergunta);
-
-    // --- MENU ESPECÍFICO: CRÉDITO ---
-    if (perguntaNormalizada === 'credito') {
-      return res.status(200).json({
-        status: "clarification_needed",
-        resposta: "Você quer qual informação sobre crédito?",
-        options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal", "Data dos créditos ( lotes )"],
-        source: "Planilha",
-        sourceRow: 'Pergunta de Esclarecimento'
-      });
-    }
-
-    const faqData = await getFaqData();
-    const correspondencias = findMatches(pergunta, faqData);
-
-    // --- SEM CORRESPONDÊNCIAS NA PLANILHA ---
-    if (correspondencias.length === 0) {
-      await logIaUsage(email, pergunta);
-      const respostaDaIA = await askOpenAI(pergunta, "Nenhum", email, reformular);
-      return res.status(200).json({
-        status: "sucesso_ia",
-        resposta: respostaDaIA,
-        source: "IA",
-        sourceRow: 'Resposta da IA'
-      });
-    }
-
-    // --- SE HOUVER CORRESPONDÊNCIAS ---
-    if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1].score) {
-      return res.status(200).json({
-        status: "sucesso",
-        resposta: correspondencias[0].resposta,
-        sourceRow: correspondencias[0].sourceRow,
-        tabulacoes: correspondencias[0].tabulacoes,
-        source: "Planilha"
-      });
-    } else {
-      return res.status(200).json({
-        status: "clarification_needed",
-        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
-        source: "Planilha",
-        sourceRow: 'Pergunta de Esclarecimento'
-      });
-    }
-
+    const result = await Promise.race([
+      processAskRequest(req, res),
+      timeoutPromise
+    ]);
+    return result;
   } catch (error) {
     console.error("ERRO NO BACKEND:", error);
-    return res.status(500).json({ error: "Erro interno no servidor.", details: error.message });
+    return res.status(200).json({ 
+      error: error.message === 'Timeout da API ask' ? 'Timeout - tente novamente' : "Erro interno no servidor.", 
+      details: error.message 
+    });
   }
 };
+
+async function processAskRequest(req, res) {
+  const { pergunta, email, reformular, usar_ia_avancada = 'true' } = req.query;
+  if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
+
+  console.log('🤖 Nova pergunta recebida:', { pergunta, email, usar_ia_avancada });
+
+  // --- VERIFICAR SE DEVE USAR IA AVANÇADA ---
+  if (usar_ia_avancada === 'true') {
+    try {
+      const faqData = await getFaqData();
+      const historico = userSessions[email]?.historico || [];
+      
+      console.log('🚀 Usando IA Avançada...');
+      const resultadoIA = await processarComIA(pergunta, faqData, historico, email);
+      
+      // Atualizar histórico da sessão
+      if (email) {
+        if (!userSessions[email]) {
+          userSessions[email] = { contexto: "", ultimaPergunta: "", historico: [] };
+        }
+        userSessions[email].historico.push(
+          { role: "user", content: pergunta },
+          { role: "assistant", content: resultadoIA.resposta }
+        );
+        // Manter apenas últimas 10 interações
+        if (userSessions[email].historico.length > 20) {
+          userSessions[email].historico = userSessions[email].historico.slice(-20);
+        }
+      }
+
+      // Log de uso da IA
+      await logIaUsage(email, pergunta);
+
+      return res.status(200).json(resultadoIA);
+    } catch (error) {
+      console.error('❌ Erro na IA Avançada, usando fallback:', error);
+      // Continuar com o método tradicional
+    }
+  }
+
+  // --- MÉTODO TRADICIONAL (FALLBACK) ---
+  const perguntaNormalizada = normalizarTexto(pergunta);
+
+  // --- MENU ESPECÍFICO: CRÉDITO ---
+  if (perguntaNormalizada === 'credito') {
+    return res.status(200).json({
+      status: "clarification_needed",
+      resposta: "Você quer qual informação sobre crédito?",
+      options: ["Antecipação", "Crédito ao trabalhador", "Crédito pessoal", "Data dos créditos ( lotes )"],
+      source: "Planilha",
+      sourceRow: 'Pergunta de Esclarecimento'
+    });
+  }
+
+  const faqData = await getFaqData();
+  const correspondencias = findMatches(pergunta, faqData);
+
+  // --- SEM CORRESPONDÊNCIAS NA PLANILHA ---
+  if (correspondencias.length === 0) {
+    await logIaUsage(email, pergunta);
+    const respostaDaIA = await askOpenAI(pergunta, "Nenhum", email, reformular);
+    return res.status(200).json({
+      status: "sucesso_ia",
+      resposta: respostaDaIA,
+      source: "IA",
+      sourceRow: 'Resposta da IA'
+    });
+  }
+
+  // --- SE HOUVER CORRESPONDÊNCIAS ---
+  if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1].score) {
+    return res.status(200).json({
+      status: "sucesso",
+      resposta: correspondencias[0].resposta,
+      sourceRow: correspondencias[0].sourceRow,
+      tabulacoes: correspondencias[0].tabulacoes,
+      source: "Planilha"
+    });
+  } else {
+    return res.status(200).json({
+      status: "clarification_needed",
+      resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
+      options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
+      source: "Planilha",
+      sourceRow: 'Pergunta de Esclarecimento'
+    });
+  }
+}

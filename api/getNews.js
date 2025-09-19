@@ -35,53 +35,53 @@ module.exports = async function handler(req, res) {
     return res.status(200).json(cache.data);
   }
 
+  // Timeout de 8 segundos para evitar 504
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Timeout da API getNews')), 8000);
+  });
+
   try {
-    console.log("Buscando notícias da Planilha Google.");
-    console.log("GOOGLE_CREDENTIALS disponível:", !!process.env.GOOGLE_CREDENTIALS);
-    console.log("SPREADSHEET_ID:", SPREADSHEET_ID);
-    console.log("NEWS_SHEET_NAME:", NEWS_SHEET_NAME);
-    
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: NEWS_SHEET_NAME,
-    });
-
-    const rows = response.data.values || [];
-    let newsData = [];
-
-    if (rows.length >= 2) {
-      const header = rows[0];
-      newsData = rows.slice(1).map(row => {
-        const newsItem = {};
-        header.forEach((key, index) => {
-          const formattedKey = key.charAt(0).toLowerCase() + key.slice(1);
-          newsItem[formattedKey] = row[index] || '';
-        });
-        return newsItem;
-      });
-    }
-
-    // AQUI ESTÁ A LÓGICA CORRETA: apenas inverte a ordem
-    const responseData = { news: newsData.reverse() };
+    const result = await Promise.race([
+      fetchNewsData(),
+      timeoutPromise
+    ]);
     
     // Salva a nova resposta no cache
-    cache = { timestamp: now, data: responseData };
+    cache = { timestamp: now, data: result };
     
-    return res.status(200).json(responseData);
-
+    return res.status(200).json(result);
   } catch (error) {
-    res.setHeader('Cache-Control', 'no-cache');
-    console.error("ERRO AO BUSCAR NOTÍCIAS:", error);
-    console.error("Detalhes do erro:", {
-      message: error.message,
-      code: error.code,
-      status: error.status
-    });
-    
-    // Retornar dados vazios em caso de erro para não quebrar a interface
+    console.error('Erro na API getNews:', error);
     return res.status(200).json({ 
       news: [],
-      error: "Não foi possível carregar as notícias no momento."
+      error: error.message === 'Timeout da API getNews' ? 'Timeout - tente novamente' : 'Erro ao carregar notícias'
     });
   }
 };
+
+async function fetchNewsData() {
+  console.log("Buscando notícias da Planilha Google.");
+  
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: NEWS_SHEET_NAME,
+  });
+
+  const rows = response.data.values || [];
+  let newsData = [];
+
+  if (rows.length >= 2) {
+    const header = rows[0];
+    newsData = rows.slice(1).map(row => {
+      const newsItem = {};
+      header.forEach((key, index) => {
+        const formattedKey = key.charAt(0).toLowerCase() + key.slice(1);
+        newsItem[formattedKey] = row[index] || '';
+      });
+      return newsItem;
+    });
+  }
+
+  // AQUI ESTÁ A LÓGICA CORRETA: apenas inverte a ordem
+  return { news: newsData.reverse() };
+}

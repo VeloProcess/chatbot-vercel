@@ -34,7 +34,31 @@ module.exports = async function handler(req, res) {
         return res.status(200).json(cache.data);
     }
 
+    // Timeout de 8 segundos para evitar 504
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout da API getProductStatus')), 8000);
+    });
+
     try {
+        const result = await Promise.race([
+            fetchProductStatusData(),
+            timeoutPromise
+        ]);
+        
+        // Salva a nova resposta no cache
+        cache = { timestamp: now, data: result };
+        
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error('Erro na API getProductStatus:', error);
+        return res.status(200).json({ 
+            products: [],
+            error: error.message === 'Timeout da API getProductStatus' ? 'Timeout - tente novamente' : 'Erro ao carregar status dos produtos'
+        });
+    }
+};
+
+async function fetchProductStatusData() {
     console.log("Buscando status de produtos da Planilha Google.");
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -46,30 +70,10 @@ module.exports = async function handler(req, res) {
 
     if (rows.length >= 2) {
         productsData = rows.slice(1).map(row => ({
-        produto: row[0],
-        status: row[1]
+            produto: row[0],
+            status: row[1]
         }));
     }
 
-    const responseData = { products: productsData };
-
-    // Salva a nova resposta no cache
-    cache = { timestamp: now, data: responseData };
-
-    return res.status(200).json(responseData);
-
-    } catch (error) {
-    console.error("ERRO AO BUSCAR STATUS DOS PRODUTOS:", error);
-    console.error("Detalhes do erro:", {
-        message: error.message,
-        code: error.code,
-        status: error.status
-    });
-    
-    // Retornar dados vazios em caso de erro para não quebrar a interface
-    return res.status(200).json({ 
-        products: [],
-        error: "Não foi possível carregar o status dos produtos no momento."
-    });
-    }
-};
+    return { products: productsData };
+}
