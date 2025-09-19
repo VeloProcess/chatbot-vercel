@@ -1,4 +1,4 @@
-api/getNews.js (Versão com cache e ordenação cronológica)
+// api/getNews.js (Versão com cache e ordenação cronológica)
 
 const { google } = require('googleapis');
 
@@ -7,7 +7,7 @@ const NEWS_SHEET_NAME = "Noticias!A:D";
 const CACHE_DURATION_SECONDS = 180; // Cache de 3 minutos
 
 const auth = new google.auth.GoogleAuth({
-  credentials: process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : {},
+  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
@@ -17,6 +17,15 @@ let cache = { timestamp: null, data: null };
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', `s-maxage=${CACHE_DURATION_SECONDS}, stale-while-revalidate`);
+
+  // Verificar se as credenciais estão disponíveis
+  if (!process.env.GOOGLE_CREDENTIALS) {
+    console.error("GOOGLE_CREDENTIALS não configurado");
+    return res.status(200).json({ 
+      news: [],
+      error: "Configuração de credenciais não encontrada."
+    });
+  }
 
   const now = new Date();
   

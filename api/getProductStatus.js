@@ -6,7 +6,7 @@ const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 const CACHE_DURATION_SECONDS = 180; // Cache de 3 minutos
 
 const auth = new google.auth.GoogleAuth({
-    credentials: process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : {},
+    credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
@@ -17,12 +17,21 @@ module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=240');
 
-        const now = new Date();
+    // Verificar se as credenciais estão disponíveis
+    if (!process.env.GOOGLE_CREDENTIALS) {
+        console.error("GOOGLE_CREDENTIALS não configurado");
+        return res.status(200).json({ 
+            products: [],
+            error: "Configuração de credenciais não encontrada."
+        });
+    }
+
+    const now = new Date();
     
-  // Verifica se o cache é válido
+    // Verifica se o cache é válido
     if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
-    console.log("Servindo status de produtos do cache.");
-    return res.status(200).json(cache.data);
+        console.log("Servindo status de produtos do cache.");
+        return res.status(200).json(cache.data);
     }
 
     try {

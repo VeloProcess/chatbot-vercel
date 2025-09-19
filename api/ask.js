@@ -101,27 +101,6 @@ function findMatches(pergunta, faqData) {
   return correspondenciasUnicas;
 }
 
-// --- FUNÇÃO DE BUSCA EM SITES AUTORIZADOS ---
-async function buscarEPrepararContextoSites(pergunta) {
-  const sites = [
-    "https://www.gov.br/receitafederal",
-    "https://cav.receita.fazenda.gov.br",
-    "https://www.gov.br",
-    "https://velotax.com.br"
-  ];
-  let contexto = "";
-  for (const site of sites) {
-    try {
-      const { data } = await axios.get(site);
-      if (data.toLowerCase().includes(pergunta.toLowerCase())) {
-        contexto += `Fonte: ${site}\nTrecho encontrado que menciona a pergunta.\n\n`;
-      }
-    } catch (e) {
-      console.error(`Falha ao processar site ${site}:`, e.message);
-    }
-  }
-  return contexto || null;
-}
 
 // --- FUNÇÃO OPENAI ---
         async function askOpenAI(pergunta, contextoPlanilha, email, historicoSessao = []) {
@@ -229,8 +208,7 @@ module.exports = async function handler(req, res) {
     // --- SEM CORRESPONDÊNCIAS NA PLANILHA ---
     if (correspondencias.length === 0) {
       await logIaUsage(email, pergunta);
-      const contextoSites = await buscarEPrepararContextoSites(pergunta);
-      const respostaDaIA = await askOpenAI(pergunta, contextoSites || "Nenhum", email, reformular);
+      const respostaDaIA = await askOpenAI(pergunta, "Nenhum", email, reformular);
       return res.status(200).json({
         status: "sucesso_ia",
         resposta: respostaDaIA,
