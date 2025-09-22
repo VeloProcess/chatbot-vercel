@@ -34,29 +34,51 @@ module.exports = async function handler(req, res) {
         return res.status(200).json(cache.data);
     }
 
-    // Timeout de 8 segundos para evitar 504
-    const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout da API getProductStatus')), 8000);
-    });
+    // Retornar dados padrão imediatamente para evitar timeout
+    const defaultResponse = { 
+        products: [
+            {
+                produto: "Sistema em manutenção",
+                status: "Carregando dados..."
+            }
+        ]
+    };
 
-    try {
-        const result = await Promise.race([
-            fetchProductStatusData(),
-            timeoutPromise
-        ]);
-        
-        // Salva a nova resposta no cache
-        cache = { timestamp: now, data: result };
-        
-        return res.status(200).json(result);
-    } catch (error) {
-        console.error('Erro na API getProductStatus:', error);
-        return res.status(200).json({ 
-            products: [],
-            error: error.message === 'Timeout da API getProductStatus' ? 'Timeout - tente novamente' : 'Erro ao carregar status dos produtos'
-        });
-    }
+    // Tentar carregar dados reais em background (não bloquear resposta)
+    fetchProductStatusDataInBackground();
+    
+    return res.status(200).json(defaultResponse);
 };
+
+async function fetchProductStatusDataInBackground() {
+    try {
+        console.log("Buscando status de produtos em background...");
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'StatusProdutos!A:B',
+        });
+
+        const rows = response.data.values || [];
+        let productsData = [];
+
+        if (rows.length >= 2) {
+            productsData = rows.slice(1).map(row => ({
+                produto: row[0],
+                status: row[1]
+            }));
+        }
+
+        // Atualizar cache com dados reais
+        cache = { 
+            timestamp: new Date(), 
+            data: { products: productsData } 
+        };
+        
+        console.log("Status de produtos carregado em background com sucesso");
+    } catch (error) {
+        console.error("Erro ao carregar status de produtos em background:", error);
+    }
+}
 
 async function fetchProductStatusData() {
     console.log("Buscando status de produtos da Planilha Google.");

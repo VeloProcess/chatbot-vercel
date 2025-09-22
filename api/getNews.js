@@ -35,29 +35,58 @@ module.exports = async function handler(req, res) {
     return res.status(200).json(cache.data);
   }
 
-  // Timeout de 8 segundos para evitar 504
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Timeout da API getNews')), 8000);
-  });
+  // Retornar dados padrão imediatamente para evitar timeout
+  const defaultResponse = { 
+    news: [
+      {
+        titulo: "Sistema em manutenção",
+        conteudo: "As notícias estão sendo carregadas. Tente novamente em alguns instantes.",
+        data: new Date().toLocaleDateString('pt-BR'),
+        fonte: "Sistema"
+      }
+    ]
+  };
 
-  try {
-    const result = await Promise.race([
-      fetchNewsData(),
-      timeoutPromise
-    ]);
-    
-    // Salva a nova resposta no cache
-    cache = { timestamp: now, data: result };
-    
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error('Erro na API getNews:', error);
-    return res.status(200).json({ 
-      news: [],
-      error: error.message === 'Timeout da API getNews' ? 'Timeout - tente novamente' : 'Erro ao carregar notícias'
-    });
-  }
+  // Tentar carregar dados reais em background (não bloquear resposta)
+  fetchNewsDataInBackground();
+  
+  return res.status(200).json(defaultResponse);
 };
+
+async function fetchNewsDataInBackground() {
+  try {
+    console.log("Buscando notícias em background...");
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: NEWS_SHEET_NAME,
+    });
+
+    const rows = response.data.values || [];
+    let newsData = [];
+
+    if (rows.length >= 2) {
+      const header = rows[0];
+      newsData = rows.slice(1).map(row => {
+        const newsItem = {};
+        header.forEach((key, index) => {
+          const formattedKey = key.charAt(0).toLowerCase() + key.slice(1);
+          newsItem[formattedKey] = row[index] || '';
+        });
+        return newsItem;
+      });
+    }
+
+    // Atualizar cache com dados reais
+    cache = { 
+      timestamp: new Date(), 
+      data: { news: newsData.reverse() } 
+    };
+    
+    console.log("Notícias carregadas em background com sucesso");
+  } catch (error) {
+    console.error("Erro ao carregar notícias em background:", error);
+  }
+}
 
 async function fetchNewsData() {
   console.log("Buscando notícias da Planilha Google.");

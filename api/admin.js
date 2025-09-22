@@ -25,9 +25,9 @@ module.exports = async function handler(req, res) {
 
   const { action, email, adminEmail } = req.query;
 
-  // Timeout de 10 segundos para evitar 504
+  // Timeout de 20 segundos para evitar 504
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Timeout da API admin')), 10000);
+    setTimeout(() => reject(new Error('Timeout da API admin')), 20000);
   });
 
   try {

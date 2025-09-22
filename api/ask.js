@@ -148,9 +148,9 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=240');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Timeout de 15 segundos para evitar 504
+  // Timeout de 25 segundos para evitar 504
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Timeout da API ask')), 15000);
+    setTimeout(() => reject(new Error('Timeout da API ask')), 25000);
   });
 
   try {
