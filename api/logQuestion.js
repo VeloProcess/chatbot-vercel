@@ -13,16 +13,29 @@ const SHEET_NAMES = {
 };
 
 // --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
-const auth = new google.auth.GoogleAuth({
-  credentials: process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : {},
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
+let auth, sheets;
 
-const sheets = google.sheets({ version: 'v4', auth });
+try {
+  if (!process.env.GOOGLE_CREDENTIALS) {
+    console.warn('⚠️ GOOGLE_CREDENTIALS não configurado no logQuestion');
+  } else {
+    auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    sheets = google.sheets({ version: 'v4', auth });
+  }
+} catch (error) {
+  console.error('❌ Erro ao configurar Google Sheets no logQuestion:', error.message);
+}
 
 // --- FUNÇÃO PARA CONSULTAR HISTÓRICO E STATUS DE UM USUÁRIO ---
 async function getUserStatusAndHistory(email) {
   try {
+    if (!sheets) {
+      throw new Error('Google Sheets não configurado');
+    }
+    
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAMES.access}!A:D`, // Colunas: Timestamp, Email, Status, SessionID
@@ -89,6 +102,13 @@ module.exports = async function handler(req, res) {
       const email = req.query.email;
       if (!email) {
         // Retorna lista de usuários online (como na versão anterior)
+        if (!sheets) {
+          return res.status(503).json({ 
+            status: 'erro', 
+            error: 'Google Sheets não configurado' 
+          });
+        }
+        
         const response = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
           range: `${SHEET_NAMES.access}!A:D`,
@@ -175,6 +195,15 @@ module.exports = async function handler(req, res) {
     }
 
     // Envia os dados para a planilha
+    if (!sheets) {
+      console.warn('⚠️ Google Sheets não configurado - não é possível registrar log');
+      return res.status(200).json({ 
+        status: 'sucesso', 
+        message: `Log do tipo '${type}' registrado (modo offline).`,
+        warning: 'Google Sheets não configurado'
+      });
+    }
+    
     const appendResponse = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: sheetName,

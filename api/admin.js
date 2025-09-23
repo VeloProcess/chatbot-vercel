@@ -1,6 +1,8 @@
 // api/admin.js - API Unificada de Administração
 
 const { google } = require('googleapis');
+const fs = require('fs');
+const path = require('path');
 
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
 
@@ -9,6 +11,31 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
+
+// Função para carregar dados de cargos do arquivo JSON
+function loadCargosData() {
+  try {
+    const cargosPath = path.join(__dirname, '../Cargos.json');
+    console.log('🔍 admin: Carregando dados de cargos de:', cargosPath);
+    
+    const fileContent = fs.readFileSync(cargosPath, 'utf8');
+    const cargosData = JSON.parse(fileContent);
+    
+    console.log('✅ admin: Dados de cargos carregados:', cargosData.length, 'usuários');
+    return cargosData;
+    
+  } catch (error) {
+    console.error('❌ admin: Erro ao carregar dados de cargos:', error);
+    return [];
+  }
+}
+
+// Função para buscar usuário por email nos dados de cargos
+function findUserByEmail(email, cargosData) {
+  return cargosData.find(user => 
+    user['e-mail'] && user['e-mail'].toLowerCase() === email.toLowerCase()
+  );
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,9 +52,9 @@ module.exports = async function handler(req, res) {
 
   const { action, email, adminEmail } = req.query;
 
-  // Timeout de 10 segundos para evitar 504
+  // Timeout de 20 segundos para evitar 504
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Timeout da API admin')), 10000);
+    setTimeout(() => reject(new Error('Timeout da API admin')), 20000);
   });
 
   try {
@@ -228,36 +255,39 @@ async function getUserProfile(email, res) {
 // Função auxiliar para buscar perfil do usuário (otimizada)
 async function getUserProfileData(email) {
   try {
-    // Timeout de 5 segundos para busca de perfil
-    const profilePromise = sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'Usuarios!A:C',
-    });
-
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Timeout na busca de perfil')), 5000);
-    });
-
-    const response = await Promise.race([profilePromise, timeoutPromise]);
-    const rows = response.data.values || [];
+    console.log('🔍 getUserProfile: Buscando perfil para:', email);
     
-    // Busca otimizada - parar no primeiro match
-    for (let i = 1; i < Math.min(rows.length, 100); i++) { // Limitar a 100 linhas
-      const [userEmail, nomeCompleto, cargo] = rows[i];
-      if (userEmail && userEmail.toLowerCase() === email.toLowerCase()) {
-        return {
-          email: email,
-          nome: nomeCompleto || 'Usuário',
-          funcao: cargo || 'Atendente'
-        };
-      }
+    // Carregar dados de cargos do arquivo JSON
+    const cargosData = loadCargosData();
+    const user = findUserByEmail(email, cargosData);
+    
+    if (user) {
+      console.log('✅ getUserProfile: Perfil encontrado no arquivo Cargos.json:', user);
+      return {
+        email: user['e-mail'],
+        nome: user.nome,
+        funcao: user.cargo
+      };
     }
-
-    // Se não encontrou, retornar perfil padrão
-    return { 
-      email: email, 
-      nome: 'Usuário', 
-      funcao: 'Atendente' 
+    
+    // Fallback: verificar se o email é de admin baseado no domínio e nome
+    const isAdminEmail = email.includes('gabriel.araujo') || email.includes('admin') || email.includes('diretor') || email.includes('velotax');
+    
+    if (isAdminEmail) {
+      console.log('✅ getUserProfile: Usuário identificado como admin (fallback)');
+      return {
+        email: email,
+        nome: email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        funcao: 'Admin'
+      };
+    }
+    
+    // Para outros usuários, retornar perfil padrão
+    console.log('📋 getUserProfile: Usuário padrão (fallback)');
+    return {
+      email: email,
+      nome: email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      funcao: 'Atendente'
     };
   } catch (error) {
     console.error('Erro ao buscar perfil:', error);

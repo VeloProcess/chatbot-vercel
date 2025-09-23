@@ -11,7 +11,7 @@
                style-src 'self' 'unsafe-inline' https://unpkg.com;
                font-src 'self' https://unpkg.com https://fonts.gstatic.com https://vercel.live;
                connect-src 'self' https://www.googleapis.com https://script.google.com https://accounts.google.com wss://*.pusher.com https://*.pusher.com;">
-    <title>Assistente Virtual - Veloprocess</title>
+    <title>Assistente Virtual - Veloprocess - v2.0</title>
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="icon" type="image/png" href="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true">
     <link rel="stylesheet" href="style.css">
@@ -33,18 +33,19 @@
     </div>
 
     <div class="app-wrapper hidden">
-        <div id="sidebar" class="panel">
-    <div class="panel-header">
-        <h2>Perguntas Frequentes</h2>
-    </div>
-            <div class="sidebar-content">
-        <div class="question-category">Status dos Produtos</div>
-        <div id="product-status-container">
-                <div class="product-status-skeleton skeleton"></div>
-                <div class="product-status-skeleton skeleton"></div>
-                <div class="product-status-skeleton skeleton"></div>
-            </div>
+        <!-- Botão para expandir sidebar esquerda -->
+        <button id="expand-left-sidebar" class="expand-btn expand-left">
+            <i class='bx bx-arrow-from-left-stroke'></i>
+        </button>
         
+        <div id="sidebar" class="panel sidebar-collapsed">
+            <div class="panel-header">
+                <h2>Perguntas Frequentes</h2>
+                <button id="collapse-left-sidebar" class="collapse-btn">
+                    <i class='bx bx-arrow-from-right-stroke'></i>
+                </button>
+            </div>
+            <div class="sidebar-content">
                 <div class="question-category">Mais Comuns!!!</div>
                 <ul id="quick-questions-list">
                     <li data-question="Crédito ">Sobre Crédito </li>
@@ -53,21 +54,6 @@
                     <li data-question="Veloprime">Veloprime</li>
                 </ul>
 
-                <div id="expandable-faq-container">
-                    <div id="expandable-faq-header" class="expandable-header">
-                        <span>Outras Perguntas</span>
-                        <span class="arrow">▶</span>
-                    </div>
-                    <div id="more-questions" class="hidden">
-                        <div class="question-category">Frequentes</div>
-                        <ul id="more-questions-list-frequentes">
-                            <li data-question="Vencimento do contrato">Vencimento do contrato</li>
-                            <li data-question="Casos Especiais">Escalar para Casos Especiais</li>
-                            <li data-question="Desconto proporcional">Desconto proporcional</li>
-                            <li data-question="Qual o prazo para a restituição?">Qual o prazo para a restituição?</li>
-                            <li data-question="Velobank ">Velobank</li>
-                    </div>
-                </div>
             </div>
         </div>
         
@@ -101,11 +87,37 @@
 
         <div class="chat-container panel">
             <div class="chat-header"> 
-                <img src="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true" alt="Logo" class="chat-logo">
-                <h2 class="chat-title"> Veloprocess <span class="status-indicator"></span></h2> 
-                <button id="theme-switcher" title="Alterar tema">☀︎</button>
+                <div class="header-top">
+                    <div class="header-left">
+                        <img src="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true" alt="Logo" class="chat-logo">
+                        <h2 class="chat-title"> Veloprocess <span class="status-indicator"></span></h2> 
+                    </div>
+                    <div class="header-right">
+                        <div class="connectivity-indicator" id="connectivity-indicator" title="Status da conectividade">
+                            <i class='bx bx-wifi' id="wifi-icon"></i>
+                            <span id="connectivity-text">Conectado</span>
+                        </div>
+                        <button id="theme-switcher" title="Alterar tema">☀︎</button>
+                    </div>
+                </div>
+                
+                <!-- Status dos Produtos ao lado da logo -->
+                <div class="product-status-header">
+                    <div id="product-status-container-header">
+                        <div class="product-status-skeleton skeleton"></div>
+                        <div class="product-status-skeleton skeleton"></div>
+                        <div class="product-status-skeleton skeleton"></div>
+                        <div class="product-status-skeleton skeleton"></div>
+                    </div>
+                </div>
             </div>
-            <div class="chat-box" id="chat-box"></div>
+            <div class="chat-box" id="chat-box">
+                <!-- Mensagem inicial -->
+                <div class="welcome-message">
+                    <h3><span class="emoji">👋</span>Bem-vindo ao Veloprocess!</h3>
+                    <p>Olá! Sou seu assistente virtual. Estou aqui para ajudar você com informações sobre nossos produtos e serviços. Como posso te ajudar hoje?</p>
+                </div>
+            </div>
             <div class="input-area">
                 <input type="text" id="user-input" placeholder="Digite sua mensagem..." autocomplete="off">
                 <button id="voice-button" class="voice-button" title="Falar pergunta">🎤</button>
@@ -123,8 +135,6 @@
                 <span>Gravando...</span>
             </div>
             
-            <!-- Botão de Administração (só para admins) -->
-            <button id="admin-panel-btn" class="admin-btn hidden">🔧 Admin</button>
         </div>
         
         <!-- Painel de Administração -->
@@ -153,9 +163,17 @@
                 </div>
             </div>
         </div>
-        <div id="news-panel" class="panel">
+        <!-- Botão para expandir sidebar direita -->
+        <button id="expand-right-sidebar" class="expand-btn expand-right">
+            <i class='bx bx-arrow-from-left-stroke'></i>
+        </button>
+        
+        <div id="news-panel" class="panel sidebar-collapsed">
             <div class="panel-header">
                 <h2>Notícias e Alertas</h2>
+                <button id="collapse-right-sidebar" class="collapse-btn">
+                    <i class='bx bx-arrow-out-up-right-stroke-circle'></i>
+                </button>
             </div>
             <div id="news-list" class="news-list">
                 <div class="news-item-skeleton">

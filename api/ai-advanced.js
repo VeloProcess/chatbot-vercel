@@ -28,7 +28,7 @@ function limparJSON(content) {
   return cleaned;
 }
 
-// ==================== 1. ANÁLISE SEMÂNTICA COM EMBEDDINGS ====================
+// ==================== 1. ANÁLISE SEMÂNTICA COM EMBEDDINGS (COM TIMEOUT) ====================
 
 async function getEmbedding(text) {
   const cacheKey = text.toLowerCase().trim();
@@ -39,10 +39,15 @@ async function getEmbedding(text) {
   }
 
   try {
-    const response = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: text,
-    });
+    const response = await Promise.race([
+      openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: text,
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Embedding timeout')), 3000)
+      )
+    ]);
     
     const embedding = response.data[0].embedding;
     embeddingsCache.set(cacheKey, {
@@ -74,48 +79,53 @@ function cosineSimilarity(a, b) {
 }
 
 async function buscaSemantica(pergunta, faqData) {
-  const perguntaEmbedding = await getEmbedding(pergunta);
-  if (!perguntaEmbedding) return [];
+  try {
+    const perguntaEmbedding = await getEmbedding(pergunta);
+    if (!perguntaEmbedding) return [];
 
-  const cabecalho = faqData[0];
-  const dados = faqData.slice(1);
-  const idxPergunta = cabecalho.indexOf("Pergunta");
-  const idxResposta = cabecalho.indexOf("Resposta");
-  const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
+    const cabecalho = faqData[0];
+    const dados = faqData.slice(1);
+    const idxPergunta = cabecalho.indexOf("Pergunta");
+    const idxResposta = cabecalho.indexOf("Resposta");
+    const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
 
-  if (idxPergunta === -1 || idxResposta === -1) return [];
+    if (idxPergunta === -1 || idxResposta === -1) return [];
 
-  const resultados = [];
-  const maxItems = Math.min(dados.length, 50); // Limitar a 50 itens para ser mais rápido
+    const resultados = [];
+    const maxItems = Math.min(dados.length, 30); // Reduzido para ser mais rápido
 
-  for (let i = 0; i < maxItems; i++) {
-    const linha = dados[i];
-    const perguntaItem = linha[idxPergunta];
-    const respostaItem = linha[idxResposta];
-    const palavrasChave = linha[idxPalavrasChave];
+    for (let i = 0; i < maxItems; i++) {
+      const linha = dados[i];
+      const perguntaItem = linha[idxPergunta];
+      const respostaItem = linha[idxResposta];
+      const palavrasChave = linha[idxPalavrasChave];
 
-    if (!perguntaItem || !respostaItem) continue;
+      if (!perguntaItem || !respostaItem) continue;
 
-    // Criar texto combinado para embedding
-    const textoCombinado = `${perguntaItem} ${palavrasChave || ''}`;
-    const itemEmbedding = await getEmbedding(textoCombinado);
-    
-    if (itemEmbedding) {
-      const similaridade = cosineSimilarity(perguntaEmbedding, itemEmbedding);
+      // Criar texto combinado para embedding
+      const textoCombinado = `${perguntaItem} ${palavrasChave || ''}`;
+      const itemEmbedding = await getEmbedding(textoCombinado);
       
-      if (similaridade > 0.6) { // Threshold reduzido para ser mais rápido
-        resultados.push({
-          pergunta: perguntaItem,
-          resposta: respostaItem,
-          similaridade,
-          sourceRow: i + 2,
-          tipo: 'semantica'
-        });
+      if (itemEmbedding) {
+        const similaridade = cosineSimilarity(perguntaEmbedding, itemEmbedding);
+        
+        if (similaridade > 0.5) { // Threshold reduzido para ser mais rápido
+          resultados.push({
+            pergunta: perguntaItem,
+            resposta: respostaItem,
+            similaridade,
+            sourceRow: i + 2,
+            tipo: 'semantica'
+          });
+        }
       }
     }
-  }
 
-  return resultados.sort((a, b) => b.similaridade - a.similaridade).slice(0, 10); // Limitar a 10 resultados
+    return resultados.sort((a, b) => b.similaridade - a.similaridade).slice(0, 5); // Limitar a 5 resultados
+  } catch (error) {
+    console.error('Erro na busca semântica:', error);
+    return []; // Retornar array vazio em caso de erro
+  }
 }
 
 // ==================== 2. CLASSIFICAÇÃO DE INTENÇÃO ====================
@@ -225,20 +235,20 @@ async function buscaHibrida(pergunta, faqData, historico = []) {
   console.log(`📊 Resultados keywords: ${resultadosKeywords.length}`);
 
   // 2. Se encontrou resultados bons, não fazer busca semântica
-  if (resultadosKeywords.length > 0 && resultadosKeywords[0].score > 0.5) {
+  if (resultadosKeywords.length > 0 && resultadosKeywords[0].score > 0.4) {
     console.log('⚡ Usando apenas resultados keywords - muito rápidos');
     return {
-      resultados: resultadosKeywords.slice(0, 5),
+      resultados: resultadosKeywords.slice(0, 3),
       confianca_geral: resultadosKeywords[0].score,
       recomendacao: 'RESPOSTA_DIRETA'
     };
   }
 
-  // 3. Busca semântica apenas se necessário (com timeout)
+  // 3. Busca semântica apenas se necessário (com timeout reduzido)
   try {
     const resultadosSemanticos = await Promise.race([
       buscaSemantica(pergunta, faqData),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout semântica')), 10000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout semântica')), 5000)) // Reduzido para 5s
     ]);
     console.log(`📊 Resultados semânticos: ${resultadosSemanticos.length}`);
 
@@ -253,7 +263,7 @@ async function buscaHibrida(pergunta, faqData, historico = []) {
       }
     });
 
-    const resultadosCombinados = Array.from(unicos.values()).slice(0, 5);
+    const resultadosCombinados = Array.from(unicos.values()).slice(0, 3);
     
     return {
       resultados: resultadosCombinados,
@@ -264,7 +274,7 @@ async function buscaHibrida(pergunta, faqData, historico = []) {
   } catch (error) {
     console.log('⚠️ Busca semântica falhou, usando apenas keywords:', error.message);
     return {
-      resultados: resultadosKeywords.slice(0, 5),
+      resultados: resultadosKeywords.slice(0, 3),
       confianca_geral: resultadosKeywords[0]?.score || 0.3,
       recomendacao: 'RESPOSTA_DIRETA'
     };
@@ -617,9 +627,9 @@ Responda em JSON:
 async function processarComIA(pergunta, faqData, historico = [], email = null) {
   console.log('🤖 Iniciando processamento com IA avançada...');
 
-  // Timeout de 15 segundos para evitar 504
+  // Timeout reduzido para 8 segundos para ser mais rápido
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Timeout da IA avançada')), 15000);
+    setTimeout(() => reject(new Error('Timeout da IA avançada')), 8000);
   });
 
   try {

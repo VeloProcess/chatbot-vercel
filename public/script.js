@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // >>> INÍCIO DA CORREÇÃO <<<
+    // >>> INÍCIO DA CORREÇÃO - v2.0 <<<
     // Função autônoma para definir o tema inicial
     function setInitialTheme() {
         const body = document.body;
@@ -40,12 +40,122 @@ document.addEventListener('DOMContentLoaded', () => {
     let dadosAtendente = null;
     let tokenClient = null;
     let sessionId = generateUUID();
+    let connectivityStatus = 'online'; // online, offline, weak-signal, no-connection
 
     // Função para gerar UUID
     function generateUUID() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
             const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
+        });
+    }
+
+    // ================== FUNÇÕES DE CONECTIVIDADE ==================
+    
+    function updateConnectivityIndicator(status, data = null) {
+        const indicator = document.getElementById('connectivity-indicator');
+        const wifiIcon = document.getElementById('wifi-icon');
+        const connectivityText = document.getElementById('connectivity-text');
+        
+        if (!indicator || !wifiIcon || !connectivityText) return;
+        
+        // Remover classes anteriores
+        indicator.className = 'connectivity-indicator';
+        
+        // Determinar status baseado na resposta da API
+        let newStatus = 'online';
+        let iconClass = 'bx-wifi';
+        let text = 'Conectado';
+        
+        if (data) {
+            // Verificar se a resposta indica modo offline
+            if (data.modo === 'offline' || data.nivel === 2 || data.nivel === 3) {
+                if (data.nivel === 3) {
+                    newStatus = 'no-connection';
+                    iconClass = 'bx-wifi-slash';
+                    text = 'Sem conexão';
+                } else if (data.nivel === 2) {
+                    newStatus = 'offline';
+                    iconClass = 'bx-wifi-1';
+                    text = 'Modo offline';
+                }
+            } else if (data.modo === 'online' && data.nivel === 1) {
+                newStatus = 'online';
+                iconClass = 'bx-wifi';
+                text = 'Conectado';
+            }
+        } else if (status === 'error' || status === 'timeout') {
+            newStatus = 'weak-signal';
+            iconClass = 'bx-wifi-2';
+            text = 'Conexão instável';
+        } else if (status === 'offline') {
+            newStatus = 'offline';
+            iconClass = 'bx-wifi-1';
+            text = 'Modo offline';
+        } else if (status === 'no-connection') {
+            newStatus = 'no-connection';
+            iconClass = 'bx-wifi-slash';
+            text = 'Sem conexão';
+        }
+        
+        // Atualizar elementos
+        indicator.classList.add(newStatus);
+        wifiIcon.className = `bx ${iconClass}`;
+        connectivityText.textContent = text;
+        
+        // Atualizar status global
+        connectivityStatus = newStatus;
+        
+        console.log(`📶 Status de conectividade atualizado: ${newStatus} (${text})`);
+    }
+
+    // Função para verificar conectividade periodicamente
+    async function checkConnectivity() {
+        try {
+            // Usar endpoint de debug do voice para teste de conectividade
+            const response = await fetch('/api/voice?action=debug', {
+                method: 'GET',
+                signal: AbortSignal.timeout(3000) // 3 segundos de timeout
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Teste de conectividade funcionou:', data);
+                updateConnectivityIndicator('online');
+            } else {
+                console.log('❌ Teste simples falhou:', response.status);
+                updateConnectivityIndicator('weak-signal');
+            }
+        } catch (error) {
+            console.log('❌ Erro no teste simples:', error);
+            if (error.name === 'TimeoutError') {
+                updateConnectivityIndicator('timeout');
+            } else {
+                updateConnectivityIndicator('no-connection');
+            }
+        }
+    }
+
+    // Inicializar indicador de conectividade
+    function initializeConnectivityIndicator() {
+        // Verificar conectividade inicial
+        checkConnectivity();
+        
+        // Verificar conectividade a cada 30 segundos
+        setInterval(checkConnectivity, 30000);
+        
+        // Verificar conectividade quando a janela ganha foco
+        window.addEventListener('focus', checkConnectivity);
+        
+        // Verificar conectividade quando a conexão é restaurada
+        window.addEventListener('online', () => {
+            updateConnectivityIndicator('online');
+            checkConnectivity();
+        });
+        
+        // Verificar conectividade quando a conexão é perdida
+        window.addEventListener('offline', () => {
+            updateConnectivityIndicator('no-connection');
         });
     }
 
@@ -164,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!profileResponse.ok) throw new Error('Falha ao buscar perfil do usuário.');
                 
                 const userProfile = await profileResponse.json();
+                console.log('🔍 Perfil do usuário obtido:', userProfile);
 
                 dadosAtendente = {
                     nome: user.name,
@@ -171,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     timestamp: Date.now(),
                     funcao: userProfile.funcao
                 };
+                console.log('🔍 dadosAtendente definido:', dadosAtendente);
 
                 localStorage.setItem('dadosAtendenteChatbot', JSON.stringify(dadosAtendente));
                 
@@ -279,15 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.body;
         const questionSearch = document.getElementById('question-search');
         const logoutButton = document.getElementById('logout-button');
-        const expandableHeader = document.getElementById('expandable-faq-header');
-        const moreQuestions = document.getElementById('more-questions');
-        
-        if (expandableHeader && moreQuestions) {
-            expandableHeader.addEventListener('click', () => {
-                moreQuestions.classList.toggle('hidden');
-                expandableHeader.classList.toggle('expanded');
-            });
-        }
         document.addEventListener('visibilitychange', () => {
             if (!dadosAtendente) return;
             if (document.visibilityState === 'visible') {
@@ -310,8 +413,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 data.news.forEach(item => {
                     const newsItemDiv = document.createElement('div');
-                    newsItemDiv.className = `news-item ${item.tipo.toLowerCase().trim()}-alert`;
-                    newsItemDiv.innerHTML = `<h2>${item.titulo}</h2><small>Publicado em: ${item.publicadoEm}</small><p>${item.conteudo}</p>`;
+                    const tipo = item.tipo || 'info'; // Fallback para 'info' se tipo for undefined
+                    newsItemDiv.className = `news-item ${tipo.toLowerCase().trim()}-alert`;
+                    newsItemDiv.innerHTML = `<h2>${item.titulo || 'Sem título'}</h2><small>Publicado em: ${item.publicadoEm || 'Data não disponível'}</small><p>${item.conteudo || 'Conteúdo não disponível'}</p>`;
                     newsListContainer.appendChild(newsItemDiv);
                 });
             } catch (error) {
@@ -321,33 +425,82 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function carregarStatusProdutos() {
+            // Carregar produtos na sidebar (mantido para compatibilidade)
             const container = document.getElementById('product-status-container');
+            if (container) {
+                try {
+                    const response = await fetch('/api/getProductStatus');
+                    if (!response.ok) throw new Error('API falhou');
+                    const data = await response.json();
+                    const productList = document.createElement('ul');
+                    productList.style.padding = '0';
+                    data.products.forEach(p => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'product-status-item';
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = 'status';
+                        statusSpan.textContent = p.status;
+                        if (p.status === 'Disponível') {
+                            statusSpan.classList.add('status-disponivel');
+                        } else {
+                            statusSpan.classList.add('status-indisponivel');
+                        }
+                        listItem.textContent = `${p.produto} `;
+                        listItem.appendChild(statusSpan);
+                        productList.appendChild(listItem);
+                    });
+                    container.innerHTML = '';
+                    container.appendChild(productList);
+                } catch (error) {
+                    container.textContent = 'Erro ao carregar status.';
+                    console.error("Erro ao carregar status dos produtos:", error);
+                }
+            }
+            
+            // Carregar produtos no header
+            carregarStatusProdutosHeader();
+        }
+
+        async function carregarStatusProdutosHeader() {
+            const container = document.getElementById('product-status-container-header');
+            if (!container) return;
+            
             try {
                 const response = await fetch('/api/getProductStatus');
                 if (!response.ok) throw new Error('API falhou');
                 const data = await response.json();
-                const productList = document.createElement('ul');
-                productList.style.padding = '0';
-                data.products.forEach(p => {
-                    const listItem = document.createElement('li');
-                    listItem.className = 'product-status-item';
-                    const statusSpan = document.createElement('span');
-                    statusSpan.className = 'status';
-                    statusSpan.textContent = p.status;
-                    if (p.status === 'Disponível') {
-                        statusSpan.classList.add('status-disponivel');
-                    } else {
-                        statusSpan.classList.add('status-indisponivel');
-                    }
-                    listItem.textContent = `${p.produto} `;
-                    listItem.appendChild(statusSpan);
-                    productList.appendChild(listItem);
-                });
+                
                 container.innerHTML = '';
-                container.appendChild(productList);
+                data.products.forEach(p => {
+                    const productItem = document.createElement('button');
+                    productItem.className = 'product-status-item-header product-button';
+                    productItem.setAttribute('data-product', p.produto);
+                    
+                    // Adicionar classe baseada no status
+                    if (p.status === 'Disponível') {
+                        productItem.classList.add('status-disponivel');
+                    } else {
+                        productItem.classList.add('status-indisponivel');
+                    }
+                    
+                    // Determinar emoji baseado no status
+                    const emoji = p.status === 'Disponível' ? '🟢' : '🔴';
+                    
+                    productItem.innerHTML = `
+                        <span class="product-name">${p.produto}</span>
+                        <span class="product-emoji">${emoji}</span>
+                    `;
+                    
+                    // Adicionar evento de clique
+                    productItem.addEventListener('click', () => {
+                        handleProductClick(p.produto);
+                    });
+                    
+                    container.appendChild(productItem);
+                });
             } catch (error) {
-                container.textContent = 'Erro ao carregar status.';
-                console.error("Erro ao carregar status dos produtos:", error);
+                console.error("Erro ao carregar status dos produtos no header:", error);
+                container.innerHTML = '<p>Não foi possível carregar o status dos produtos.</p>';
             }
         }
 
@@ -558,52 +711,33 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!textoDaPergunta.trim()) return;
             showTypingIndicator();
             try {
-                const url = `/api/ask?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}&usar_ia_avancada=true`;
+        // Usar MongoDB endpoint como principal
+        const url = `/api/ask-mongodb?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
+                console.log('🔍 Buscando resposta:', url);
                 const response = await fetch(url);
                 hideTypingIndicator();
                 if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
                 const data = await response.json();
 
                 console.log('🤖 Resposta da IA:', data);
-
-                // Processar resposta da IA Avançada
-                if (data.status === 'sucesso_ia_avancada') {
-                    addMessage(data.resposta, 'bot', { 
-                        sourceRow: data.sourceRow || 'IA Avançada',
-                        source: data.source || 'IA Avançada',
-                        intencao: data.intencao,
-                        urgencia: data.urgencia,
-                        sentimento: data.sentimento,
-                        confianca: data.confianca
-                    });
-                    
-                    // Mostrar follow-ups se disponíveis
-                    if (data.followups && data.followups.length > 0) {
-                        mostrarFollowUps(data.followups);
-                    }
-                    
-                    // Mostrar sugestões proativas se disponíveis
-                    if (data.sugestoes_proativas && data.sugestoes_proativas.length > 0) {
-                        mostrarSugestoesProativas(data.sugestoes_proativas);
-                    }
-                    
-                    // Mostrar sugestões relacionadas se disponíveis
-                    if (data.sugestoes_relacionadas && data.sugestoes_relacionadas.length > 0) {
-                        mostrarSugestoesRelacionadas(data.sugestoes_relacionadas);
-                    }
-                    
-                } else if (data.status === 'sucesso' || data.status === 'sucesso_ia') {
-                    // Resposta tradicional
+                
+                // Processar resposta com todos os status possíveis
+                if (data.status === 'sucesso' || data.status === 'sucesso_ia' || data.status === 'sucesso_ia_avancada') {
                     addMessage(data.resposta, 'bot', { 
                         sourceRow: data.sourceRow,
                         source: data.source, 
                         tabulacoes: data.tabulacoes
                     });
-                } else if (data.status === 'clarification_needed') {
+                } else if (data.status === 'clarification_needed' || data.status === 'clarification_needed_offline') {
                     addMessage(data.resposta, 'bot', { 
                         options: data.options, 
                         source: data.source,
                         sourceRow: data.sourceRow
+                    });
+                } else if (data.status === 'resposta_padrao' || data.status === 'sucesso_offline') {
+                    addMessage(data.resposta, 'bot', { 
+                        sourceRow: data.sourceRow || 'Sistema',
+                        source: data.source || 'Sistema'
                     });
                 } else {
                     addMessage(data.resposta || data.error || "Resposta não disponível", 'bot', {
@@ -612,6 +746,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 hideTypingIndicator();
+                
+                // Atualizar indicador de conectividade para erro
+                if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+                    updateConnectivityIndicator('timeout');
+                } else if (error.message.includes('rede') || error.message.includes('network')) {
+                    updateConnectivityIndicator('no-connection');
+                } else {
+                    updateConnectivityIndicator('error');
+                }
+                
                 addMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot', { sourceRow: 'Erro de Conexão' });
                 console.error("Detalhes do erro:", error);
             }
@@ -620,6 +764,13 @@ document.addEventListener('DOMContentLoaded', () => {
         function handleSendMessage(text) {
             const trimmedText = text.trim();
             if (!trimmedText) return;
+            
+            // Remover mensagem de boas-vindas se ainda estiver visível
+            const welcomeMessage = document.querySelector('.welcome-message');
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
+            
             addMessage(trimmedText, 'user');
             logQuestionOnSheet(trimmedText, dadosAtendente.email);
             buscarResposta(trimmedText);
@@ -714,6 +865,93 @@ document.addEventListener('DOMContentLoaded', () => {
         // Tornar funções globais para onclick
         window.handleFollowUp = handleFollowUp;
         window.handleSugestaoRelacionada = handleSugestaoRelacionada;
+
+        // ==================== ABAS LATERAIS EXPANSÍVEIS ====================
+        
+        // Configurar abas laterais expansíveis
+        function setupExpandableSidebars() {
+            const leftSidebar = document.getElementById('sidebar');
+            const rightSidebar = document.getElementById('news-panel');
+            const expandLeftBtn = document.getElementById('expand-left-sidebar');
+            const expandRightBtn = document.getElementById('expand-right-sidebar');
+            const collapseLeftBtn = document.getElementById('collapse-left-sidebar');
+            const collapseRightBtn = document.getElementById('collapse-right-sidebar');
+
+            // Função toggle para sidebar esquerda
+            function toggleLeftSidebar() {
+                if (leftSidebar.classList.contains('sidebar-collapsed')) {
+                    leftSidebar.classList.remove('sidebar-collapsed');
+                    leftSidebar.classList.add('sidebar-expanded');
+                    console.log('📂 Sidebar esquerda expandida');
+                } else {
+                    leftSidebar.classList.remove('sidebar-expanded');
+                    leftSidebar.classList.add('sidebar-collapsed');
+                    console.log('📁 Sidebar esquerda colapsada');
+                }
+            }
+
+            // Função toggle para sidebar direita
+            function toggleRightSidebar() {
+                if (rightSidebar.classList.contains('sidebar-collapsed')) {
+                    rightSidebar.classList.remove('sidebar-collapsed');
+                    rightSidebar.classList.add('sidebar-expanded');
+                    console.log('📂 Sidebar direita expandida');
+                } else {
+                    rightSidebar.classList.remove('sidebar-expanded');
+                    rightSidebar.classList.add('sidebar-collapsed');
+                    console.log('📁 Sidebar direita colapsada');
+                }
+            }
+
+            // Botão de expansão esquerda - toggle
+            if (expandLeftBtn && leftSidebar) {
+                expandLeftBtn.addEventListener('click', toggleLeftSidebar);
+            }
+
+            // Botão de colapso esquerda - toggle
+            if (collapseLeftBtn && leftSidebar) {
+                collapseLeftBtn.addEventListener('click', toggleLeftSidebar);
+            }
+
+            // Botão de expansão direita - toggle
+            if (expandRightBtn && rightSidebar) {
+                expandRightBtn.addEventListener('click', toggleRightSidebar);
+            }
+
+            // Botão de colapso direita - toggle
+            if (collapseRightBtn && rightSidebar) {
+                collapseRightBtn.addEventListener('click', toggleRightSidebar);
+            }
+
+            console.log('✅ Abas laterais expansíveis configuradas - Toggle completo implementado');
+        }
+
+        // ==================== FUNÇÃO DE CLIQUE EM PRODUTOS ====================
+        
+        function handleProductClick(productName) {
+            console.log(`🛍️ Produto clicado: ${productName}`);
+            
+            // Mapear produtos para comandos específicos
+            const productCommands = {
+                'Antecipação': 'antecipação',
+                'Crédito pessoal': 'crédito pessoal',
+                'Crédito do trabalhador': 'crédito do trabalhador',
+                'Liquidação antecipada': 'liquidação antecipada'
+            };
+            
+            const command = productCommands[productName] || productName.toLowerCase();
+            
+            // Adicionar mensagem do usuário simulando a pergunta
+            addMessage(`Informações sobre ${productName}`, 'user');
+            
+            // Buscar resposta sobre o produto
+            buscarResposta(command);
+            
+            // Scroll para baixo para mostrar a resposta
+            setTimeout(() => {
+                scrollToBottom();
+            }, 100);
+        }
 
         // ==================== FUNCIONALIDADES DE VOZ ====================
 
@@ -960,7 +1198,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     addMessage(`🎤 Você disse: "${result.text}"`, 'user');
                     buscarResposta(result.text);
                 } else {
-                    addMessage(`❌ Erro na transcrição: ${result.error}`, 'bot');
+                    console.error('❌ Erro na transcrição:', result);
+                    if (result.error && result.error.includes('legenda')) {
+                        addMessage(`❌ Áudio não reconhecido. Tente falar mais claro ou verifique se não há ruído de fundo.`, 'bot');
+                    } else if (result.error && result.error.includes('vazio')) {
+                        addMessage(`❌ Nenhum áudio detectado. Verifique se o microfone está funcionando.`, 'bot');
+                    } else if (result.error && result.error.includes('Buffer')) {
+                        addMessage(`❌ Problema com o áudio. Tente gravar novamente.`, 'bot');
+                    } else {
+                        addMessage(`❌ Erro na transcrição: ${result.error}`, 'bot');
+                    }
                 }
 
             } catch (error) {
@@ -1083,69 +1330,29 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const adminRoles = ['Admin', 'Supervisor', 'Diretor'];
             const userRole = dadosAtendente.funcao;
-            const isAdminUser = adminRoles.includes(userRole);
+            
+            // Fallback: verificar se o email é de admin baseado no domínio e nome
+            const isAdminEmail = dadosAtendente.email.includes('gabriel.araujo') || 
+                               dadosAtendente.email.includes('admin') || 
+                               dadosAtendente.email.includes('diretor') || 
+                               dadosAtendente.email.includes('velotax');
+            
+            const isAdminUser = adminRoles.includes(userRole) || isAdminEmail;
             
             console.log('🔍 Verificação de admin:', {
                 email: dadosAtendente.email,
                 funcao: userRole,
                 adminRoles: adminRoles,
+                isAdminEmail: isAdminEmail,
                 isAdmin: isAdminUser
             });
             
             return isAdminUser;
         }
 
-        // Mostrar/ocultar botão de admin
-        function toggleAdminButton() {
-            const adminBtn = document.getElementById('admin-panel-btn');
-            console.log('🔧 toggleAdminButton chamado:', {
-                adminBtn: !!adminBtn,
-                dadosAtendente: !!dadosAtendente,
-                funcao: dadosAtendente?.funcao
-            });
-            
-            if (adminBtn) {
-                if (isAdmin()) {
-                    adminBtn.classList.remove('hidden');
-                    console.log('✅ Botão de admin mostrado para:', dadosAtendente.funcao);
-                } else {
-                    adminBtn.classList.add('hidden');
-                    console.log('❌ Botão de admin ocultado para:', dadosAtendente?.funcao || 'função não encontrada');
-                }
-            } else {
-                console.error('❌ Botão admin-panel-btn não encontrado no DOM');
-            }
-        }
+        // Função removida - botão de admin desabilitado temporariamente
 
-        // Inicializar painel administrativo
-        function initAdminPanel() {
-            const adminBtn = document.getElementById('admin-panel-btn');
-            const adminPanel = document.getElementById('admin-panel');
-            const closeBtn = document.getElementById('close-admin-panel');
-            const refreshBtn = document.getElementById('refresh-users');
-            const forceLogoutBtn = document.getElementById('force-logout-btn');
-
-            if (adminBtn) {
-                adminBtn.addEventListener('click', () => {
-                    adminPanel.classList.remove('hidden');
-                    loadOnlineUsers();
-                });
-            }
-
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    adminPanel.classList.add('hidden');
-                });
-            }
-
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', loadOnlineUsers);
-            }
-
-            if (forceLogoutBtn) {
-                forceLogoutBtn.addEventListener('click', forceLogoutUser);
-            }
-        }
+        // Função removida - painel administrativo desabilitado temporariamente
 
         // Carregar usuários online
         async function loadOnlineUsers() {
@@ -1253,8 +1460,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setupPlayButton();
             setupStopButton();
             
-            // Inicializar painel administrativo
-            initAdminPanel();
+            // Painel administrativo desabilitado temporariamente
             
             // Carregar vozes
             loadAvailableVoices();
@@ -1264,22 +1470,26 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('load', () => {
             console.log('🌐 Janela carregada, verificando botões...');
             setTimeout(() => {
-                setupVoiceButton();
-                setupPlayButton();
-                setupStopButton();
-            }, 1000);
-        });
+            setupVoiceButton();
+            setupPlayButton();
+            setupStopButton();
+            setupExpandableSidebars();
+        }, 1000);
+    });
 
 
         // Configurar botão de voz - abordagem mais simples
         function setupVoiceButton() {
             const voiceBtn = document.getElementById('voice-button');
             if (voiceBtn) {
+                // Configurar botão de voz - EM BREVE
+                voiceBtn.innerHTML = '🎤';
+                voiceBtn.classList.add('voice-btn-disabled');
                 voiceBtn.onclick = function() {
-                    console.log('🎤 Botão de voz clicado!');
-                    toggleRecording();
+                    console.log('🎤 Botão de voz desabilitado - EM BREVE');
+                    addMessage('🎤 Em breve, sistema de transcrição de áudio para texto, para podermos conversar com o bot sobre nossos procedimentos internos!', 'bot');
                 };
-                console.log('✅ Botão de voz configurado');
+                console.log('✅ Botão de voz configurado (EM BREVE)');
             } else {
                 console.error('❌ Botão de voz não encontrado');
             }
@@ -1289,11 +1499,14 @@ document.addEventListener('DOMContentLoaded', () => {
         function setupPlayButton() {
             const playBtn = document.getElementById('play-response');
             if (playBtn) {
+                // Configurar botão de play - EM BREVE
+                playBtn.innerHTML = '🔊';
+                playBtn.classList.add('voice-btn-disabled');
                 playBtn.onclick = function() {
-                    console.log('🔊 Botão de play clicado!');
-                    playLastResponse();
+                    console.log('🔊 Botão de play desabilitado - EM BREVE');
+                    addMessage('🔊 Em breve, sistema de síntese de voz, para o bot responder com áudio sobre nossos procedimentos internos!', 'bot');
                 };
-                console.log('✅ Botão de play configurado');
+                console.log('✅ Botão de play configurado (EM BREVE)');
             }
         }
 
@@ -1310,6 +1523,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
 
+        
+
 
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -1322,6 +1537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#sidebar li[data-question]').forEach(item => {
             item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
         });
+
 
 const feedbackOverlay = document.getElementById('feedback-overlay');
 const feedbackSendBtn = document.getElementById('feedback-send');
@@ -1393,16 +1609,14 @@ if (feedbackSendBtn) {
             });
         }
 
-        const primeiroNome = dadosAtendente.nome.split(' ')[0];
-        addMessage(`Olá, ${primeiroNome}! Como posso te ajudar hoje?`, 'bot');
         setInitialTheme();
         carregarNoticias();
         carregarStatusProdutos();
         
-        // Mostrar botão de admin se for admin
-        setTimeout(() => {
-            toggleAdminButton();
-        }, 1000); // Aguardar 1 segundo para garantir que o DOM esteja pronto
+        // Botão de admin desabilitado temporariamente
+        
+        // Inicializar indicador de conectividade
+        initializeConnectivityIndicator();
     }
 
     // Inicia todo o processo de autenticação

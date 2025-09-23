@@ -1,0 +1,18 @@
+[
+  {
+    "produto": "Antecipação",
+    "status": "indisponivel"
+  },
+  {
+    "produto": "Crédito pessoal",
+    "status": "Disponível"
+  },
+  {
+    "produto": "Crédito do trabalhador",
+    "status": "Disponível"
+  },
+  {
+    "produto": "Liquidação antecipada",
+    "status": "Disponível"
+  }
+]

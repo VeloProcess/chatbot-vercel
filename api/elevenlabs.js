@@ -30,6 +30,11 @@ async function speechToText(audioBlob) {
     const audioBuffer = Buffer.from(audioBlob, 'base64');
     console.log('🎤 Tamanho do buffer:', audioBuffer.length);
     
+    // Verificar se o buffer não está vazio
+    if (audioBuffer.length === 0) {
+      throw new Error('Buffer de áudio está vazio');
+    }
+    
     // Criar FormData para OpenAI Whisper
     const FormData = require('form-data');
     const form = new FormData();
@@ -41,6 +46,7 @@ async function speechToText(audioBlob) {
     form.append('model', 'whisper-1');
     form.append('language', 'pt');
     form.append('response_format', 'json');
+    form.append('temperature', '0.0'); // Reduzir criatividade para melhor precisão
     
     // Fazer requisição para OpenAI Whisper
     const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', form, {
@@ -59,9 +65,30 @@ async function speechToText(audioBlob) {
     const transcript = response.data.text || '';
     console.log('✅ Transcrição:', transcript);
     
+    // Verificar se a transcrição não está vazia ou com texto estranho
+    if (!transcript || transcript.trim().length === 0) {
+      throw new Error('Transcrição vazia recebida da API');
+    }
+    
+    // Verificar se não é texto de legenda/placeholder
+    const invalidTexts = [
+      'legendas pela comunidade amara.org',
+      'subtitles by amara.org',
+      'legendas',
+      'subtitles',
+      'amara.org'
+    ];
+    
+    const lowerTranscript = transcript.toLowerCase();
+    const foundInvalid = invalidTexts.find(invalid => lowerTranscript.includes(invalid));
+    if (foundInvalid) {
+      console.log('❌ Texto inválido detectado:', foundInvalid);
+      throw new Error(`Transcrição contém texto de legenda inválido: "${foundInvalid}"`);
+    }
+    
     return {
       success: true,
-      text: transcript,
+      text: transcript.trim(),
       confidence: 0.9
     };
 

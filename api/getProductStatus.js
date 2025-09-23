@@ -1,79 +1,85 @@
-// api/getProductStatus.js (Versão com Cache)
+// api/getProductStatus.js - Buscar status de produtos do arquivo JSON
+const fs = require('fs');
+const path = require('path');
 
-const { google } = require('googleapis');
-
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const CACHE_DURATION_SECONDS = 180; // Cache de 3 minutos
-
-const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-});
-const sheets = google.sheets({ version: 'v4', auth });
-
-let cache = { timestamp: null, data: null };
-
-module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=240');
-
-    // Verificar se as credenciais estão disponíveis
-    if (!process.env.GOOGLE_CREDENTIALS) {
-        console.error("GOOGLE_CREDENTIALS não configurado");
-        return res.status(200).json({ 
-            products: [],
-            error: "Configuração de credenciais não encontrada."
-        });
-    }
-
-    const now = new Date();
-    
-    // Verifica se o cache é válido
-    if (cache.data && cache.timestamp && (now - cache.timestamp) / 1000 < CACHE_DURATION_SECONDS) {
-        console.log("Servindo status de produtos do cache.");
-        return res.status(200).json(cache.data);
-    }
-
-    // Timeout de 8 segundos para evitar 504
-    const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout da API getProductStatus')), 8000);
-    });
-
-    try {
-        const result = await Promise.race([
-            fetchProductStatusData(),
-            timeoutPromise
-        ]);
-        
-        // Salva a nova resposta no cache
-        cache = { timestamp: now, data: result };
-        
-        return res.status(200).json(result);
-    } catch (error) {
-        console.error('Erro na API getProductStatus:', error);
-        return res.status(200).json({ 
-            products: [],
-            error: error.message === 'Timeout da API getProductStatus' ? 'Timeout - tente novamente' : 'Erro ao carregar status dos produtos'
-        });
-    }
+// Cache global para os produtos
+global.productsCache = global.productsCache || {
+  data: null,
+  timestamp: 0,
+  ttl: 300000 // 5 minutos
 };
 
-async function fetchProductStatusData() {
-    console.log("Buscando status de produtos da Planilha Google.");
-    const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'StatusProdutos!A:B',
-    });
+// Função para carregar dados de produtos do arquivo JSON
+function loadProductsData() {
+  // Verificar cache primeiro
+  const now = Date.now();
+  if (global.productsCache.data && (now - global.productsCache.timestamp) < global.productsCache.ttl) {
+    console.log('✅ getProductStatus: Usando cache global');
+    return global.productsCache.data;
+  }
 
-    const rows = response.data.values || [];
-    let productsData = [];
+  try {
+    const productsPath = path.join(__dirname, '../Produtos.json');
+    console.log('🔍 getProductStatus: Carregando dados de produtos de:', productsPath);
+    
+    const fileContent = fs.readFileSync(productsPath, 'utf8');
+    const productsData = JSON.parse(fileContent);
+    
+    // Atualizar cache
+    global.productsCache.data = productsData;
+    global.productsCache.timestamp = now;
+    
+    console.log('✅ getProductStatus: Dados de produtos carregados:', productsData.length, 'produtos');
+    return productsData;
+    
+  } catch (error) {
+    console.error('❌ getProductStatus: Erro ao carregar dados de produtos:', error);
+    return [];
+  }
+}
 
-    if (rows.length >= 2) {
-        productsData = rows.slice(1).map(row => ({
-            produto: row[0],
-            status: row[1]
-        }));
+module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  try {
+    console.log('🔍 getProductStatus: Buscando status de produtos...');
+    
+    const productsData = loadProductsData();
+    
+    if (!productsData || productsData.length === 0) {
+      return res.status(200).json({
+        success: true,
+        products: [],
+        message: 'Nenhum produto encontrado'
+      });
     }
 
-    return { products: productsData };
-}
+    // Separar produtos por status
+    const availableProducts = productsData.filter(p => p.status.toLowerCase() === 'disponível');
+    const unavailableProducts = productsData.filter(p => p.status.toLowerCase() === 'indisponivel');
+
+    console.log('✅ getProductStatus: Retornando', productsData.length, 'produtos');
+    
+    return res.status(200).json({
+      success: true,
+      products: productsData,
+      available: availableProducts,
+      unavailable: unavailableProducts,
+      count: productsData.length,
+      source: 'JSON Local'
+    });
+
+  } catch (error) {
+    console.error('❌ getProductStatus: Erro no processamento:', error);
+    return res.status(500).json({ 
+      error: 'Erro interno do servidor', 
+      details: error.message 
+    });
+  }
+};

@@ -16,8 +16,8 @@
     --cor-texto-principal: #333;
     --cor-borda: #d1e3f0;
     --cor-azul-claro: #a7d9ee;
-    --cor-azul-medio: #007BFF;
-    --cor-azul-escuro: #0056b3;
+    --cor-azul-medio: #1634FF;
+    --cor-azul-escuro: #000058;
     --cor-balao-bot: #D6E4FF;
     --cor-sombra: rgba(0, 0, 0, 0.1);
     --cor-texto-link: #1a73e8;
@@ -82,15 +82,14 @@ body.dark-theme {
     --cor-destaque-claro: #2c3e50; /* Cor de fundo sutil (balão do bot dark) */
     --cor-texto-claro: #e0e0e0; /* Texto claro para dark theme */
     --cor-fundo-card: #2a2a2a; /* Fundo para cards/perguntas dark theme */
-
 }
 
 
 /* --- 🌐 ESTILOS GLOBAIS E FUNDO 🌐 --- */
 body {
     font-family: 'Segoe UI', 'Arial', sans-serif;
-    background-color: var(--cor-fundo);
-    color: var(--cor-texto-principal);
+    background-color: #F5F7FA;
+    color: #2C3E50;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -123,12 +122,18 @@ body.dark-theme::before {
 /* --- 🏗️ ESTRUTURA PRINCIPAL E PAINÉIS 🏗️ --- */
 .app-wrapper {
     display: grid;
-    grid-template-columns: 300px 1fr 300px;
+    grid-template-columns: 280px 1fr 280px;
     width: 100%;
     max-width: 1400px;
     height: 95vh;
     gap: var(--espaco-md);
     transition: var(--transicao-normal);
+    position: relative;
+}
+
+/* Quando sidebars estão expandidas, manter layout fixo */
+.app-wrapper:has(.sidebar-expanded) {
+    grid-template-columns: 280px 1fr 280px;
 }
 
 .panel {
@@ -142,6 +147,7 @@ body.dark-theme::before {
     overflow: hidden;
     transition: all var(--transicao-normal);
 }
+
 
 .panel:hover {
     transform: translateY(-2px);
@@ -246,20 +252,113 @@ body.dark-theme #feedback-cancel {
     color: white;
 }
 #feedback-send:hover {
-    background-color: #45a049;
+    background-color: #1694FF;
 }
 
 /* --- 💬 PAINEL DO CHAT 💬 --- */
 .chat-header {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
     padding: var(--espaco-lg);
-    background: linear-gradient(135deg, var(--cor-azul-medio) 0%, var(--cor-azul-escuro) 100%);
-    color: white;
+    background: #1694FF;
+    color: var(--cor-texto-claro);
     position: relative;
     flex-shrink: 0;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Status dos Produtos ao lado da logo */
+.product-status-header {
+    width: 100%;
+}
+
+#product-status-container-header {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 4px 0;
+}
+
+.product-status-item-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 11px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.product-status-item-header:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.product-status-item-header .product-name {
+    font-weight: 600;
+    color: var(--cor-texto-claro);
+}
+
+.product-status-item-header .product-status {
+    font-weight: 500;
+    color: var(--cor-azul-medio);
+    padding: 1px 4px;
+    background: var(--cor-texto-claro);
+    color: var(--cor-azul-medio);
+    border-radius: 8px;
+    font-size: 9px;
+}
+
+.product-status-item-header:hover .product-name {
+    color: var(--cor-azul-medio);
+}
+
+/* Tema escuro para produtos no header */
+body.dark-theme .product-status-item-header {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+body.dark-theme .product-status-item-header:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-theme .product-status-item-header .product-name {
+    color: var(--cor-texto-claro);
+}
+
+body.dark-theme .product-status-item-header .product-status {
+    background: var(--cor-texto-claro);
+    color: var(--cor-azul-medio);
+}
+
+body.dark-theme .product-status-item-header:hover .product-name {
+    color: var(--cor-azul-medio);
 }
 
 .chat-logo {
@@ -277,6 +376,7 @@ body.dark-theme #feedback-cancel {
     margin: 0;
     font-size: 22px;
     font-weight: 600;
+    color: var(--cor-texto-claro);
 }
 
 .status-indicator {
@@ -287,6 +387,78 @@ body.dark-theme #feedback-cancel {
     background-color: var(--cor-sucesso);
     margin-left: var(--espaco-sm);
     animation: pulse 2s infinite;
+}
+
+/* --- 📶 INDICADOR DE CONECTIVIDADE --- */
+.connectivity-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.connectivity-indicator:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+#wifi-icon {
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+#connectivity-text {
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+/* Estados do indicador de conectividade */
+.connectivity-indicator.online {
+    color: #4CAF50;
+}
+
+.connectivity-indicator.online #wifi-icon {
+    color: #4CAF50;
+}
+
+.connectivity-indicator.offline {
+    color: #FF9800;
+}
+
+.connectivity-indicator.offline #wifi-icon {
+    color: #FF9800;
+}
+
+.connectivity-indicator.no-connection {
+    color: #272A30;
+}
+
+.connectivity-indicator.no-connection #wifi-icon {
+    color: #272A30;
+}
+
+.connectivity-indicator.weak-signal {
+    color: #FF9800;
+}
+
+.connectivity-indicator.weak-signal #wifi-icon {
+    color: #FF9800;
+}
+
+/* Animação de pulso para indicador offline */
+.connectivity-indicator.offline #wifi-icon,
+.connectivity-indicator.no-connection #wifi-icon {
+    animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 #theme-switcher {
@@ -319,6 +491,50 @@ body.dark-theme #feedback-cancel {
     flex-direction: column;
 }
 
+/* Mensagem inicial no topo do chat */
+.welcome-message {
+    background: var(--cor-container);
+    border-radius: var(--borda-raio);
+    padding: var(--espaco-lg);
+    margin-bottom: var(--espaco-md);
+    box-shadow: 0 2px 8px var(--cor-sombra);
+    border-left: 4px solid var(--cor-azul-medio);
+    animation: fadeIn var(--transicao-normal);
+}
+
+.welcome-message h3 {
+    margin: 0 0 var(--espaco-sm) 0;
+    color: var(--cor-azul-medio);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.welcome-message p {
+    margin: 0;
+    color: var(--cor-texto-principal);
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+.welcome-message .emoji {
+    font-size: 24px;
+    margin-right: var(--espaco-sm);
+}
+
+/* Tema escuro para mensagem de boas-vindas */
+body.dark-theme .welcome-message {
+    background: var(--cor-container);
+    border-left-color: var(--cor-azul-medio);
+}
+
+body.dark-theme .welcome-message h3 {
+    color: var(--cor-azul-medio);
+}
+
+body.dark-theme .welcome-message p {
+    color: var(--cor-texto-principal);
+}
+
 
 .input-area {
     display: flex;
@@ -342,7 +558,6 @@ body.dark-theme #feedback-cancel {
     font-size: 15px;
     outline: none;
     transition: var(--transicao-normal);
-
 }
 
 #user-input:focus {
@@ -418,8 +633,8 @@ body.dark-theme #feedback-cancel {
     margin-left: var(--espaco-sm);
 }
 .avatar.bot {
-    background-color: var(--cor-balao-bot);
-    color: var(--cor-texto-principal);
+    background-color: var(--cor-azul-medio);
+    color: var(--cor-texto-claro);
     margin-right: var(--espaco-sm);
 }
 
@@ -444,6 +659,17 @@ body.dark-theme #feedback-cancel {
     background: var(--cor-balao-bot);
     color: var(--cor-texto-principal);
     border-bottom-left-radius: 4px;
+}
+
+/* Garantir contraste adequado para mensagens do bot */
+body:not(.dark-theme) .bot .message {
+    background: #f8f9fa;
+    color: #212529;
+}
+
+body.dark-theme .bot .message {
+    background: #2c3e50;
+    color: #e0e0e0;
 }
 
 /* Indicador de Digitando */
@@ -485,6 +711,19 @@ body.dark-theme #feedback-cancel {
     text-align: left;
     color: var(--cor-azul-medio);
     transition: all 0.2s ease;
+}
+
+/* Garantir contraste adequado para botões de esclarecimento */
+body:not(.dark-theme) .clarification-item {
+    background-color: #ffffff;
+    color: #1634FF;
+    border-color: #d1e3f0;
+}
+
+body.dark-theme .clarification-item {
+    background-color: #1e1e1e;
+    color: #3a9bff;
+    border-color: #334a5f;
 }
 
 .clarification-item:hover {
@@ -560,23 +799,43 @@ body.dark-theme .clarification-item:hover {
 
 /* --- ESTILO APRIMORADO PARA ITENS DE PERGUNTA CLICÁVEIS --- */
 #sidebar li[data-question] { /* Seletor universal para todas as perguntas clicáveis */
-    padding: 14px 16px;
-    border-radius: var(--borda-raio-sm);
-    margin-bottom: var(--espaco-sm);
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 12px;
     cursor: pointer;
-    transition: all var(--transicao-rapida);
-    font-size: 14px;
-    border: 1px solid var(--cor-borda);
-    background-color: var(--cor-fundo-card); /* Fundo sutil padrão */
+    transition: all 0.3s ease;
+    font-size: 16px;
+    font-weight: 600;
+    border: 2px solid var(--cor-borda);
+    background: linear-gradient(135deg, var(--cor-container) 0%, var(--cor-fundo-card) 100%);
     color: var(--cor-texto-principal);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    letter-spacing: 0.3px;
+}
+
+/* Garantir contraste adequado para perguntas frequentes */
+body:not(.dark-theme) #sidebar li[data-question] {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    color: #212529;
+    border-color: #1634FF;
+    box-shadow: 0 2px 8px rgba(22, 52, 255, 0.1);
+}
+
+body.dark-theme #sidebar li[data-question] {
+    background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+    color: #e0e0e0;
+    border-color: #1694FF;
+    box-shadow: 0 2px 8px rgba(22, 164, 255, 0.1);
 }
 
 #sidebar li[data-question]:hover {
-    background-color: var(--cor-destaque-claro); /* Cor de fundo ao passar o mouse */
-    color: var(--cor-destaque-forte); /* Cor do texto ao passar o mouse */
-    border-color: var(--cor-destaque);
-    transform: translateX(3px) scale(1.02); /* Efeito de destaque mais pronunciado */
-    box-shadow: 0 4px 10px var(--cor-sombra); /* Sombra mais visível */
+    background: linear-gradient(135deg, #1634FF 0%, #1694FF 100%);
+    color: #ffffff;
+    border-color: #000058;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(22, 52, 255, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .expandable-header {
@@ -641,11 +900,20 @@ body.dark-theme .expandable-header:hover {
 .news-item h2 {
     margin-top: 0;
     font-size: 16px;
+    color: var(--cor-texto-principal);
+    font-weight: 600;
 }
 .news-item small {
     display: block;
     margin-bottom: var(--espaco-sm);
     font-size: 12px;
+    color: var(--cor-texto-principal);
+    opacity: 0.8;
+}
+.news-item p {
+    color: var(--cor-texto-principal);
+    line-height: 1.5;
+    margin: 0;
 }
 
 
@@ -675,7 +943,7 @@ body.dark-theme .expandable-header:hover {
 /* --- 📱 ESTILOS RESPONSIVOS 📱 --- */
 @media (max-width: 1200px) {
     .app-wrapper {
-        grid-template-columns: 250px 1fr;
+        grid-template-columns: 260px 1fr;
     }
     #news-panel {
         display: none;
@@ -900,7 +1168,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background-color: #4CAF50;
+    background-color: #1634FF;
     color: #fff;
     font-weight: 600;
 }
@@ -933,7 +1201,7 @@ body {
 .chat-footer button {
     padding: 8px 16px;
     border: none;
-    background-color: #4CAF50;
+    background-color: #1634FF;
     color: #fff;
     border-radius: 8px;
     cursor: pointer;
@@ -958,7 +1226,7 @@ body {
     justify-content: center;
     font-weight: bold;
     color: #fff;
-    background-color: #4CAF50;
+    background-color: #1634FF;
 }
 
 .message-content {
@@ -975,7 +1243,7 @@ body {
 }
 
 .message-container.user .message {
-    background-color: #4CAF50;
+    background-color: #1634FF;
     color: #fff;
 }
 
@@ -1037,11 +1305,11 @@ body.dark-theme .message {
 }
 
 body.dark-theme .message-container.user .message {
-    background-color: #388E3C;
+    background-color: #1634FF;
 }
 
 body.dark-theme .chat-header {
-    background-color: #388E3C;
+    background-color: #1634FF;
 }
 
 body.dark-theme .chat-footer input {
@@ -1494,7 +1762,7 @@ body.dark-theme .voice-selector:focus {
 .admin-btn {
     position: fixed;
     top: 20px;
-    right: 20px;
+    right: 80px; /* Mover para a esquerda para não conflitar com o botão de tema */
     background: #e74c3c;
     color: white;
     border: none;
@@ -1738,5 +2006,454 @@ body.dark-theme .voice-selector:focus {
     .user-actions {
         width: 100%;
         justify-content: space-between;
+    }
+}
+
+/* --- 📱 ABAS LATERAIS EXPANSÍVEIS --- */
+.expand-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 70px;
+    background: linear-gradient(135deg, var(--cor-azul-medio), var(--cor-azul-escuro));
+    border: none;
+    border-radius: 0 10px 10px 0;
+    color: var(--cor-texto-claro);
+    font-size: 18px;
+    cursor: pointer;
+    z-index: 1000;
+    transition: all 0.3s ease;
+    box-shadow: 3px 0 12px var(--cor-sombra);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.expand-btn:hover {
+    background: linear-gradient(135deg, var(--cor-azul-escuro), var(--cor-azul-medio));
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: 4px 0 20px var(--cor-sombra);
+}
+
+.expand-left {
+    left: 0;
+    border-radius: 0 10px 10px 0;
+}
+
+.expand-right {
+    right: 0;
+    border-radius: 10px 0 0 10px;
+}
+
+/* Esconder botões de expansão quando as abas estão abertas */
+.sidebar-expanded ~ .expand-btn {
+    display: none !important;
+}
+
+/* Mostrar botões quando as abas estão fechadas */
+.sidebar-collapsed ~ .expand-btn {
+    display: flex !important;
+}
+
+.collapse-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: var(--cor-texto-claro);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.collapse-btn:hover {
+    background: rgba(255,255,255,0.25);
+    color: var(--cor-texto-principal);
+    border-color: rgba(255,255,255,0.4);
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px var(--cor-sombra);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    padding-right: 50px; /* Espaço para o botão de colapso */
+}
+
+.sidebar-collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.3s ease;
+    border: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+.sidebar-expanded {
+    width: 320px !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
+    opacity: 1;
+    transition: all 0.3s ease;
+    overflow: visible;
+    position: fixed !important;
+    top: 0;
+    height: 100vh;
+    z-index: 999;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-expanded#sidebar {
+    left: 0;
+}
+
+.sidebar-expanded#news-panel {
+    right: 0;
+}
+
+/* Overlay para sidebars expandidas */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 997;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Esconder botões de expansão quando as abas estão abertas */
+.sidebar-expanded + .expand-btn {
+    display: none;
+}
+
+/* Botões de voz desabilitados */
+.voice-btn-disabled {
+    background: linear-gradient(135deg, #bdc3c7, #95a5a6) !important;
+    cursor: pointer !important;
+    opacity: 0.8 !important;
+    position: relative;
+    border: 2px solid #95a5a6 !important;
+    transition: all 0.3s ease !important;
+}
+
+.voice-btn-disabled:hover {
+    background: linear-gradient(135deg, #a8b2b7, #7f8c8d) !important;
+    border-color: #7f8c8d !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.voice-btn-disabled::after {
+    content: 'EM BREVE';
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 1001;
+}
+
+.voice-btn-disabled:hover::after {
+    opacity: 1;
+}
+
+
+/* ==================== ESTILOS PARA BOTÕES DE PRODUTOS ==================== */
+
+.product-button {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: auto;
+    position: relative;
+    overflow: hidden;
+}
+
+.product-button:hover {
+    transform: translateY(-1px);
+    background: rgba(22, 52, 255, 0.1);
+}
+
+.product-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.product-button.status-disponivel {
+    background: transparent;
+}
+
+.product-button.status-disponivel:hover {
+    background: rgba(22, 52, 255, 0.1);
+}
+
+.product-button.status-indisponivel {
+    background: transparent;
+    opacity: 0.7;
+}
+
+.product-button.status-indisponivel:hover {
+    background: rgba(39, 42, 48, 0.1);
+    opacity: 1;
+}
+
+.product-button .product-name {
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--cor-texto-principal);
+    text-align: center;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
+}
+
+/* Cor branca para tema claro */
+body:not(.dark-theme) .product-button .product-name {
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.product-button .product-emoji {
+    font-size: 20px;
+    margin-left: 10px;
+}
+
+/* Efeito de ripple ao clicar */
+.product-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.product-button:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Responsividade para botões de produtos */
+@media (max-width: 768px) {
+    .product-button {
+        padding: 6px 10px;
+        margin: 2px;
+    }
+    
+    .product-button .product-name {
+        font-size: 16px;
+    }
+    
+    .product-button .product-emoji {
+        font-size: 18px;
+    }
+}
+
+/* Tema escuro para botões de produtos */
+.dark-theme .product-button {
+    background: transparent;
+}
+
+.dark-theme .product-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .product-button.status-disponivel:hover {
+    background: rgba(21, 162, 55, 0.2);
+}
+
+.dark-theme .product-button.status-indisponivel:hover {
+    background: rgba(244, 67, 54, 0.2);
+}
+
+/* Manter mesmo tamanho nos dois temas */
+.dark-theme .product-button .product-name {
+    font-size: 18px;
+    color: #1634FF;
+}
+
+.dark-theme .product-button .product-emoji {
+    font-size: 20px;
+}
+
+/* ==================== CHAT CENTRALIZADO ==================== */
+
+.chat-container {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 1001 !important;
+    width: 1000px !important;
+    height: 700px !important;
+    max-width: none !important;
+    max-height: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    border-radius: 12px !important;
+    background: var(--cor-container) !important;
+    overflow: hidden !important;
+    pointer-events: auto !important;
+}
+
+/* ==================== SIDEBARS EXPANSÍVEIS ==================== */
+
+/* Botões de expansão */
+.expand-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    background: linear-gradient(135deg, #1634FF, #1694FF);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 1003;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.expand-btn:hover {
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.expand-left {
+    left: 20px;
+}
+
+.expand-right {
+    right: 20px;
+}
+
+/* Sidebars colapsadas */
+.sidebar-collapsed {
+    position: fixed;
+    top: 0;
+    width: 0;
+    min-width: 0;
+    height: 100vh;
+    z-index: 1002;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.sidebar-collapsed#sidebar {
+    left: -300px;
+}
+
+.sidebar-collapsed#news-panel {
+    right: -300px;
+}
+
+/* Sidebars expandidas */
+.sidebar-expanded {
+    position: fixed;
+    top: 0;
+    width: 300px;
+    min-width: 300px;
+    height: 100vh;
+    z-index: 1002;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-expanded#sidebar {
+    left: 0;
+}
+
+.sidebar-expanded#news-panel {
+    right: 0;
+}
+
+/* Botões de colapso */
+.collapse-btn {
+    background: none;
+    border: none;
+    color: #272A30;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.collapse-btn:hover {
+    background: rgba(39, 42, 48, 0.1);
+    color: #1634FF;
+}
+
+/* Responsividade para abas expansíveis */
+@media (max-width: 768px) {
+    .expand-btn {
+        display: none; /* Esconder botões de expansão em mobile */
+    }
+    
+    .sidebar-collapsed {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+    
+    .chat-container {
+        width: 95% !important;
+        height: 80vh !important;
+        max-width: none !important;
+        max-height: none !important;
     }
 }
