@@ -292,24 +292,26 @@ body.dark-theme #feedback-cancel {
 
 #product-status-container-header {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 4px;
+    flex-wrap: nowrap;
     padding: 4px 0;
+    overflow-x: hidden;
 }
 
 .product-status-item-header {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 6px;
+    gap: 2px;
+    padding: 2px 4px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
+    border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.3);
-    font-size: 9px;
+    font-size: 7px;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
     flex-shrink: 0;
     white-space: nowrap;
+    min-width: fit-content;
 }
 
 .product-status-item-header:hover {
@@ -326,11 +328,11 @@ body.dark-theme #feedback-cancel {
 .product-status-item-header .product-status {
     font-weight: 500;
     color: var(--cor-azul-medio);
-    padding: 1px 3px;
+    padding: 1px 2px;
     background: var(--cor-texto-claro);
     color: var(--cor-azul-medio);
-    border-radius: 6px;
-    font-size: 8px;
+    border-radius: 4px;
+    font-size: 6px;
 }
 
 .product-status-item-header:hover .product-name {
