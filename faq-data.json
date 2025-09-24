@@ -1,0 +1,65 @@
+[
+  {
+    "Pergunta": "O que é DARF?",
+    "Resposta": "O que é: Documento de Arrecadação de Receitas Federais, usado para pagamento de impostos federais como IR, CSLL, PIS, COFINS e outros tributos.",
+    "Palavras-chave": "darf, O que é, O que é DARF?",
+    "Tabulacoes": "Empréstimos > Pessoal > Produtos de Crédito > Critérios",
+    "Sinonimos": "imposto darf,pagamento darf,emissao darf"
+  },
+  {
+    "Pergunta": "Como funciona o crédito pessoal?",
+    "Resposta": "O crédito pessoal é uma modalidade de empréstimo que permite ao cliente utilizar o valor para qualquer finalidade. Oferecemos condições especiais e prazos flexíveis.",
+    "Palavras-chave": "crédito, pessoal, empréstimo, como funciona",
+    "Tabulacoes": "Empréstimos > Pessoal > Produtos de Crédito",
+    "Sinonimos": "emprestimo pessoal,credito pessoal,financiamento pessoal"
+  },
+  {
+    "Pergunta": "Quais documentos preciso para antecipação?",
+    "Resposta": "Para antecipação de recebíveis, você precisa apresentar: CNH ou RG, comprovante de renda dos últimos 3 meses, comprovante de residência e documentos da empresa.",
+    "Palavras-chave": "antecipação, documentos, recebíveis, CNH, RG",
+    "Tabulacoes": "Empréstimos > Antecipação > Documentação",
+    "Sinonimos": "antecipacao recebiveis,documentos antecipacao,requisitos antecipacao"
+  },
+  {
+    "Pergunta": "Como faço portabilidade de salário?",
+    "Resposta": "A portabilidade de salário é simples! Você precisa abrir uma conta conosco e solicitar a transferência do seu salário. Nossa equipe te auxilia em todo o processo.",
+    "Palavras-chave": "portabilidade, salário, conta, transferência",
+    "Tabulacoes": "Conta Corrente > Portabilidade > Salário",
+    "Sinonimos": "portabilidade salario,transferencia salario,conta salario"
+  },
+  {
+    "Pergunta": "Qual o prazo para aprovação do crédito?",
+    "Resposta": "O prazo para aprovação do crédito pessoal é de até 24 horas úteis. Para crédito trabalhador, a aprovação é imediata após a análise dos documentos.",
+    "Palavras-chave": "prazo, aprovação, crédito, 24 horas",
+    "Tabulacoes": "Empréstimos > Pessoal > Aprovação",
+    "Sinonimos": "prazo aprovacao,tempo aprovacao,quanto tempo aprovacao"
+  },
+  {
+    "Pergunta": "Posso fazer liquidação antecipada?",
+    "Resposta": "Sim! Você pode fazer liquidação antecipada do seu crédito a qualquer momento, sem multa. Entre em contato conosco para calcular o valor atualizado.",
+    "Palavras-chave": "liquidação, antecipada, sem multa, valor atualizado",
+    "Tabulacoes": "Empréstimos > Pessoal > Liquidação",
+    "Sinonimos": "liquidacao antecipada,quitar antecipado,sem multa"
+  },
+  {
+    "Pergunta": "Como funciona o PIX?",
+    "Resposta": "O PIX é um sistema de pagamento instantâneo que funciona 24 horas por dia, incluindo finais de semana e feriados. Você pode fazer transferências, pagamentos e recebimentos instantaneamente.",
+    "Palavras-chave": "PIX, pagamento, instantâneo, 24 horas",
+    "Tabulacoes": "Pagamentos > PIX > Funcionamento",
+    "Sinonimos": "pix pagamento,transferencia pix,pagamento instantaneo"
+  },
+  {
+    "Pergunta": "Qual a taxa de juros do crédito pessoal?",
+    "Resposta": "As taxas de juros variam conforme o perfil do cliente e o valor solicitado. Entre em contato conosco para uma simulação personalizada com as melhores condições.",
+    "Palavras_chave": "taxa, juros, crédito, simulação, condições",
+    "Tabulacoes": "Empréstimos > Pessoal > Taxas",
+    "Sinonimos": "taxa juros,simulacao credito,condicoes credito"
+  },
+  {
+    "Pergunta": "Preciso de fiador para o crédito?",
+    "Resposta": "Não é necessário fiador para o crédito pessoal. A aprovação é baseada na análise do seu perfil de crédito e documentação apresentada.",
+    "Palavras_chave": "fiador, crédito, aprovação, perfil, documentação",
+    "Tabulacoes": "Empréstimos > Pessoal > Requisitos",
+    "Sinonimos": "fiador credito,garantia credito,requisitos credito"
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "sync": {
+    "autoSync": true,
+    "syncInterval": 30000,
+    "watchFile": true,
+    "backupOnSync": true,
+    "validateData": true
+  },
+  "mongodb": {
+    "collection": "faq",
+    "backupCollection": "faq_backup"
+  },
+  "file": {
+    "path": "./faq-data.json",
+    "encoding": "utf8",
+    "createBackup": true
+  },
+  "notifications": {
+    "onSuccess": true,
+    "onError": true,
+    "onBackup": true
+  }
+}

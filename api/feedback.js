@@ -1,87 +1,168 @@
-// api/feedback.js (Versão Corrigida para o Servidor Vercel)
+// api/feedback.js - Sistema de Logs e Relatórios (Apenas Planilhas)
 
-const { google } = require('googleapis'); // ALTERADO para a sintaxe require
+const { google } = require('googleapis');
 
 // --- CONFIGURAÇÃO ---
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-// --- CORREÇÃO APLICADA AQUI ---
-const LOG_SHEET_NAME = "Log_Feedback"; // Alterado de underscore (_) para hífen (-) para corresponder ao erro
+const LOG_SHEET_NAME = "Log_Feedback";
 
-// --- CLIENTE GOOGLE SHEETS OTIMIZADO ---
+// Nota: Sistema de email implementado via Google Apps Script
+// Ver arquivo google-apps-script.js para implementação completa
+
+// --- CLIENTES ---
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
-
 const sheets = google.sheets({ version: 'v4', auth });
 
+// --- FUNÇÕES DE LOG (APENAS PLANILHAS) ---
 
-// --- A FUNÇÃO PRINCIPAL DA API (HANDLER) ---
-module.exports = async function handler(req, res) { // ALTERADO para module.exports
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método não permitido. Use POST.' });
-  }
-  
+async function logFeedback(email, pergunta, feedback, rating, resposta) {
   try {
-    // --- LOG DE DEPURACÃO 1: Ponto de Entrada ---
-    console.log("[DEBUG 1] Endpoint de feedback atingido.");
-
-    const dados = req.body;
-
-    // --- LOG DE DEPURACÃO 2: Dados Recebidos ---
-    console.log("[DEBUG 2] Dados recebidos do frontend:", JSON.stringify(dados, null, 2));
-
-    if (!dados || Object.keys(dados).length === 0) {
-        console.error("[DEBUG FALHA] Validação falhou: Corpo da requisição vazio.");
-        return res.status(400).json({ error: 'Corpo da requisição vazio.' });
-    }
-
-    console.log("[DEBUG 3] Criando timestamp...");
-    const timestamp = new Date().toLocaleString('pt-BR', {
-        timeZone: 'America/Sao_Paulo'
-    });
-    console.log("[DEBUG 4] Timestamp criado:", timestamp);
-
-    const tipoFeedback = dados.action === 'logFeedbackPositivo' ? 'Positivo 👍' : 'Negativo �';
-    
-    const newRow = [
-      timestamp,
-      String(dados.email || 'nao_fornecido'),
-      String(dados.question || 'N/A'),
-      tipoFeedback,
-      String(dados.sourceRow !== null && dados.sourceRow !== undefined ? dados.sourceRow : 'N/A'),
-      String(dados.sugestao || '')
+    const values = [
+      [
+        new Date().toLocaleString('pt-BR'),
+        email,
+        pergunta,
+        feedback || '',
+        rating || '',
+        resposta || '',
+        'Sistema'
+      ]
     ];
 
-    // --- LOG DE DEPURACÃO 5: Linha a ser Escrita ---
-    console.log("[DEBUG 5] Linha preparada para ser enviada para a folha de cálculo:", newRow);
-
-    console.log("[DEBUG 6] A enviar dados para a API do Google Sheets...");
-    // Envia os dados para a planilha
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: LOG_SHEET_NAME,
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [newRow],
-      },
+      range: `${LOG_SHEET_NAME}!A:G`,
+      valueInputOption: 'RAW',
+      resource: { values }
     });
 
-    // --- LOG DE DEPURACÃO 7: Sucesso ---
-    console.log("[DEBUG 7] Sucesso! Os dados foram enviados para a API do Google Sheets.");
+    console.log('✅ Feedback registrado na planilha:', { email, feedback });
+  } catch (error) {
+    console.error('❌ Erro ao registrar feedback:', error);
+  }
+}
 
-    return res.status(200).json({ status: 'sucesso', message: 'Feedback registado.' });
+async function logQuestion(email, pergunta, resposta, source = 'Sistema') {
+  try {
+    const values = [
+      [
+        new Date().toLocaleString('pt-BR'),
+        email,
+        pergunta,
+        resposta || '',
+        source
+      ]
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Log_Perguntas!A:E`,
+      valueInputOption: 'RAW',
+      resource: { values }
+    });
+
+    console.log('✅ Pergunta registrada na planilha:', { email, source });
+  } catch (error) {
+    console.error('❌ Erro ao registrar pergunta:', error);
+  }
+}
+
+async function logAccess(email, status, sessionId, metadata = {}) {
+  try {
+    const values = [
+      [
+        new Date().toLocaleString('pt-BR'),
+        email,
+        status,
+        sessionId || '',
+        metadata.ip || '',
+        metadata.userAgent || '',
+        metadata.duration || 0,
+        metadata.source || 'web'
+      ]
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Log_Acessos!A:H`,
+      valueInputOption: 'RAW',
+      resource: { values }
+    });
+
+    console.log('✅ Acesso registrado na planilha:', { email, status });
+  } catch (error) {
+    console.error('❌ Erro ao registrar acesso:', error);
+  }
+}
+
+// --- HANDLER PRINCIPAL ---
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Método não permitido' });
+  }
+
+  try {
+    const { action, email, pergunta, feedback, rating, resposta, status, sessionId, metadata } = req.body;
+
+    switch (action) {
+      case 'feedback':
+        await logFeedback(email, pergunta, feedback, rating, resposta);
+        return res.status(200).json({ 
+          status: 'success', 
+          message: 'Feedback registrado na planilha' 
+        });
+
+      case 'question':
+        await logQuestion(email, pergunta, resposta, metadata?.source);
+        return res.status(200).json({ 
+          status: 'success', 
+          message: 'Pergunta registrada na planilha' 
+        });
+
+      case 'access':
+        await logAccess(email, status, sessionId, metadata);
+        return res.status(200).json({ 
+          status: 'success', 
+          message: 'Acesso registrado na planilha' 
+        });
+
+      case 'log-question':
+        // Log detalhado de pergunta (chamado pelo AskOpenai.js)
+        await logQuestion(email, pergunta, resposta, metadata?.source || 'IA Avançada');
+        return res.status(200).json({ 
+          status: 'success', 
+          message: 'Pergunta logada na planilha' 
+        });
+
+      case 'log-access':
+        // Log detalhado de acesso
+        await logAccess(email, status, sessionId, metadata);
+        return res.status(200).json({ 
+          status: 'success', 
+          message: 'Acesso logado na planilha' 
+        });
+
+      case 'log-feedback':
+        // Log detalhado de feedback
+        await logFeedback(email, pergunta, feedback, rating, resposta);
+        return res.status(200).json({ 
+          status: 'success', 
+          message: 'Feedback logado na planilha' 
+        });
+
+      default:
+        return res.status(400).json({ error: 'Ação não reconhecida' });
+    }
 
   } catch (error) {
-    console.error("ERRO NO ENDPOINT DE FEEDBACK:", error);
-    return res.status(500).json({ error: "Erro interno ao registar feedback.", details: error.message });
+    console.error('❌ Erro no handler de feedback:', error);
+    return res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      details: error.message 
+    });
   }
 }
