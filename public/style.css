@@ -163,7 +163,7 @@ body.dark-theme::before {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 10001;
     backdrop-filter: blur(5px);
     animation: fadeIn var(--transicao-normal);
     opacity: 1;
@@ -173,6 +173,7 @@ body.dark-theme::before {
 #identificacao-overlay.hidden, #feedback-overlay.hidden {
     opacity: 0;
     pointer-events: none;
+    visibility: hidden;
 }
 
 #identificacao-box, #feedback-box {
@@ -191,6 +192,8 @@ body.dark-theme::before {
 
 #feedback-box {
     text-align: left;
+    position: relative;
+    z-index: 10002;
 }
 
 #feedback-box h2, #identificacao-box h2 {
@@ -253,6 +256,22 @@ body.dark-theme #feedback-cancel {
 }
 #feedback-send:hover {
     background-color: #1694FF;
+}
+
+/* Garantir que o feedback apareça por cima de tudo */
+#feedback-overlay {
+    z-index: 10001 !important;
+}
+
+#feedback-overlay:not(.hidden) {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#feedback-box {
+    z-index: 10002 !important;
+    position: relative !important;
 }
 
 /* --- 💬 PAINEL DO CHAT 💬 --- */
