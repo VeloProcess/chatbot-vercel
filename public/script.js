@@ -689,17 +689,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log("Enviando para a API de Feedback:", { action, question: ultimaPergunta, sourceRow: ultimaLinhaDaFonte, email: dadosAtendente.email, sugestao });
             try {
-                await fetch('/api/feedback', {
+                const response = await fetch('/api/feedback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: action,
-                        question: ultimaPergunta,
-                        sourceRow: ultimaLinhaDaFonte,
                         email: dadosAtendente.email,
+                        pergunta: ultimaPergunta,
+                        resposta: ultimaLinhaDaFonte,
                         sugestao: sugestao
                     })
                 });
+                
+                if (response.ok) {
+                    console.log("✅ Feedback enviado com sucesso!");
+                } else {
+                    console.error("❌ Erro ao enviar feedback:", await response.text());
+                }
             } catch (error) {
                 console.error("ERRO DE REDE ao enviar feedback:", error);
             }

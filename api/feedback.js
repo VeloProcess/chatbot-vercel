@@ -18,23 +18,26 @@ const sheets = google.sheets({ version: 'v4', auth });
 
 // --- FUNÇÕES DE LOG (APENAS PLANILHAS) ---
 
-async function logFeedback(email, pergunta, feedback, rating, resposta) {
+async function logFeedback(email, pergunta, feedback, rating, resposta, sugestao = '') {
   try {
+    console.log('📝 Logando feedback:', { email, pergunta, feedback, rating, resposta, sugestao });
+    
     const values = [
       [
-        new Date().toLocaleString('pt-BR'),
-        email,
-        pergunta,
-        feedback || '',
-        rating || '',
-        resposta || '',
-        'Sistema'
+        new Date().toLocaleString('pt-BR'),  // Data
+        email,                               // Email do Atendente
+        pergunta,                           // Pergunta Original
+        feedback || '',                     // Tipo de Feedback
+        resposta || '',                     // Linha da Fonte
+        sugestao || ''                      // Sugestão
       ]
     ];
 
+    console.log('📊 Valores para planilha:', values);
+
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${LOG_SHEET_NAME}!A:G`,
+      range: `${LOG_SHEET_NAME}!A:F`,
       valueInputOption: 'RAW',
       resource: { values }
     });
@@ -106,11 +109,22 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('📥 Dados recebidos no feedback:', req.body);
     const { action, email, pergunta, feedback, rating, resposta, status, sessionId, metadata } = req.body;
 
     switch (action) {
       case 'feedback':
-        await logFeedback(email, pergunta, feedback, rating, resposta);
+      case 'logFeedbackPositivo':
+      case 'logFeedbackNegativo':
+        // Determinar tipo de feedback baseado na action
+        const feedbackType = action === 'logFeedbackPositivo' ? 'Positivo' : 
+                            action === 'logFeedbackNegativo' ? 'Negativo' : 
+                            feedback || 'Positivo';
+        
+        // Obter sugestão do body
+        const sugestao = req.body.sugestao || '';
+        
+        await logFeedback(email, pergunta, feedbackType, rating, resposta, sugestao);
         return res.status(200).json({ 
           status: 'success', 
           message: 'Feedback registrado na planilha' 
@@ -148,7 +162,8 @@ export default async function handler(req, res) {
 
       case 'log-feedback':
         // Log detalhado de feedback
-        await logFeedback(email, pergunta, feedback, rating, resposta);
+        const sugestaoLog = req.body.sugestao || '';
+        await logFeedback(email, pergunta, feedback, rating, resposta, sugestaoLog);
         return res.status(200).json({ 
           status: 'success', 
           message: 'Feedback logado na planilha' 
