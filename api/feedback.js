@@ -117,9 +117,9 @@ export default async function handler(req, res) {
       case 'logFeedbackPositivo':
       case 'logFeedbackNegativo':
         // Determinar tipo de feedback baseado na action
-        const feedbackType = action === 'logFeedbackPositivo' ? 'Positivo' : 
-                            action === 'logFeedbackNegativo' ? 'Negativo' : 
-                            feedback || 'Positivo';
+        const feedbackType = action === 'logFeedbackPositivo' ? '👍 Positivo' : 
+                            action === 'logFeedbackNegativo' ? '👎 Negativo' : 
+                            feedback || '👍 Positivo';
         
         // Obter sugestão do body
         const sugestao = req.body.sugestao || '';
@@ -163,7 +163,10 @@ export default async function handler(req, res) {
       case 'log-feedback':
         // Log detalhado de feedback
         const sugestaoLog = req.body.sugestao || '';
-        await logFeedback(email, pergunta, feedback, rating, resposta, sugestaoLog);
+        const feedbackTypeLog = feedback === 'Positivo' ? '👍 Positivo' : 
+                               feedback === 'Negativo' ? '👎 Negativo' : 
+                               feedback || '👍 Positivo';
+        await logFeedback(email, pergunta, feedbackTypeLog, rating, resposta, sugestaoLog);
         return res.status(200).json({ 
           status: 'success', 
           message: 'Feedback logado na planilha' 
