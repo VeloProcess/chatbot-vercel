@@ -293,8 +293,7 @@ body.dark-theme #feedback-cancel {
 #product-status-container-header {
     display: flex;
     gap: 8px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
     padding: 4px 0;
 }
 
