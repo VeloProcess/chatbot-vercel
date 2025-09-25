@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v4.1.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v4.2.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -90,6 +90,153 @@ function showVoiceControls() {
     if (playBtn) {
         playBtn.classList.remove('hidden');
         console.log('🔊 Botão de play mostrado');
+    }
+}
+
+// Gerar frase de conversação baseada na pergunta
+function generateConversationPhrase(pergunta) {
+    const frases = [
+        "Ah sim, sobre",
+        "Certo, sobre", 
+        "Entendi, sobre",
+        "Para fazer",
+        "Sobre",
+        "Bem, sobre",
+        "Claro, sobre",
+        "Perfeito, sobre"
+    ];
+    
+    // Extrair palavras-chave da pergunta
+    const palavrasChave = pergunta.toLowerCase()
+        .replace(/[^\w\s]/g, '') // Remove pontuação
+        .split(' ')
+        .filter(palavra => palavra.length > 3) // Palavras com mais de 3 caracteres
+        .slice(0, 3); // Primeiras 3 palavras relevantes
+    
+    // Escolher frase aleatória
+    const fraseEscolhida = frases[Math.floor(Math.random() * frases.length)];
+    
+    // Combinar frase com palavras-chave
+    if (palavrasChave.length > 0) {
+        const contexto = palavrasChave.join(' ');
+        return `${fraseEscolhida} ${contexto}...`;
+    }
+    
+    return `${fraseEscolhida} sua pergunta...`;
+}
+
+// Reproduzir última resposta
+async function playLastResponse(text = null) {
+    try {
+        let textToConvert = text;
+        
+        if (!textToConvert) {
+            const lastBotMessage = document.querySelector('.message-container.bot:last-child .message-content');
+            if (!lastBotMessage) {
+                addMessage('❌ Nenhuma resposta do bot encontrada para reproduzir', 'bot');
+                return;
+            }
+            textToConvert = lastBotMessage.textContent;
+        }
+
+        const voiceId = 'pNInz6obpgDQGcFmaJgB'; // Voice ID padrão
+        
+        console.log('🔊 Texto para converter:', textToConvert);
+        console.log('🔊 Voice ID:', voiceId);
+        addMessage('🔊 Convertendo resposta para áudio...', 'bot');
+
+        const response = await fetch('/api/voice?action=text-to-speech', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text: textToConvert, voiceId })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('🔊 Resultado da conversão:', result);
+
+        if (result.success) {
+            console.log('🔊 Criando áudio com formato:', result.format);
+            console.log('🔊 Tamanho do áudio base64:', result.audio ? result.audio.length : 'undefined');
+            
+            let audio;
+            let audioUrl;
+            
+            try {
+                // Criar um ID único para este áudio
+                const audioId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                
+                // Primeiro, enviar dados de áudio para criar um endpoint temporário
+                const uploadResponse = await fetch('/api/voice?action=audio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        audioData: result.audio,
+                        format: result.format,
+                        audioId: audioId
+                    })
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error(`Erro ao enviar áudio: ${uploadResponse.status}`);
+                }
+                
+                // Usar URL direta do endpoint (sem Blob)
+                audioUrl = `/api/voice?action=audio&id=${audioId}`;
+                
+                console.log('🔊 Usando URL direta de áudio:', audioUrl);
+                
+                // Criar áudio com URL direta
+                audio = new Audio(audioUrl);
+                currentAudio = audio;
+                
+                // Configurar eventos
+                audio.onended = () => {
+                    const playBtn = document.getElementById('play-response');
+                    const stopBtn = document.getElementById('stop-audio');
+                    if (playBtn) playBtn.classList.add('hidden');
+                    if (stopBtn) stopBtn.classList.add('hidden');
+                    console.log('🔊 Áudio finalizado');
+                };
+                
+                // Logs de debug para o áudio
+                audio.onloadstart = () => console.log('🔊 Áudio iniciando carregamento...');
+                audio.oncanplay = () => console.log('🔊 Áudio pronto para reprodução');
+                audio.oncanplaythrough = () => console.log('🔊 Áudio totalmente carregado');
+                audio.onerror = (e) => {
+                    console.error('❌ Erro no áudio:', e);
+                    console.error('❌ Detalhes do erro:', audio.error);
+                    addMessage('❌ Erro ao reproduzir áudio', 'bot');
+                };
+
+                await audio.play();
+                const playBtn = document.getElementById('play-response');
+                const stopBtn = document.getElementById('stop-audio');
+                if (playBtn) playBtn.classList.add('hidden');
+                if (stopBtn) stopBtn.classList.remove('hidden');
+                
+                addMessage('🔊 Reproduzindo resposta...', 'bot');
+                
+            } catch (error) {
+                console.error('❌ Erro ao criar Blob:', error);
+                if (audioUrl) URL.revokeObjectURL(audioUrl);
+                throw new Error('Erro ao processar áudio: ' + error.message);
+            }
+        } else {
+            addMessage(`❌ Erro ao converter para áudio: ${result.error}`, 'bot');
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao reproduzir áudio:', error);
+        addMessage(`❌ Erro ao reproduzir áudio: ${error.message}`, 'bot');
     }
 }
 
@@ -365,16 +512,23 @@ async function buscarResposta(textoDaPergunta) {
             respostaFinal = data.resposta || data.error || "Resposta não disponível";
         }
         
-        console.log('📝 Resposta final processada:', respostaFinal);
+        // Gerar frase de conversação
+        const fraseConversacao = generateConversationPhrase(textoDaPergunta);
+        console.log('🗣️ Frase de conversação gerada:', fraseConversacao);
+        
+        // Combinar frase de conversação com resposta
+        const respostaCompleta = `${fraseConversacao}\n\n${respostaFinal}`;
+        
+        console.log('📝 Resposta final processada:', respostaCompleta);
         console.log('📝 Chamando addVoiceMessage...');
-        addVoiceMessage(respostaFinal, 'bot');
+        addVoiceMessage(respostaCompleta, 'bot');
         console.log('✅ addVoiceMessage chamada com sucesso');
         
         // Reproduzir áudio automaticamente para entrada por voz
         console.log('🔊 Iniciando reprodução automática de áudio...');
         setTimeout(async () => {
             try {
-                await playLastResponse(respostaFinal);
+                await playLastResponse(respostaCompleta);
                 console.log('✅ Reprodução automática de áudio concluída');
             } catch (error) {
                 console.error('❌ Erro na reprodução automática:', error);
@@ -1444,116 +1598,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Função removida - movida para escopo global
 
-        // Reproduzir última resposta
-        async function playLastResponse() {
-            try {
-                const lastBotMessage = document.querySelector('.message-container.bot:last-child .message-content');
-                if (!lastBotMessage) {
-                    addMessage('❌ Nenhuma resposta do bot encontrada para reproduzir', 'bot');
-                    return;
-                }
-
-                const text = lastBotMessage.textContent;
-                const voiceId = voiceSelector.value || 'pNInz6obpgDQGcFmaJgB';
-                
-                console.log('🔊 Texto para converter:', text);
-                console.log('🔊 Voice ID:', voiceId);
-                addMessage('🔊 Convertendo resposta para áudio...', 'bot');
-
-                const response = await fetch('/api/voice?action=text-to-speech', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ text, voiceId })
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erro na API: ${response.status} - ${errorText}`);
-                }
-
-                const result = await response.json();
-                console.log('🔊 Resultado da conversão:', result);
-
-                if (result.success) {
-                    console.log('🔊 Criando áudio com formato:', result.format);
-                    console.log('🔊 Tamanho do áudio base64:', result.audio ? result.audio.length : 'undefined');
-                    
-                    let audio;
-                    let audioUrl;
-                    
-                    try {
-                        // Criar um ID único para este áudio
-                        const audioId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                        
-                        // Primeiro, enviar dados de áudio para criar um endpoint temporário
-                        const uploadResponse = await fetch('/api/voice?action=audio', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                audioData: result.audio,
-                                format: result.format,
-                                audioId: audioId
-                            })
-                        });
-                        
-                        if (!uploadResponse.ok) {
-                            throw new Error(`Erro ao enviar áudio: ${uploadResponse.status}`);
-                        }
-                        
-                        // Usar URL direta do endpoint (sem Blob)
-                        audioUrl = `/api/voice?action=audio&id=${audioId}`;
-                        
-                        console.log('🔊 Usando URL direta de áudio:', audioUrl);
-                        
-                        // Criar áudio com URL direta
-                        audio = new Audio(audioUrl);
-                        currentAudio = audio;
-                        
-                        // Configurar eventos
-                        audio.onended = () => {
-                            const playBtn = document.getElementById('play-response');
-                            const stopBtn = document.getElementById('stop-audio');
-                            if (playBtn) playBtn.classList.add('hidden');
-                            if (stopBtn) stopBtn.classList.add('hidden');
-                            console.log('🔊 Áudio finalizado');
-                        };
-                        
-                        // Logs de debug para o áudio
-                        audio.onloadstart = () => console.log('🔊 Áudio iniciando carregamento...');
-                        audio.oncanplay = () => console.log('🔊 Áudio pronto para reprodução');
-                        audio.oncanplaythrough = () => console.log('🔊 Áudio totalmente carregado');
-                        audio.onerror = (e) => {
-                            console.error('❌ Erro no áudio:', e);
-                            console.error('❌ Detalhes do erro:', audio.error);
-                            addMessage('❌ Erro ao reproduzir áudio', 'bot');
-                        };
-
-                        await audio.play();
-                        const playBtn = document.getElementById('play-response');
-                        const stopBtn = document.getElementById('stop-audio');
-                        if (playBtn) playBtn.classList.add('hidden');
-                        if (stopBtn) stopBtn.classList.remove('hidden');
-                        
-                        addMessage('🔊 Reproduzindo resposta...', 'bot');
-                        
-                    } catch (error) {
-                        console.error('❌ Erro ao criar Blob:', error);
-                        if (audioUrl) URL.revokeObjectURL(audioUrl);
-                        throw new Error('Erro ao processar áudio: ' + error.message);
-                    }
-                } else {
-                    addMessage(`❌ Erro ao converter para áudio: ${result.error}`, 'bot');
-                }
-
-            } catch (error) {
-                console.error('❌ Erro ao reproduzir áudio:', error);
-                addMessage(`❌ Erro ao reproduzir áudio: ${error.message}`, 'bot');
-            }
-        }
 
         // Parar áudio
         function stopAudio() {
@@ -1607,9 +1651,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Fallback: verificar se o email é de admin baseado no domínio e nome
             const isAdminEmail = dadosAtendente.email.includes('gabriel.araujo') || 
-                               dadosAtendente.email.includes('admin') || 
-                               dadosAtendente.email.includes('diretor') || 
-                               dadosAtendente.email.includes('velotax');
+                                dadosAtendente.email.includes('admin') || 
+                                dadosAtendente.email.includes('diretor') || 
+                                dadosAtendente.email.includes('velotax');
             
             const isAdminUser = adminRoles.includes(userRole) || isAdminEmail;
             
