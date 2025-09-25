@@ -60,12 +60,22 @@ async function getFaqData() {
 
   try {
     console.log('🔍 Buscando dados do MongoDB...');
+    console.log('🔍 MONGODB_URI:', MONGODB_URI);
+    console.log('🔍 DB_NAME:', DB_NAME);
+    console.log('🔍 FAQ_COLLECTION:', FAQ_COLLECTION);
+    
     const { mongoClient: client, db: database } = await connectToMongoDB();
     const collection = database.collection(FAQ_COLLECTION);
 
     // Buscar todos os documentos
     const documents = await collection.find({}).toArray();
     console.log('✅ Documentos encontrados:', documents.length);
+    
+    // Log dos primeiros documentos para debug
+    if (documents.length > 0) {
+      console.log('🔍 Primeiro documento:', JSON.stringify(documents[0], null, 2));
+      console.log('🔍 Estrutura dos campos:', Object.keys(documents[0]));
+    }
 
     if (documents.length === 0) {
       throw new Error(`Nenhum documento encontrado na coleção ${FAQ_COLLECTION}`);
@@ -81,6 +91,7 @@ async function getFaqData() {
 
   } catch (error) {
     console.error('❌ Erro ao buscar dados do MongoDB:', error);
+    console.error('❌ Stack trace:', error.stack);
     throw error;
   }
 }
@@ -101,6 +112,7 @@ function findMatches(pergunta, faqData) {
   }
 
   const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
+  console.log('🔍 Palavras da busca:', palavrasDaBusca);
   let todasAsCorrespondencias = [];
 
   for (let i = 0; i < faqData.length; i++) {
@@ -108,6 +120,16 @@ function findMatches(pergunta, faqData) {
     const textoPalavrasChave = normalizarTexto(documento.palavrasChave || documento.palavras_chave || '');
     const textoPergunta = normalizarTexto(documento.pergunta || '');
     let relevanceScore = 0;
+
+    // Log detalhado para debug (apenas para os primeiros 3 documentos)
+    if (i < 3) {
+      console.log(`🔍 Documento ${i + 1}:`, {
+        pergunta: documento.pergunta,
+        palavrasChave: documento.palavrasChave || documento.palavras_chave,
+        textoPalavrasChave,
+        textoPergunta
+      });
+    }
 
     // Buscar nas palavras-chave (prioridade alta)
     if (textoPalavrasChave) {
@@ -140,6 +162,12 @@ function findMatches(pergunta, faqData) {
     }
 
     if (relevanceScore > 0) {
+      console.log(`✅ Correspondência encontrada no documento ${i + 1}:`, {
+        pergunta: documento.pergunta,
+        score: relevanceScore,
+        palavrasChave: documento.palavrasChave || documento.palavras_chave
+      });
+      
       todasAsCorrespondencias.push({
         resposta: documento.resposta || '',
         perguntaOriginal: documento.pergunta || '',
