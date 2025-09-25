@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v4.2.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v4.3.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -124,6 +124,8 @@ function generateConversationPhrase(pergunta) {
     
     return `${fraseEscolhida} sua pergunta...`;
 }
+
+// Função para adicionar mensagens ao chat (movida para escopo global)
 
 // Reproduzir última resposta
 async function playLastResponse(text = null) {
@@ -1089,141 +1091,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typingIndicator) typingIndicator.classList.add('hidden');
     }
 
-        function addMessage(text, sender, { sourceRow = null, options = [], source = 'Planilha', tabulacoes = null, html = false } = {}) {
-            // Verificação de segurança para evitar erro de trim em undefined
-            if (!text || typeof text !== 'string') {
-                text = "Mensagem não disponível";
-            }
-            
-            const messageContainer = document.createElement('div');
-            messageContainer.className = `message-container ${sender}`;
-            const avatar = document.createElement('div');
-            avatar.className = `avatar ${sender}`;
-            if (sender === 'bot' && source === 'IA') {
-                avatar.textContent = '✦';
-                avatar.title = 'Resposta gerada por IA';
-            } else {
-                avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
-            }
-            const messageContentDiv = document.createElement('div');
-            messageContentDiv.className = 'message-content';
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message';
-            let isComplexResponse = false;
-            if (sender === 'bot' && text.trim().startsWith('[') && text.trim().endsWith(']')) {
-                try {
-                    const items = JSON.parse(text);
-                    if (Array.isArray(items) && items.length > 0 && items.every(item => item.title && item.content)) {
-                        isComplexResponse = true;
-                        const accordionContainer = document.createElement('div');
-                        accordionContainer.className = 'accordion-container';
-                        items.forEach(item => {
-                            const accordionItem = document.createElement('div');
-                            accordionItem.className = 'accordion-item';
-                            const titleDiv = document.createElement('div');
-                            titleDiv.className = 'accordion-title';
-                            titleDiv.innerHTML = `<span>${item.title}</span><span class="arrow">▶</span>`;
-                            const contentDiv = document.createElement('div');
-                            contentDiv.className = 'accordion-content';
-                            contentDiv.innerHTML = marked.parse(item.content);
-                            titleDiv.addEventListener('click', () => {
-                                titleDiv.classList.toggle('active');
-                                contentDiv.classList.toggle('visible');
-                            });
-                            accordionItem.appendChild(titleDiv);
-                            accordionItem.appendChild(contentDiv);
-                            accordionContainer.appendChild(accordionItem);
-                        });
-                        messageDiv.innerHTML = '';
-                        messageDiv.appendChild(accordionContainer);
-                    }
-                } catch (e) { isComplexResponse = false; }
-            }
-            if (!isComplexResponse) {
-                if (html) {
-                    // Se for HTML, inserir diretamente
-                    messageDiv.innerHTML = text;
-                } else {
-                    const parseInlineButtons = (rawText) => {
-                        if (typeof rawText !== 'string') return '';
-                        const buttonRegex = /\[button:(.*?)\|(.*?)\]/g;
-                        return rawText.replace(buttonRegex, (match, text, value) => {
-                            const escapedValue = value.trim().replace(/"/g, '&quot;');
-                            return `<button class="inline-chat-button" data-value="${escapedValue}">${text.trim()}</button>`;
-                        });
-                    };
-                    const textWithButtons = parseInlineButtons(text);
-                    messageDiv.innerHTML = marked.parse(textWithButtons);
-                }
-            }
-            messageContentDiv.appendChild(messageDiv);
-            messageContainer.appendChild(avatar);
-            messageContainer.appendChild(messageContentDiv);
-            messageDiv.querySelectorAll('.inline-chat-button').forEach(button => {
-                button.addEventListener('click', () => {
-                    const value = button.getAttribute('data-value');
-                    if (value) { handleSendMessage(value); }
-                });
-            });
-
-            if (sender === 'bot' && tabulacoes) {
-                const sugestoes = tabulacoes.split(';').filter(s => s.trim() !== '');
-                if (sugestoes.length > 0) {
-                    const tabulacaoTextContainer = document.createElement('div');
-                    tabulacaoTextContainer.className = 'tabulacao-info-text hidden';
-                    const textoFormatado = tabulacoes.replace(/;/g, '<br>');
-                    tabulacaoTextContainer.innerHTML = `<strong>Sugestão de Tabulação:</strong><br>${textoFormatado}`;
-                    const triggerButton = document.createElement('button');
-                    triggerButton.className = 'clarification-item';
-                    triggerButton.textContent = 'Veja as tabulações';
-                    triggerButton.style.marginTop = '10px';
-                    triggerButton.onclick = () => {
-                        triggerButton.classList.add('hidden');
-                        tabulacaoTextContainer.classList.remove('hidden');
-                    };
-                    messageContentDiv.appendChild(triggerButton);
-                    messageContentDiv.appendChild(tabulacaoTextContainer);
-                }
-            }
-
-             if (sender === 'bot') { // <-- CONDIÇÃO ALTERADA AQUI
-                ultimaLinhaDaFonte = sourceRow;
-                const feedbackContainer = document.createElement('div');
-                feedbackContainer.className = 'feedback-container';
-                const positiveBtn = document.createElement('button');
-                positiveBtn.className = 'feedback-btn';
-                positiveBtn.innerHTML = '👍';
-                positiveBtn.title = 'Resposta útil';
-                positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
-                const negativeBtn = document.createElement('button');
-                negativeBtn.className = 'feedback-btn';
-                negativeBtn.innerHTML = '👎';
-                negativeBtn.title = 'Resposta incorreta ou incompleta';
-                negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
-                feedbackContainer.appendChild(positiveBtn);
-                feedbackContainer.appendChild(negativeBtn);
-                messageContentDiv.appendChild(feedbackContainer);
-            }
-            if (sender === 'bot' && options.length > 0) {
-                const optionsContainer = document.createElement('div');
-                optionsContainer.className = 'clarification-container';
-                options.forEach(optionText => {
-                    const button = document.createElement('button');
-                    button.className = 'clarification-item';
-                    button.textContent = optionText;
-                    button.onclick = () => handleSendMessage(optionText);
-                    optionsContainer.appendChild(button);
-                });
-                messageContentDiv.appendChild(optionsContainer);
-            }
-
-            // Mostrar controles de voz para respostas do bot
-            if (sender === 'bot') {
-                showVoiceControls();
-            }
-            chatBox.appendChild(messageContainer);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
 
         async function enviarFeedback(action, container, sugestao = null) {
             if (!ultimaPergunta || !ultimaLinhaDaFonte) {
