@@ -18,16 +18,20 @@ let auth, sheets;
 
 try {
   if (!process.env.GOOGLE_CREDENTIALS) {
-    console.warn('⚠️ GOOGLE_CREDENTIALS não configurado no ask-mongodb');
+    console.error('❌ GOOGLE_CREDENTIALS não configurado no ask-mongodb');
+    throw new Error('GOOGLE_CREDENTIALS não configurado');
   } else {
+    console.log('✅ GOOGLE_CREDENTIALS encontrado, configurando autenticação...');
     auth = new google.auth.GoogleAuth({
       credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
     sheets = google.sheets({ version: 'v4', auth });
+    console.log('✅ Google Sheets configurado com sucesso');
   }
 } catch (error) {
   console.error('❌ Erro ao configurar Google Sheets no ask-mongodb:', error.message);
+  console.error('❌ Stack trace:', error.stack);
 }
 
 // Função para verificar se a planilha foi modificada
@@ -251,9 +255,28 @@ async function askMongoDBHandler(req, res) {
 
   } catch (error) {
     console.error("❌ ask-mongodb: Erro no processamento:", error);
+    console.error("❌ ask-mongodb: Stack trace:", error.stack);
+    console.error("❌ ask-mongodb: Tipo do erro:", error.constructor.name);
+    
+    // Retornar erro mais específico baseado no tipo
+    let errorMessage = "Erro interno no servidor.";
+    let errorDetails = error.message;
+    
+    if (error.message.includes('GOOGLE_CREDENTIALS')) {
+      errorMessage = "Erro de configuração: Credenciais do Google não configuradas.";
+    } else if (error.message.includes('Timeout')) {
+      errorMessage = "Timeout: A planilha demorou muito para responder.";
+    } else if (error.message.includes('Planilha FAQ vazia')) {
+      errorMessage = "Erro de dados: Planilha FAQ não encontrada ou vazia.";
+    } else if (error.message.includes('Google Sheets não configurado')) {
+      errorMessage = "Erro de configuração: Google Sheets não configurado.";
+    }
+    
     return res.status(500).json({ 
-      error: "Erro interno no servidor.", 
-      details: error.message 
+      error: errorMessage,
+      details: errorDetails,
+      type: error.constructor.name,
+      timestamp: new Date().toISOString()
     });
   }
 };
@@ -539,13 +562,16 @@ async function handleConversationAction(action, userEmail, message, baseResponse
 
 // Handler principal que integra conversação, busca e operações CRUD do MongoDB
 async function mainHandler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  try {
+    console.log('🔍 mainHandler: Iniciando requisição', { method: req.method, url: req.url, query: req.query });
+    
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
 
   // Verificar se é uma requisição de conversação
   if (req.query.action === 'conversation') {
@@ -598,7 +624,18 @@ async function mainHandler(req, res) {
 
 
   // Se não for conversação nem CRUD, continuar com o fluxo normal do ask-mongodb
-  return askMongoDBHandler(req, res);
+  console.log('🔍 mainHandler: Chamando askMongoDBHandler...');
+  return await askMongoDBHandler(req, res);
+  
+  } catch (error) {
+    console.error('❌ mainHandler: Erro geral:', error);
+    console.error('❌ mainHandler: Stack trace:', error.stack);
+    return res.status(500).json({ 
+      error: 'Erro interno no servidor principal',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 }
 
 module.exports = mainHandler;
