@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v2.4.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.5.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -9,8 +9,15 @@ let currentAudio = null;
 
 // Função simplificada para adicionar mensagens (para uso nas funções de voz)
 function addVoiceMessage(text, sender) {
+    console.log('🎯 addVoiceMessage chamada:', { text, sender });
+    
     const chatContainer = document.getElementById('chat-container');
-    if (!chatContainer) return;
+    console.log('🎯 chat-container encontrado:', !!chatContainer);
+    
+    if (!chatContainer) {
+        console.error('❌ chat-container não encontrado!');
+        return;
+    }
     
     const messageContainer = document.createElement('div');
     messageContainer.className = `message-container ${sender}`;
@@ -31,8 +38,11 @@ function addVoiceMessage(text, sender) {
     messageContainer.appendChild(messageContentDiv);
     chatContainer.appendChild(messageContainer);
     
+    console.log('✅ Mensagem adicionada ao chat:', messageContainer);
+    
     // Scroll para baixo
     chatContainer.scrollTop = chatContainer.scrollHeight;
+    console.log('✅ Scroll executado');
 }
 
 async function toggleRecording() {
@@ -301,7 +311,9 @@ async function buscarResposta(textoDaPergunta) {
         }
         
         console.log('📝 Resposta final processada:', respostaFinal);
+        console.log('📝 Chamando addVoiceMessage...');
         addVoiceMessage(respostaFinal, 'bot');
+        console.log('✅ addVoiceMessage chamada com sucesso');
     } catch (error) {
         if (typeof hideTypingIndicator === 'function') {
             hideTypingIndicator();
