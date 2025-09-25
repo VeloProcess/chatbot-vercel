@@ -219,3 +219,36 @@ module.exports = async function handler(req, res) {
     });
   }
 };
+
+// ==================== INÍCIO DA LÓGICA DE CONVERSAÇÃO ====================
+// Endpoint para sistema de conversação contínua
+// Integrado no ask-mongodb.js para manter limite de 12 serverless functions
+
+const { handleConversationAction } = require('./AskOpenai.js');
+
+export default async function conversationHandler(req, res) {
+  // Verificar se é uma requisição de conversação
+  if (req.query.action === 'conversation') {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Método não permitido' });
+    }
+
+    const { action, userEmail, message, baseResponse } = req.body;
+
+    try {
+      const result = await handleConversationAction(action, userEmail, message, baseResponse);
+      return res.json(result);
+    } catch (error) {
+      console.error('Erro no sistema de conversação:', error);
+      return res.status(500).json({ 
+        error: 'Erro interno do servidor',
+        details: error.message 
+      });
+    }
+  }
+
+  // Se não for conversação, continuar com o fluxo normal do ask-mongodb
+  return askMongoDBHandler(req, res);
+}
+
+// ==================== FIM DA LÓGICA DE CONVERSAÇÃO ====================

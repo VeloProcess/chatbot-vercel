@@ -1,9 +1,14 @@
-// ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v4.4.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// ==================== VARIÁVEIS GLOBAIS DE VOZ E CONVERSAÇÃO ====================
+// VERSION: v4.6.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
 let currentAudio = null;
+
+// ==================== VARIÁVEIS DE CONVERSAÇÃO ====================
+let conversationSession = null;
+let isWaitingForBotResponse = false;
+let pendingBotQuestion = null;
 
 // ==================== FUNÇÕES GLOBAIS DE VOZ ====================
 
@@ -123,6 +128,150 @@ function generateConversationPhrase(pergunta) {
     }
     
     return `${fraseEscolhida} sua pergunta...`;
+}
+
+// ==================== FUNÇÕES DE CONVERSAÇÃO CONTÍNUA ====================
+
+// Analisar intenção conversacional da mensagem do usuário
+async function analyzeConversationalIntent(userMessage) {
+    try {
+        const userEmail = getUserEmail();
+        
+        const response = await fetch('/api/ask-mongodb?action=conversation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'analyze_intent',
+                userEmail: userEmail,
+                message: userMessage
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na análise: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('❌ Erro ao analisar intenção conversacional:', error);
+        return {
+            success: false,
+            intent: { requires_bot_response: true, should_ask_followup: false }
+        };
+    }
+}
+
+// Gerar pergunta de seguimento do bot
+async function generateBotFollowupQuestion(userMessage) {
+    try {
+        const userEmail = getUserEmail();
+        
+        const response = await fetch('/api/ask-mongodb?action=conversation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'generate_followup',
+                userEmail: userEmail,
+                message: userMessage
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na geração: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('❌ Erro ao gerar pergunta de seguimento:', error);
+        return {
+            success: false,
+            followupQuestion: "Posso ajudar com mais alguma coisa?"
+        };
+    }
+}
+
+// Converter resposta base em resposta conversacional
+async function makeResponseConversational(userMessage, baseResponse) {
+    try {
+        const userEmail = getUserEmail();
+        
+        const response = await fetch('/api/ask-mongodb?action=conversation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'conversational_response',
+                userEmail: userEmail,
+                message: userMessage,
+                baseResponse: baseResponse
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na conversão: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.conversationalResponse || baseResponse;
+    } catch (error) {
+        console.error('❌ Erro ao tornar resposta conversacional:', error);
+        return baseResponse;
+    }
+}
+
+// Obter email do usuário de forma segura
+function getUserEmail() {
+    let userEmail = 'usuario@velotax.com.br'; // Fallback padrão
+    
+    if (typeof dadosAtendente !== 'undefined' && dadosAtendente?.email) {
+        userEmail = dadosAtendente.email;
+    } else if (typeof window !== 'undefined' && window.dadosAtendente?.email) {
+        userEmail = window.dadosAtendente.email;
+    } else {
+        try {
+            const savedData = localStorage.getItem('dadosAtendenteChatbot');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                if (parsedData?.email) {
+                    userEmail = parsedData.email;
+                }
+            }
+        } catch (e) {
+            console.log('⚠️ Não foi possível obter email do localStorage');
+        }
+    }
+    
+    return userEmail;
+}
+
+// Adicionar botão de resposta rápida
+function addQuickResponseButton(text, onClick) {
+    const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
+
+    const quickResponseContainer = document.createElement('div');
+    quickResponseContainer.className = 'quick-response-container';
+    
+    const button = document.createElement('button');
+    button.className = 'quick-response-btn';
+    button.textContent = text;
+    button.onclick = () => {
+        onClick();
+        quickResponseContainer.remove();
+    };
+    
+    quickResponseContainer.appendChild(button);
+    chatBox.appendChild(quickResponseContainer);
+    
+    // Scroll para baixo
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 // Função para adicionar mensagens ao chat (escopo global)
@@ -553,7 +702,7 @@ async function processAudioToText(audioBlob) {
     }
 }
 
-// Função global para buscar respostas
+// Função global para buscar respostas com sistema de conversação
 async function buscarResposta(textoDaPergunta) {
     // Verificar se as variáveis necessárias estão disponíveis
     if (typeof ultimaPergunta !== 'undefined') {
@@ -571,29 +720,15 @@ async function buscarResposta(textoDaPergunta) {
     }
     
     try {
-        // Obter email do usuário de forma segura
-        let userEmail = 'usuario@velotax.com.br'; // Fallback padrão
+        // ==================== ANÁLISE CONVERSACIONAL ====================
+        console.log('🤖 Analisando intenção conversacional...');
+        const intentAnalysis = await analyzeConversationalIntent(textoDaPergunta);
         
-        // Tentar obter dadosAtendente de diferentes formas
-        if (typeof dadosAtendente !== 'undefined' && dadosAtendente?.email) {
-            userEmail = dadosAtendente.email;
-        } else if (typeof window !== 'undefined' && window.dadosAtendente?.email) {
-            userEmail = window.dadosAtendente.email;
-        } else {
-            // Tentar obter do localStorage
-            try {
-                const savedData = localStorage.getItem('dadosAtendenteChatbot');
-                if (savedData) {
-                    const parsedData = JSON.parse(savedData);
-                    if (parsedData?.email) {
-                        userEmail = parsedData.email;
-                    }
-                }
-            } catch (e) {
-                console.log('⚠️ Não foi possível obter email do localStorage, usando fallback');
-            }
+        if (!intentAnalysis.success) {
+            console.log('⚠️ Análise de intenção falhou, continuando com fluxo normal');
         }
         
+        const userEmail = getUserEmail();
         console.log('📧 Email usado para busca:', userEmail);
         
         // Usar MongoDB endpoint como principal
@@ -655,12 +790,16 @@ async function buscarResposta(textoDaPergunta) {
             respostaFinal = data.resposta || data.error || "Resposta não disponível";
         }
         
+        // ==================== PROCESSAMENTO CONVERSACIONAL ====================
+        console.log('💬 Tornando resposta conversacional...');
+        const respostaConversacional = await makeResponseConversational(textoDaPergunta, respostaFinal);
+        
         // Gerar frase de conversação
         const fraseConversacao = generateConversationPhrase(textoDaPergunta);
         console.log('🗣️ Frase de conversação gerada:', fraseConversacao);
         
-        // Combinar frase de conversação com resposta
-        const respostaCompleta = `${fraseConversacao}\n\n${respostaFinal}`;
+        // Combinar frase de conversação com resposta conversacional
+        const respostaCompleta = `${fraseConversacao}\n\n${respostaConversacional}`;
         
         console.log('📝 Resposta final processada:', respostaCompleta);
         console.log('📝 Chamando addVoiceMessage...');
@@ -1659,9 +1798,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Fallback: verificar se o email é de admin baseado no domínio e nome
             const isAdminEmail = dadosAtendente.email.includes('gabriel.araujo') || 
-                                dadosAtendente.email.includes('admin') || 
-                                dadosAtendente.email.includes('diretor') || 
-                                dadosAtendente.email.includes('velotax');
+                               dadosAtendente.email.includes('admin') || 
+                               dadosAtendente.email.includes('diretor') || 
+                               dadosAtendente.email.includes('velotax');
             
             const isAdminUser = adminRoles.includes(userRole) || isAdminEmail;
             
