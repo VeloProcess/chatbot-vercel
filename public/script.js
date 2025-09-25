@@ -453,8 +453,7 @@ async function playLastResponse(text = null) {
         }
 
         const voiceId = 'pNInz6obpgDQGcFmaJgB'; // Voice ID padrão
-        const speedSlider = document.getElementById('speed-slider');
-        const speed = speedSlider ? parseFloat(speedSlider.value) : 1.0;
+        const speed = 1.0; // Velocidade fixa
         
         console.log('🔊 Texto para converter:', textToConvert);
         console.log('🔊 Voice ID:', voiceId);
@@ -515,8 +514,7 @@ async function playLastResponse(text = null) {
                 currentAudio = audio;
                 
                 // Aplicar velocidade do áudio
-                const speedSlider = document.getElementById('speed-slider');
-                const audioSpeed = speedSlider ? parseFloat(speedSlider.value) : 1.0;
+                const audioSpeed = 1.0; // Velocidade fixa
                 audio.playbackRate = audioSpeed;
                 console.log('🔊 Velocidade do áudio aplicada:', audioSpeed + 'x');
                 
@@ -1768,33 +1766,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('❌ Botão de stop não encontrado');
             }
             
-            // Configurar controle de velocidade
-            const speedSlider = document.getElementById('speed-slider');
-            const speedValue = document.getElementById('speed-value');
-            const speedControl = document.getElementById('voice-speed-control');
-            
-            console.log('🔊 Elementos de velocidade encontrados:');
-            console.log('- Speed slider:', speedSlider);
-            console.log('- Speed value:', speedValue);
-            console.log('- Speed control:', speedControl);
-            
-            if (speedSlider && speedValue) {
-                // Atualizar valor em tempo real
-                speedSlider.addEventListener('input', function() {
-                    speedValue.textContent = this.value + 'x';
-                    console.log('🔊 Velocidade alterada para:', this.value + 'x');
-                });
-                
-                // Mostrar controle de velocidade sempre que houver controles de voz
-                if (speedControl) {
-                    speedControl.classList.remove('hidden');
-                    console.log('✅ Controle de velocidade mostrado');
-                }
-                
-                console.log('✅ Controle de velocidade configurado');
-            } else {
-                console.error('❌ Elementos de controle de velocidade não encontrados');
-            }
             
         // Carregar vozes disponíveis
         loadAvailableVoices();

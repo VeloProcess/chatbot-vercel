@@ -1804,83 +1804,6 @@ body.dark-theme .message-container[data-source="IA Avançada"] {
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
-/* ==================== CONTROLE DE VELOCIDADE DA VOZ ==================== */
-
-.voice-speed-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--cor-container);
-    border: 1px solid var(--cor-borda);
-    border-radius: 18px;
-    padding: 6px 12px;
-    height: 36px;
-    flex-shrink: 0;
-    min-width: 140px;
-    transition: all var(--transicao-rapida);
-}
-
-.voice-speed-control:hover {
-    border-color: var(--cor-azul-medio);
-    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.1);
-}
-
-.voice-speed-control label {
-    font-size: 0.9em;
-    color: var(--cor-texto-principal);
-    font-weight: 500;
-    cursor: pointer;
-}
-
-#speed-slider {
-    flex: 1;
-    height: 4px;
-    background: var(--cor-borda);
-    border-radius: 2px;
-    outline: none;
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-}
-
-#speed-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    background: var(--cor-azul-medio);
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all var(--transicao-rapida);
-}
-
-#speed-slider::-webkit-slider-thumb:hover {
-    background: var(--cor-azul-escuro);
-    transform: scale(1.1);
-}
-
-#speed-slider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    background: var(--cor-azul-medio);
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
-    transition: all var(--transicao-rapida);
-}
-
-#speed-slider::-moz-range-thumb:hover {
-    background: var(--cor-azul-escuro);
-    transform: scale(1.1);
-}
-
-#speed-value {
-    font-size: 0.8em;
-    color: var(--cor-texto-principal);
-    font-weight: 600;
-    min-width: 35px;
-    text-align: center;
-}
 
 /* Responsividade para controles de voz */
 @media (max-width: 768px) {
@@ -1922,43 +1845,6 @@ body.dark-theme .voice-selector:focus {
     box-shadow: 0 0 0 3px rgba(77, 144, 254, 0.1);
 }
 
-/* Tema escuro para controle de velocidade */
-body.dark-theme .voice-speed-control {
-    background: #333;
-    border-color: #555;
-}
-
-body.dark-theme .voice-speed-control:hover {
-    border-color: #4d90fe;
-}
-
-body.dark-theme .voice-speed-control label {
-    color: #fff;
-}
-
-body.dark-theme #speed-slider {
-    background: #555;
-}
-
-body.dark-theme #speed-slider::-webkit-slider-thumb {
-    background: #4d90fe;
-}
-
-body.dark-theme #speed-slider::-webkit-slider-thumb:hover {
-    background: #66a3ff;
-}
-
-body.dark-theme #speed-slider::-moz-range-thumb {
-    background: #4d90fe;
-}
-
-body.dark-theme #speed-slider::-moz-range-thumb:hover {
-    background: #66a3ff;
-}
-
-body.dark-theme #speed-value {
-    color: #fff;
-}
 
 /* ==================== PAINEL ADMINISTRATIVO ==================== */
 .admin-btn {
