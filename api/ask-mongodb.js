@@ -226,7 +226,8 @@ module.exports = async function handler(req, res) {
 
 const { handleConversationAction } = require('./AskOpenai.js');
 
-export default async function conversationHandler(req, res) {
+// Handler principal que integra conversação e busca MongoDB
+async function mainHandler(req, res) {
   // Verificar se é uma requisição de conversação
   if (req.query.action === 'conversation') {
     if (req.method !== 'POST') {
@@ -250,5 +251,7 @@ export default async function conversationHandler(req, res) {
   // Se não for conversação, continuar com o fluxo normal do ask-mongodb
   return askMongoDBHandler(req, res);
 }
+
+module.exports = mainHandler;
 
 // ==================== FIM DA LÓGICA DE CONVERSAÇÃO ====================
