@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v2.9.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v3.0.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -35,25 +35,24 @@ function addVoiceMessage(text, sender, options = null) {
     
     messageContentDiv.appendChild(messageDiv);
     
-    // Se há opções, criar lista de follow-ups igual ao chat normal
+    // Se há opções, criar lista igual à função addMessage original
     if (options && Array.isArray(options) && options.length > 0) {
         console.log('📋 Criando lista de opções:', options);
         
-        const followUpHTML = `
-            <div class="followups-container">
-                <h4>💡 Perguntas relacionadas:</h4>
-                <div class="followups-lista">
-                    ${options.map(option => `
-                        <div class="followup-item" onclick="handleFollowUp('${option.replace(/'/g, "\\'")}')">
-                            <span class="followup-texto">${option}</span>
-                            <span class="followup-arrow">→</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-        
-        messageContentDiv.innerHTML = messageContentDiv.innerHTML + followUpHTML;
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'clarification-container';
+        options.forEach(optionText => {
+            const button = document.createElement('button');
+            button.className = 'clarification-item';
+            button.textContent = optionText;
+            button.onclick = () => {
+                console.log('🔘 Opção clicada:', optionText);
+                addVoiceMessage(optionText, 'user');
+                buscarResposta(optionText);
+            };
+            optionsContainer.appendChild(button);
+        });
+        messageContentDiv.appendChild(optionsContainer);
     }
     
     messageContainer.appendChild(avatar);
