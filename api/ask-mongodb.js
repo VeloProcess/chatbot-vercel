@@ -62,8 +62,14 @@ async function checkSheetModified() {
 async function getFaqData() {
   const now = Date.now();
   
+  console.log('🔍 getFaqData: Iniciando busca...');
+  console.log('🔍 getFaqData: sheets configurado:', !!sheets);
+  console.log('🔍 getFaqData: cache atual:', global.sheetsCache.data ? global.sheetsCache.data.length : 'null', 'linhas');
+  
   // Verificar se a planilha foi modificada (sempre verificar)
+  console.log('🔍 getFaqData: Verificando modificações...');
   const wasModified = await checkSheetModified();
+  console.log('🔍 getFaqData: Planilha modificada:', wasModified);
   
   // Se não foi modificada e o cache ainda é válido, usar cache
   if (!wasModified && global.sheetsCache.data && (now - global.sheetsCache.timestamp) < global.sheetsCache.ttl) {
@@ -72,24 +78,31 @@ async function getFaqData() {
   }
 
   if (!sheets) {
+    console.error('❌ getFaqData: Google Sheets não configurado');
     throw new Error('Google Sheets não configurado');
   }
 
   console.log('🔍 ask-mongodb: Buscando dados da planilha...');
+  console.log('🔍 getFaqData: SPREADSHEET_ID:', SPREADSHEET_ID);
+  console.log('🔍 getFaqData: FAQ_SHEET_NAME:', FAQ_SHEET_NAME);
 
   // Timeout de 8 segundos para Vercel (limite de 10s)
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error('Timeout da planilha')), 8000);
   });
 
+  console.log('🔍 getFaqData: Fazendo requisição para Google Sheets...');
   const sheetsPromise = sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: FAQ_SHEET_NAME,
   });
 
   const response = await Promise.race([sheetsPromise, timeoutPromise]);
+  console.log('🔍 getFaqData: Resposta recebida:', response.data ? 'sucesso' : 'erro');
+  console.log('🔍 getFaqData: Valores recebidos:', response.data.values ? response.data.values.length : 'null', 'linhas');
 
   if (!response.data.values || response.data.values.length === 0) {
+    console.error('❌ getFaqData: Planilha FAQ vazia ou não encontrada');
     throw new Error("Planilha FAQ vazia ou não encontrada");
   }
 
@@ -199,8 +212,13 @@ async function askMongoDBHandler(req, res) {
     console.log('🔍 ask-mongodb: Iniciando...');
     console.log('🔍 ask-mongodb: Pergunta recebida:', { pergunta, email, usar_ia_avancada });
 
+    console.log('🔍 ask-mongodb: Buscando dados da planilha...');
     const faqData = await getFaqData();
+    console.log('🔍 ask-mongodb: Dados obtidos:', faqData ? faqData.length : 'null', 'linhas');
+    
+    console.log('🔍 ask-mongodb: Buscando correspondências...');
     const correspondencias = findMatches(pergunta, faqData);
+    console.log('🔍 ask-mongodb: Correspondências encontradas:', correspondencias.length);
 
     if (correspondencias.length === 0) {
       return res.status(200).json({
