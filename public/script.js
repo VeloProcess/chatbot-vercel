@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v2.5.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.6.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -11,11 +11,11 @@ let currentAudio = null;
 function addVoiceMessage(text, sender) {
     console.log('🎯 addVoiceMessage chamada:', { text, sender });
     
-    const chatContainer = document.getElementById('chat-container');
-    console.log('🎯 chat-container encontrado:', !!chatContainer);
+    const chatBox = document.getElementById('chat-box');
+    console.log('🎯 chat-box encontrado:', !!chatBox);
     
-    if (!chatContainer) {
-        console.error('❌ chat-container não encontrado!');
+    if (!chatBox) {
+        console.error('❌ chat-box não encontrado!');
         return;
     }
     
@@ -36,12 +36,12 @@ function addVoiceMessage(text, sender) {
     messageContentDiv.appendChild(messageDiv);
     messageContainer.appendChild(avatar);
     messageContainer.appendChild(messageContentDiv);
-    chatContainer.appendChild(messageContainer);
+    chatBox.appendChild(messageContainer);
     
-    console.log('✅ Mensagem adicionada ao chat:', messageContainer);
+    console.log('✅ Mensagem adicionada ao chat-box:', messageContainer);
     
     // Scroll para baixo
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    chatBox.scrollTop = chatBox.scrollHeight;
     console.log('✅ Scroll executado');
 }
 
