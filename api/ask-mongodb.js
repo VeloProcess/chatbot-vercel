@@ -163,7 +163,7 @@ function findMatches(pergunta, faqData) {
   return correspondenciasUnicas;
 }
 
-module.exports = async function handler(req, res) {
+async function askMongoDBHandler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
