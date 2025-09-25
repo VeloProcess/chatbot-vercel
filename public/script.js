@@ -563,9 +563,13 @@ async function playLastResponse(text = null) {
 
 async function toggleRecording() {
     console.log('🎤 Toggle recording chamado, isRecording:', isRecording);
+    
+    // Evitar múltiplas chamadas simultâneas
     if (isRecording) {
+        console.log('🎤 Parando gravação...');
         stopRecording();
     } else {
+        console.log('🎤 Iniciando gravação...');
         await startRecording();
     }
 }
@@ -588,7 +592,7 @@ async function startRecording() {
         };
 
         mediaRecorder.onstop = async () => {
-            console.log('🎤 Parando gravação, chunks:', audioChunks.length);
+            console.log('🎤 Evento onstop disparado, chunks:', audioChunks.length);
             if (audioChunks.length > 0) {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 console.log('🎤 Blob criado:', audioBlob);
@@ -596,7 +600,16 @@ async function startRecording() {
             } else {
                 addVoiceMessage('❌ Nenhum áudio foi gravado', 'bot');
             }
-            stream.getTracks().forEach(track => track.stop());
+            
+            // Parar todas as tracks do stream
+            try {
+                stream.getTracks().forEach(track => {
+                    track.stop();
+                    console.log('🎤 Track parada:', track.kind);
+                });
+            } catch (error) {
+                console.error('❌ Erro ao parar tracks:', error);
+            }
         };
 
         mediaRecorder.start(1000); // Coletar dados a cada 1 segundo
@@ -634,7 +647,15 @@ async function startRecording() {
 function stopRecording() {
     if (mediaRecorder && isRecording) {
         console.log('⏹️ Parando gravação...');
-        mediaRecorder.stop();
+        
+        // Parar o MediaRecorder
+        try {
+            mediaRecorder.stop();
+        } catch (error) {
+            console.error('❌ Erro ao parar MediaRecorder:', error);
+        }
+        
+        // Marcar como não gravando
         isRecording = false;
         
         // Buscar elementos dinamicamente
@@ -658,6 +679,8 @@ function stopRecording() {
         addVoiceMessage('🔄 Processando áudio...', 'bot');
         
         console.log('✅ Gravação parada');
+    } else {
+        console.log('⚠️ Tentativa de parar gravação, mas não está gravando');
     }
 }
 
