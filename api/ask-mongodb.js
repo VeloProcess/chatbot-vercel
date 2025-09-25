@@ -4,8 +4,8 @@ const { google } = require('googleapis');
 
 // Configuração do MongoDB
 const MONGODB_URI = process.env.MONGODB_URI;
-const DB_NAME = 'velotax_chatbot';
-const COLLECTION_NAME = 'faq';
+const DB_NAME = 'console_conteudo';
+const COLLECTION_NAME = 'Bot_perguntas';
 
 // Configuração do Google Sheets para logs
 const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
