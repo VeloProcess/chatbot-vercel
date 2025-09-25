@@ -1259,8 +1259,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentAudio = audio;
                     
                     audio.onended = () => {
-                        playResponseButton.classList.add('hidden');
-                        stopAudioButton.classList.add('hidden');
+                        const playBtn = document.getElementById('play-response');
+                        const stopBtn = document.getElementById('stop-audio');
+                        if (playBtn) playBtn.classList.add('hidden');
+                        if (stopBtn) stopBtn.classList.add('hidden');
                         console.log('🔊 Áudio finalizado');
                     };
 
@@ -1270,8 +1272,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
 
                     await audio.play();
-                    playResponseButton.classList.add('hidden');
-                    stopAudioButton.classList.remove('hidden');
+                    const playBtn = document.getElementById('play-response');
+                    const stopBtn = document.getElementById('stop-audio');
+                    if (playBtn) playBtn.classList.add('hidden');
+                    if (stopBtn) stopBtn.classList.remove('hidden');
                     
                     addMessage('🔊 Reproduzindo resposta...', 'bot');
                 } else {
@@ -1290,8 +1294,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
                 currentAudio = null;
-                playResponseButton.classList.remove('hidden');
-                stopAudioButton.classList.add('hidden');
+                
+                const playBtn = document.getElementById('play-response');
+                const stopBtn = document.getElementById('stop-audio');
+                
+                if (playBtn) playBtn.classList.remove('hidden');
+                if (stopBtn) stopBtn.classList.add('hidden');
             }
         }
 
@@ -1319,8 +1327,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Mostrar controles de voz quando bot responde
         function showVoiceControls() {
-            if (playResponseButton) {
-                playResponseButton.classList.remove('hidden');
+            const playBtn = document.getElementById('play-response');
+            if (playBtn) {
+                playBtn.classList.remove('hidden');
                 console.log('🔊 Botão de play mostrado');
             }
         }
@@ -1484,18 +1493,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-        // Configurar botão de voz - abordagem mais simples
+        // Configurar botão de voz - FUNCIONALIDADE ATIVADA
         function setupVoiceButton() {
             const voiceBtn = document.getElementById('voice-button');
             if (voiceBtn) {
-                // Configurar botão de voz - EM BREVE
+                // Configurar botão de voz - ATIVADO
                 voiceBtn.innerHTML = '🎤';
-                voiceBtn.classList.add('voice-btn-disabled');
+                voiceBtn.classList.remove('voice-btn-disabled');
                 voiceBtn.onclick = function() {
-                    console.log('🎤 Botão de voz desabilitado - EM BREVE');
-                    addMessage('🎤 Em breve, sistema de transcrição de áudio para texto, para podermos conversar com o bot sobre nossos procedimentos internos!', 'bot');
+                    console.log('🎤 Botão de voz ativado!');
+                    toggleRecording();
                 };
-                console.log('✅ Botão de voz configurado (EM BREVE)');
+                console.log('✅ Botão de voz configurado e ATIVADO');
             } else {
                 console.error('❌ Botão de voz não encontrado');
             }
@@ -1505,14 +1514,14 @@ document.addEventListener('DOMContentLoaded', () => {
         function setupPlayButton() {
             const playBtn = document.getElementById('play-response');
             if (playBtn) {
-                // Configurar botão de play - EM BREVE
+                // Configurar botão de play - ATIVADO
                 playBtn.innerHTML = '🔊';
-                playBtn.classList.add('voice-btn-disabled');
+                playBtn.classList.remove('voice-btn-disabled');
                 playBtn.onclick = function() {
-                    console.log('🔊 Botão de play desabilitado - EM BREVE');
-                    addMessage('🔊 Em breve, sistema de síntese de voz, para o bot responder com áudio sobre nossos procedimentos internos!', 'bot');
+                    console.log('🔊 Botão de play ativado!');
+                    playLastResponse();
                 };
-                console.log('✅ Botão de play configurado (EM BREVE)');
+                console.log('✅ Botão de play configurado e ATIVADO');
             }
         }
 
