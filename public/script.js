@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v2.7.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.8.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -8,8 +8,8 @@ let currentAudio = null;
 // ==================== FUNÇÕES GLOBAIS DE VOZ ====================
 
 // Função simplificada para adicionar mensagens (para uso nas funções de voz)
-function addVoiceMessage(text, sender) {
-    console.log('🎯 addVoiceMessage chamada:', { text, sender });
+function addVoiceMessage(text, sender, options = null) {
+    console.log('🎯 addVoiceMessage chamada:', { text, sender, options });
     
     const chatBox = document.getElementById('chat-box');
     console.log('🎯 chat-box encontrado:', !!chatBox);
@@ -34,6 +34,28 @@ function addVoiceMessage(text, sender) {
     messageDiv.textContent = text;
     
     messageContentDiv.appendChild(messageDiv);
+    
+    // Se há opções, criar botões clicáveis
+    if (options && Array.isArray(options) && options.length > 0) {
+        console.log('📋 Criando botões de opções:', options);
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'followups-container';
+        
+        options.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.className = 'followup-button';
+            button.textContent = option;
+            button.onclick = function() {
+                console.log('🔘 Opção clicada:', option);
+                addVoiceMessage(option, 'user');
+                buscarResposta(option);
+            };
+            optionsContainer.appendChild(button);
+        });
+        
+        messageContentDiv.appendChild(optionsContainer);
+    }
+    
     messageContainer.appendChild(avatar);
     messageContainer.appendChild(messageContentDiv);
     chatBox.appendChild(messageContainer);
@@ -303,19 +325,13 @@ async function buscarResposta(textoDaPergunta) {
                 respostaFinal = data.resposta;
             }
         } else if (data.status === 'clarification_needed' || data.status === 'clarification_needed_offline') {
-            respostaFinal = data.resposta;
-            // Se há opções, vamos criar uma lista clicável
+            // Se há opções, usar addVoiceMessage com opções
             if (data.options && data.options.length > 0) {
                 console.log('📋 Criando lista de opções:', data.options);
-                // Usar a função addMessage original se estiver disponível para manter funcionalidade completa
-                if (typeof addMessage === 'function') {
-                    addMessage(data.resposta, 'bot', { 
-                        options: data.options, 
-                        source: data.source,
-                        sourceRow: data.sourceRow
-                    });
-                    return; // Sair da função para não duplicar a mensagem
-                }
+                addVoiceMessage(data.resposta, 'bot', data.options);
+                return; // Sair da função para não duplicar a mensagem
+            } else {
+                respostaFinal = data.resposta;
             }
         } else if (data.status === 'resposta_padrao' || data.status === 'sucesso_offline') {
             respostaFinal = data.resposta;
