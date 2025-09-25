@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v3.5.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v4.0.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -71,6 +71,11 @@ function addVoiceMessage(text, sender, options = null) {
     messageContainer.appendChild(avatar);
     messageContainer.appendChild(messageContentDiv);
     chatBox.appendChild(messageContainer);
+    
+    // Mostrar controles de voz para respostas do bot (mesmo para entrada por voz)
+    if (sender === 'bot') {
+        showVoiceControls();
+    }
     
     console.log('✅ Mensagem adicionada ao chat-box:', messageContainer);
     
@@ -355,6 +360,17 @@ async function buscarResposta(textoDaPergunta) {
         console.log('📝 Chamando addVoiceMessage...');
         addVoiceMessage(respostaFinal, 'bot');
         console.log('✅ addVoiceMessage chamada com sucesso');
+        
+        // Reproduzir áudio automaticamente para entrada por voz
+        console.log('🔊 Iniciando reprodução automática de áudio...');
+        setTimeout(async () => {
+            try {
+                await playLastResponse(respostaFinal);
+                console.log('✅ Reprodução automática de áudio concluída');
+            } catch (error) {
+                console.error('❌ Erro na reprodução automática:', error);
+            }
+        }, 1000); // Aguardar 1 segundo para garantir que a mensagem foi exibida
     } catch (error) {
         if (typeof hideTypingIndicator === 'function') {
             hideTypingIndicator();
