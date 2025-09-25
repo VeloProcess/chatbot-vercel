@@ -90,8 +90,8 @@ async function getFaqData() {
     console.log('🔍 getFaqData: Documentos encontrados:', documents.length);
 
     if (documents.length === 0) {
-      console.error('❌ getFaqData: Nenhum documento encontrado na coleção FAQ');
-      throw new Error("Nenhum documento encontrado na coleção FAQ");
+      console.error('❌ getFaqData: Nenhum documento encontrado na coleção', COLLECTION_NAME);
+      throw new Error(`Nenhum documento encontrado na coleção ${COLLECTION_NAME}`);
     }
 
     // Atualizar cache global
@@ -260,48 +260,47 @@ async function askMongoDBHandler(req, res) {
     console.log('🔍 ask-mongodb: Iniciando...');
     console.log('🔍 ask-mongodb: Pergunta recebida:', { pergunta, email, usar_ia_avancada });
 
-    // RESPOSTA FIXA PARA PARAR O ERRO 500
-    const perguntaLower = pergunta.toLowerCase();
+    console.log('🔍 ask-mongodb: Buscando dados do MongoDB...');
+    const faqData = await getFaqData();
+    console.log('🔍 ask-mongodb: Dados obtidos:', faqData ? faqData.length : 'null', 'documentos');
     
-    if (perguntaLower.includes('crédito pessoal') || perguntaLower.includes('credito pessoal')) {
-      return res.status(200).json({
-        status: "sucesso",
-        resposta: "Para contratar o crédito pessoal, você pode acessar nosso site ou aplicativo, fazer uma simulação e seguir o processo de aprovação. O valor será liberado em sua conta após a aprovação.",
-        sourceRow: 1,
-        tabulacoes: 0,
-        source: "MongoDB"
-      });
+    console.log('🔍 ask-mongodb: Buscando correspondências...');
+    const correspondencias = findMatches(pergunta, faqData);
+    console.log('🔍 ask-mongodb: Correspondências encontradas:', correspondencias.length);
+
+    // Log da pergunta no Google Sheets
+    if (email) {
+      await logQuestionOnSheet(pergunta, email);
     }
-    
-    if (perguntaLower.includes('crédito trabalhador') || perguntaLower.includes('credito trabalhador')) {
+
+    if (correspondencias.length === 0) {
       return res.status(200).json({
-        status: "sucesso",
-        resposta: "O crédito do trabalhador é um empréstimo consignado que pode ser contratado através do aplicativo ou site. O desconto é feito diretamente na folha de pagamento.",
-        sourceRow: 2,
-        tabulacoes: 0,
-        source: "MongoDB"
-      });
-    }
-    
-    if (perguntaLower.includes('liquidação') || perguntaLower.includes('liquidacao')) {
-      return res.status(200).json({
-        status: "sucesso",
-        resposta: "Para liquidar antecipadamente seu empréstimo, você pode acessar o aplicativo ou site, ir na seção de contratos e solicitar a liquidação antecipada. O valor será calculado com desconto proporcional dos juros.",
-        sourceRow: 3,
-        tabulacoes: 0,
-        source: "MongoDB"
+        status: "sucesso_offline",
+        resposta: "Desculpe, não encontrei informações sobre essa pergunta na nossa base de dados. Entre em contato com nosso suporte.",
+        sourceRow: 'N/A',
+        source: 'MongoDB',
+        modo: 'offline',
+        nivel: 2
       });
     }
 
-    // Resposta padrão para outras perguntas
-    return res.status(200).json({
-      status: "sucesso_offline",
-      resposta: "Desculpe, não encontrei informações específicas sobre essa pergunta. Entre em contato com nosso suporte para mais informações.",
-      sourceRow: 'N/A',
-      source: 'MongoDB',
-      modo: 'offline',
-      nivel: 2
-    });
+    if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1]?.score) {
+      return res.status(200).json({
+        status: "sucesso",
+        resposta: correspondencias[0].resposta,
+        sourceRow: correspondencias[0].sourceRow,
+        tabulacoes: correspondencias[0].tabulacoes,
+        source: "MongoDB"
+      });
+    } else {
+      return res.status(200).json({
+        status: "clarification_needed",
+        resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
+        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
+        source: "MongoDB",
+        sourceRow: 'Pergunta de Esclarecimento'
+      });
+    }
 
   } catch (error) {
     console.error("❌ ask-mongodb: Erro no processamento:", error);
