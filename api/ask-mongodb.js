@@ -119,17 +119,20 @@ function findMatches(pergunta, faqData) {
 
   for (let i = 0; i < faqData.length; i++) {
     const documento = faqData[i];
-    const textoPalavrasChave = normalizarTexto(documento.palavrasChave || documento.palavras_chave || '');
-    const textoPergunta = normalizarTexto(documento.pergunta || '');
+    const textoPalavrasChave = normalizarTexto(documento.Palavras_chave || '');
+    const textoPergunta = normalizarTexto(documento.Pergunta || '');
+    const textoSinonimos = normalizarTexto(documento.Sinonimos || '');
     let relevanceScore = 0;
 
     // Log detalhado para debug (apenas para os primeiros 3 documentos)
     if (i < 3) {
       console.log(`🔍 Documento ${i + 1}:`, {
-        pergunta: documento.pergunta,
-        palavrasChave: documento.palavrasChave || documento.palavras_chave,
+        pergunta: documento.Pergunta,
+        palavrasChave: documento.Palavras_chave,
+        sinonimos: documento.Sinonimos,
         textoPalavrasChave,
-        textoPergunta
+        textoPergunta,
+        textoSinonimos
       });
     }
 
@@ -138,6 +141,15 @@ function findMatches(pergunta, faqData) {
       palavrasDaBusca.forEach(palavra => {
         if (textoPalavrasChave.includes(palavra)) {
           relevanceScore += 3; // Peso maior para palavras-chave
+        }
+      });
+    }
+
+    // Buscar nos sinônimos (prioridade alta)
+    if (textoSinonimos) {
+      palavrasDaBusca.forEach(palavra => {
+        if (textoSinonimos.includes(palavra)) {
+          relevanceScore += 2; // Peso alto para sinônimos
         }
       });
     }
@@ -152,13 +164,13 @@ function findMatches(pergunta, faqData) {
     }
 
     // Busca mais flexível - verificar se a pergunta contém parte do texto
-    const perguntaOriginal = documento.pergunta || '';
+    const perguntaOriginal = documento.Pergunta || '';
     if (perguntaOriginal.toLowerCase().includes(pergunta.toLowerCase())) {
       relevanceScore += 4; // Peso alto para correspondência exata
     }
 
     // Busca nas palavras-chave com correspondência parcial
-    const palavrasChaveOriginal = documento.palavrasChave || documento.palavras_chave || '';
+    const palavrasChaveOriginal = documento.Palavras_chave || '';
     if (palavrasChaveOriginal.toLowerCase().includes(pergunta.toLowerCase())) {
       relevanceScore += 4; // Peso alto para correspondência exata
     }
@@ -178,17 +190,18 @@ function findMatches(pergunta, faqData) {
 
     if (relevanceScore > 0) {
       console.log(`✅ Correspondência encontrada no documento ${i + 1}:`, {
-        pergunta: documento.pergunta,
+        pergunta: documento.Pergunta,
         score: relevanceScore,
-        palavrasChave: documento.palavrasChave || documento.palavras_chave
+        palavrasChave: documento.Palavras_chave,
+        sinonimos: documento.Sinonimos
       });
       
       todasAsCorrespondencias.push({
-        resposta: documento.resposta || '',
-        perguntaOriginal: documento.pergunta || '',
-        sourceRow: i + 1, // +1 porque começamos do índice 0
+        resposta: documento.Resposta || '',
+        perguntaOriginal: documento.Pergunta || '',
+        sourceRow: documento._id || (i + 1), // Usar _id se disponível, senão índice
         score: relevanceScore,
-        tabulacoes: documento.palavrasChave || documento.palavras_chave || null
+        tabulacoes: documento.Palavras_chave || null
       });
     }
   }
