@@ -1,3 +1,204 @@
+// ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let currentAudio = null;
+
+// ==================== FUNÇÕES GLOBAIS DE VOZ ====================
+
+// Função simplificada para adicionar mensagens (para uso nas funções de voz)
+function addVoiceMessage(text, sender) {
+    const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) return;
+    
+    const messageContainer = document.createElement('div');
+    messageContainer.className = `message-container ${sender}`;
+    
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${sender}`;
+    avatar.textContent = sender === 'user' ? '👤' : '🤖';
+    
+    const messageContentDiv = document.createElement('div');
+    messageContentDiv.className = 'message-content';
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
+    messageDiv.textContent = text;
+    
+    messageContentDiv.appendChild(messageDiv);
+    messageContainer.appendChild(avatar);
+    messageContainer.appendChild(messageContentDiv);
+    chatContainer.appendChild(messageContainer);
+    
+    // Scroll para baixo
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+async function toggleRecording() {
+    console.log('🎤 Toggle recording chamado, isRecording:', isRecording);
+    if (isRecording) {
+        stopRecording();
+    } else {
+        await startRecording();
+    }
+}
+
+// Iniciar gravação
+async function startRecording() {
+    try {
+        console.log('🎤 Iniciando gravação...');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm;codecs=opus'
+        });
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+            console.log('🎤 Dados de áudio recebidos:', event.data);
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = async () => {
+            console.log('🎤 Parando gravação, chunks:', audioChunks.length);
+            if (audioChunks.length > 0) {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                console.log('🎤 Blob criado:', audioBlob);
+                await processAudioToText(audioBlob);
+            } else {
+                addVoiceMessage('❌ Nenhum áudio foi gravado', 'bot');
+            }
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start(1000); // Coletar dados a cada 1 segundo
+        isRecording = true;
+        
+        // Buscar elementos dinamicamente
+        const voiceBtn = document.getElementById('voice-button');
+        const recordingInd = document.getElementById('recording-indicator');
+        
+        // Indicador visual de gravação
+        if (voiceBtn) {
+            voiceBtn.innerHTML = '⏹️';
+            voiceBtn.style.background = 'linear-gradient(135deg, #ff4757, #c44569)';
+            voiceBtn.classList.add('recording');
+            voiceBtn.style.animation = 'pulse 1s infinite';
+        }
+        
+        // Mostrar indicador de gravação
+        if (recordingInd) {
+            recordingInd.classList.remove('hidden');
+        }
+        
+        // Mostrar mensagem de gravação
+        addVoiceMessage('🎤 Gravando... Fale agora!', 'bot');
+        
+        console.log('✅ Gravação iniciada');
+
+    } catch (error) {
+        console.error('❌ Erro ao iniciar gravação:', error);
+        addVoiceMessage('Erro ao acessar o microfone. Verifique as permissões.', 'bot');
+    }
+}
+
+// Parar gravação
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        console.log('⏹️ Parando gravação...');
+        mediaRecorder.stop();
+        isRecording = false;
+        
+        // Buscar elementos dinamicamente
+        const voiceBtn = document.getElementById('voice-button');
+        const recordingInd = document.getElementById('recording-indicator');
+        
+        // Restaurar botão
+        if (voiceBtn) {
+            voiceBtn.innerHTML = '🎤';
+            voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+            voiceBtn.classList.remove('recording');
+            voiceBtn.style.animation = 'none';
+        }
+        
+        // Esconder indicador de gravação
+        if (recordingInd) {
+            recordingInd.classList.add('hidden');
+        }
+        
+        // Mostrar mensagem de processamento
+        addVoiceMessage('🔄 Processando áudio...', 'bot');
+        
+        console.log('✅ Gravação parada');
+    }
+}
+
+// Processar áudio para texto
+async function processAudioToText(audioBlob) {
+    try {
+        addVoiceMessage('🎤 Processando áudio...', 'bot');
+        
+        console.log('🎤 Tipo do audioBlob:', typeof audioBlob);
+        console.log('🎤 audioBlob:', audioBlob);
+        
+        // Verificar se é um Blob válido
+        if (!audioBlob || typeof audioBlob.arrayBuffer !== 'function') {
+            throw new Error('AudioBlob inválido ou não é um Blob');
+        }
+        
+        // Converter blob para base64
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        console.log('🎤 ArrayBuffer criado, tamanho:', arrayBuffer.byteLength);
+        
+        // Converter para base64 de forma mais segura
+        const uint8Array = new Uint8Array(arrayBuffer);
+        let binaryString = '';
+        const chunkSize = 8192; // Processar em pedaços para evitar stack overflow
+        
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            const chunk = uint8Array.slice(i, i + chunkSize);
+            binaryString += String.fromCharCode.apply(null, chunk);
+        }
+        
+        const base64Audio = btoa(binaryString);
+        console.log('🎤 Base64 criado, tamanho:', base64Audio.length);
+        
+        const response = await fetch('/api/voice?action=speech-to-text', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                audio: base64Audio
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            addVoiceMessage(`🎤 Você disse: "${result.text}"`, 'user');
+            // Chamar buscarResposta se estiver disponível
+            if (typeof buscarResposta === 'function') {
+                buscarResposta(result.text);
+            } else {
+                addVoiceMessage('❌ Função buscarResposta não disponível', 'bot');
+            }
+        } else {
+            addVoiceMessage(`❌ Erro ao processar áudio: ${result.error}`, 'bot');
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao processar áudio:', error);
+        addVoiceMessage(`❌ Erro ao processar áudio: ${error.message}`, 'bot');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // >>> INÍCIO DA CORREÇÃO - v2.0 <<<
     // Função autônoma para definir o tema inicial
@@ -961,11 +1162,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ==================== FUNCIONALIDADES DE VOZ ====================
 
-        let isRecording = false;
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let currentAudio = null;
-
         // Elementos de voz
         const voiceButton = document.getElementById('voice-button');
         const playResponseButton = document.getElementById('play-response');
@@ -1052,175 +1248,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-        // Alternar gravação de voz
-        async function toggleRecording() {
-            console.log('🎤 Toggle recording chamado, isRecording:', isRecording);
-            if (isRecording) {
-                stopRecording();
-            } else {
-                await startRecording();
-            }
-        }
 
-        // Iniciar gravação
-        async function startRecording() {
-            try {
-                console.log('🎤 Iniciando gravação...');
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'audio/webm;codecs=opus'
-                });
-                audioChunks = [];
+        // Funções removidas - movidas para escopo global
 
-                mediaRecorder.ondataavailable = (event) => {
-                    console.log('🎤 Dados de áudio recebidos:', event.data);
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
-                    }
-                };
-
-                mediaRecorder.onstop = async () => {
-                    console.log('🎤 Parando gravação, chunks:', audioChunks.length);
-                    if (audioChunks.length > 0) {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        console.log('🎤 Blob criado:', audioBlob);
-                        await processAudioToText(audioBlob);
-                    } else {
-                        addMessage('❌ Nenhum áudio foi gravado', 'bot');
-                    }
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                mediaRecorder.start(1000); // Coletar dados a cada 1 segundo
-                isRecording = true;
-                
-                // Buscar elementos dinamicamente
-                const voiceBtn = document.getElementById('voice-button');
-                const recordingInd = document.getElementById('recording-indicator');
-                
-                // Indicador visual de gravação
-                if (voiceBtn) {
-                    voiceBtn.innerHTML = '⏹️';
-                    voiceBtn.style.background = 'linear-gradient(135deg, #ff4757, #c44569)';
-                    voiceBtn.classList.add('recording');
-                    voiceBtn.style.animation = 'pulse 1s infinite';
-                }
-                
-                // Mostrar indicador de gravação
-                if (recordingInd) {
-                    recordingInd.classList.remove('hidden');
-                }
-                
-                // Mostrar mensagem de gravação
-                addMessage('🎤 Gravando... Fale agora!', 'bot');
-                
-                console.log('✅ Gravação iniciada');
-
-            } catch (error) {
-                console.error('❌ Erro ao iniciar gravação:', error);
-                addMessage('Erro ao acessar o microfone. Verifique as permissões.', 'bot');
-            }
-        }
-
-        // Parar gravação
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                console.log('⏹️ Parando gravação...');
-                mediaRecorder.stop();
-                isRecording = false;
-                
-                // Buscar elementos dinamicamente
-                const voiceBtn = document.getElementById('voice-button');
-                const recordingInd = document.getElementById('recording-indicator');
-                
-                // Restaurar botão
-                if (voiceBtn) {
-                    voiceBtn.innerHTML = '🎤';
-                    voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
-                    voiceBtn.classList.remove('recording');
-                    voiceBtn.style.animation = 'none';
-                }
-                
-                // Esconder indicador de gravação
-                if (recordingInd) {
-                    recordingInd.classList.add('hidden');
-                }
-                
-                // Mostrar mensagem de processamento
-                addMessage('🔄 Processando áudio...', 'bot');
-                
-                console.log('✅ Gravação parada');
-            }
-        }
-
-        // Processar áudio para texto
-        async function processAudioToText(audioBlob) {
-            try {
-                addMessage('🎤 Processando áudio...', 'bot');
-                
-                console.log('🎤 Tipo do audioBlob:', typeof audioBlob);
-                console.log('🎤 audioBlob:', audioBlob);
-                
-                // Verificar se é um Blob válido
-                if (!audioBlob || typeof audioBlob.arrayBuffer !== 'function') {
-                    throw new Error('AudioBlob inválido ou não é um Blob');
-                }
-                
-                // Converter blob para base64
-                const arrayBuffer = await audioBlob.arrayBuffer();
-                console.log('🎤 ArrayBuffer criado, tamanho:', arrayBuffer.byteLength);
-                
-                // Converter para base64 de forma mais segura
-                const uint8Array = new Uint8Array(arrayBuffer);
-                let binaryString = '';
-                const chunkSize = 8192; // Processar em pedaços para evitar stack overflow
-                
-                for (let i = 0; i < uint8Array.length; i += chunkSize) {
-                    const chunk = uint8Array.slice(i, i + chunkSize);
-                    binaryString += String.fromCharCode.apply(null, chunk);
-                }
-                
-                const base64Audio = btoa(binaryString);
-                console.log('🎤 Base64 criado, tamanho:', base64Audio.length);
-                
-                const response = await fetch('/api/voice?action=speech-to-text', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        audio: base64Audio
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erro na API: ${response.status} - ${errorText}`);
-                }
-
-                const result = await response.json();
-
-                if (result.success) {
-                    addMessage(`🎤 Você disse: "${result.text}"`, 'user');
-                    buscarResposta(result.text);
-                } else {
-                    console.error('❌ Erro na transcrição:', result);
-                    if (result.error && result.error.includes('legenda')) {
-                        addMessage(`❌ Áudio não reconhecido. Tente falar mais claro ou verifique se não há ruído de fundo.`, 'bot');
-                    } else if (result.error && result.error.includes('vazio')) {
-                        addMessage(`❌ Nenhum áudio detectado. Verifique se o microfone está funcionando.`, 'bot');
-                    } else if (result.error && result.error.includes('Buffer')) {
-                        addMessage(`❌ Problema com o áudio. Tente gravar novamente.`, 'bot');
-                    } else {
-                        addMessage(`❌ Erro na transcrição: ${result.error}`, 'bot');
-                    }
-                }
-
-            } catch (error) {
-                console.error('❌ Erro ao processar áudio:', error);
-                addMessage(`❌ Erro ao processar áudio: ${error.message}`, 'bot');
-            }
-        }
+        // Função removida - movida para escopo global
 
         // Reproduzir última resposta
         async function playLastResponse() {
@@ -1501,8 +1532,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 voiceBtn.innerHTML = '🎤';
                 voiceBtn.classList.remove('voice-btn-disabled');
                 voiceBtn.onclick = function() {
-                    console.log('🎤 Botão de voz ativado!');
-                    toggleRecording();
+                    console.log('🎤 Botão de voz clicado!');
+                    console.log('🎤 Tentando chamar toggleRecording...');
+                    try {
+                        toggleRecording();
+                    } catch (error) {
+                        console.error('❌ Erro ao chamar toggleRecording:', error);
+                        addMessage('❌ Erro ao iniciar gravação: ' + error.message, 'bot');
+                    }
                 };
                 console.log('✅ Botão de voz configurado e ATIVADO');
             } else {

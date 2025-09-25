@@ -1,0 +1,30 @@
+leia o cursorrules e outros arquivos obrigatórios listados. Ao terminar, não me dê um resumo deles. Apenas confirme que está ciente, que compreendeu e está preparado para acatar as diretrizes
+
+vamos trabalhar agora de maneira extremamente metódica, sistemática e organizada. 
+Lento é rápido. Isso significa que ir com calma e realizar ações assertivas, 1 por vez, nos leva ao resultado mais rápido que centenas de erros. 
+Quero tudo analisado e pensado, e decisões acertadas com 100% de certeza da implementação atingido antes do resultado final. 
+## Orientações Obrigatórias
+- As orientações são para serem seguidas de forma direta e especifica.
+- Quando eu fizer perguntas, pedir para traçar um plano ou questionar como algo deve ser feito, responda as perguntas. Me de as informações para que eu tome as decisões. Se eu perguntei "como fazer isso?" não comece a fazer imediatamente por conta própria
+- Mantenha a atenção para a diferença entre uma pergunta, um comando, uma solicitação, uma orientação, e aja de acordo que o que foi solicitado.
+- Não quero a criação de processos, passos e modificações de arquitetura sem aprovação
+- A semantica e a ordem das orientações é relevante e deverão ser consideradas na compreensão das orientações
+- Informações não solicitadas não deverão ser inventadas ou criadas
+- Alterações críticas e mudanças de formato não deverão ser realizadas sem aprovação
+- O objetivo é criar um portal online, funcional, confiável, estável, com conexões funcionais
+- O uso de informações de fallback em hardcode deve ser evitado ao máximo para não atrapalhar o desenvolvimento das apis
+- Layouts deverão seguir o padrão e orientações no layoutguidelines
+- Caso um estilo não esteja descrito nesse arquivo deverá ser questionado sem alterações improvisadas
+- A identidade visual da marca é importante e as cores, logos e fontes deverão ser respeitados
+- Sempre que eu solicitar um plano, uma análise ou um diagnóstico, entregue o resultado pedido e espere por confirmação antes de tomar a iniciativa de realizar alterações. tudo precisa de autorização. 
+- Não solicitar logs do git. esses logs não apresentam informações relevantes para o desenvolvimento e, adicionalmente, sempre acabam provocando um loop no qual você retorna com o log para tudo que tenta fazer no console posteriormente. 
+- Insira alguma forma de identificação clara nos aqrquivos que compoe indicando a versao atual de cada um e criando um rastro de versao para cada arquivo. lembre-se de incrementar a versao de cada arquivo cada vez que uma alteração for considerada de sucesso. Siga o molde vX.Y.Z, onde X é a versao maior, Y é a versao menor e Z é a versao de correção.
+- Sempre que houver um deploy real para GCP ou push real para GitHub, atualize o DEPLOY_LOG.md com as informações precisas: data/hora, tipo, versão, arquivos modificados e descrição. Use os templates específicos para GCP e GitHub. Não registre configurações ou setups como deploys.
+- não realizar deploy do projeto, ou push no GitHub sem solicitar confirmação dessa ação. 
+- o nome Index.html deve ser evitado para que parem de ocorrer erros de integrações e redirecionamentos das paginas criadas. os nomes deverão refletir os trechos trabalhados.
+- Sempre certifique-se de estar fazendo o deploy ou o push para o destino correto.Pushes do git jamais deverão ser trocados de reporitório acidentalmente e deploys no vercel ou no GCP deverão ocorrer com precisão.
+- Se a solicitação feita para uma tarefa ser excutada depende de mais informações, de confirmações de dados ou mais recursos, solicite essas informações antes de iniciar a tarefa.Mantenha o compliance com a diretiva nro 4 e não crie aleatóriamente dados adicionais para completar as tarefas.
+- Ao final da leitura das diretrizes, leia o arquivo DEPLOY_LOG.md e o arquivo CLEANUP_REPO.md se houver, e o layout guidelines s ehouver. a ter uma visão geral do projeto e das alterações realizadas.
+
+# Diretrizes de Trabalho
+<!-- VERSION: v1.1.0 | DATE: 2025-09-17 | AUTHOR:Lucas Gravina - VeloHub Development Team
