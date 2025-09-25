@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v3.1.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v3.3.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -1452,8 +1452,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('🔊 Resultado da conversão:', result);
 
                 if (result.success) {
-                    const audio = new Audio(`data:audio/mpeg;base64,${result.audio}`);
+                    console.log('🔊 Criando áudio com formato:', result.format);
+                    console.log('🔊 Tamanho do áudio base64:', result.audio ? result.audio.length : 'undefined');
+                    
+                    // Usar o formato correto baseado na resposta da API
+                    const mimeType = result.format === 'mp3' ? 'audio/mpeg' : 'audio/mpeg';
+                    const audioUrl = `data:${mimeType};base64,${result.audio}`;
+                    
+                    console.log('🔊 URL do áudio criada:', audioUrl.substring(0, 50) + '...');
+                    
+                    const audio = new Audio(audioUrl);
                     currentAudio = audio;
+                    
+                    // Logs de debug para o áudio
+                    audio.onloadstart = () => console.log('🔊 Áudio iniciando carregamento...');
+                    audio.oncanplay = () => console.log('🔊 Áudio pronto para reprodução');
+                    audio.oncanplaythrough = () => console.log('🔊 Áudio totalmente carregado');
+                    audio.onerror = (e) => {
+                        console.error('❌ Erro no áudio:', e);
+                        console.error('❌ Detalhes do erro:', audio.error);
+                        addMessage('❌ Erro ao reproduzir áudio', 'bot');
+                    };
                     
                     audio.onended = () => {
                         const playBtn = document.getElementById('play-response');
@@ -1461,11 +1480,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (playBtn) playBtn.classList.add('hidden');
                         if (stopBtn) stopBtn.classList.add('hidden');
                         console.log('🔊 Áudio finalizado');
-                    };
-
-                    audio.onerror = (e) => {
-                        console.error('❌ Erro no áudio:', e);
-                        addMessage('❌ Erro ao reproduzir áudio', 'bot');
                     };
 
                     await audio.play();
