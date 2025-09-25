@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v3.0.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v3.1.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -31,7 +31,20 @@ function addVoiceMessage(text, sender, options = null) {
     
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message';
-    messageDiv.textContent = text;
+    
+    // Processar texto com formatação markdown básica
+    let processedText = text;
+    
+    // Converter **texto** para <strong>texto</strong>
+    processedText = processedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Converter quebras de linha duplas para <br><br>
+    processedText = processedText.replace(/\n\n/g, '<br><br>');
+    
+    // Converter quebras de linha simples para <br>
+    processedText = processedText.replace(/\n/g, '<br>');
+    
+    messageDiv.innerHTML = processedText;
     
     messageContentDiv.appendChild(messageDiv);
     

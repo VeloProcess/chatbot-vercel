@@ -1,5 +1,5 @@
 // api/elevenlabs.js - Integração com ElevenLabs para Speech-to-Text e Text-to-Speech
-// VERSION: v2.1.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.2.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 const axios = require('axios');
 
 // Configuração da ElevenLabs
@@ -118,6 +118,13 @@ async function textToSpeech(text, voiceId = 'pNInz6obpgDQGcFmaJgB') {
   try {
     console.log('🔊 Convertendo texto para áudio...');
     
+    // Verificar se a API key está configurada
+    if (!ELEVENLABS_API_KEY) {
+      throw new Error('Chave da API ElevenLabs não configurada');
+    }
+    
+    console.log('🔑 Usando API key ElevenLabs:', ELEVENLABS_API_KEY.substring(0, 10) + '...');
+    
     const response = await axios.post(`${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}`, {
       text: text,
       model_id: 'eleven_multilingual_v2',
@@ -151,10 +158,26 @@ async function textToSpeech(text, voiceId = 'pNInz6obpgDQGcFmaJgB') {
 
   } catch (error) {
     console.error('❌ Erro no Text-to-Speech:', error);
+    
+    let errorMessage = error.message;
+    
+    // Tratamento específico para erro 401 (não autorizado)
+    if (error.response && error.response.status === 401) {
+      errorMessage = 'Chave da API ElevenLabs inválida ou expirada. Verifique as configurações.';
+      console.error('🔑 Erro de autenticação ElevenLabs - Status 401');
+    } else if (error.response && error.response.status === 403) {
+      errorMessage = 'Acesso negado à API ElevenLabs. Verifique os limites da conta.';
+      console.error('🚫 Erro de permissão ElevenLabs - Status 403');
+    } else if (error.response && error.response.status === 429) {
+      errorMessage = 'Limite de requisições excedido na API ElevenLabs.';
+      console.error('⏰ Limite de requisições ElevenLabs - Status 429');
+    }
+    
     return {
       success: false,
-      error: error.message,
-      audio: null
+      error: errorMessage,
+      audio: null,
+      statusCode: error.response ? error.response.status : null
     };
   }
 }
