@@ -111,8 +111,10 @@ function findMatches(pergunta, faqData) {
     throw new Error("Nenhum dado disponível para busca.");
   }
 
-  const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
+  const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 1); // Reduzir para 1 caractere
   console.log('🔍 Palavras da busca:', palavrasDaBusca);
+  console.log('🔍 Pergunta original:', pergunta);
+  console.log('🔍 Pergunta normalizada:', normalizarTexto(pergunta));
   let todasAsCorrespondencias = [];
 
   for (let i = 0; i < faqData.length; i++) {
@@ -161,6 +163,19 @@ function findMatches(pergunta, faqData) {
       relevanceScore += 4; // Peso alto para correspondência exata
     }
 
+    // Busca flexível por palavras individuais na pergunta
+    const perguntaNormalizada = normalizarTexto(pergunta);
+    const perguntaDocNormalizada = normalizarTexto(perguntaOriginal);
+    if (perguntaDocNormalizada.includes(perguntaNormalizada)) {
+      relevanceScore += 3; // Peso médio para correspondência parcial
+    }
+
+    // Busca flexível por palavras individuais nas palavras-chave
+    const palavrasChaveNormalizada = normalizarTexto(palavrasChaveOriginal);
+    if (palavrasChaveNormalizada.includes(perguntaNormalizada)) {
+      relevanceScore += 3; // Peso médio para correspondência parcial
+    }
+
     if (relevanceScore > 0) {
       console.log(`✅ Correspondência encontrada no documento ${i + 1}:`, {
         pergunta: documento.pergunta,
@@ -189,6 +204,12 @@ function findMatches(pergunta, faqData) {
 
   let correspondenciasUnicas = Object.values(uniqueMatches);
   correspondenciasUnicas.sort((a, b) => b.score - a.score);
+  
+  console.log('🔍 Total de correspondências encontradas:', correspondenciasUnicas.length);
+  if (correspondenciasUnicas.length > 0) {
+    console.log('🔍 Melhor correspondência:', correspondenciasUnicas[0]);
+  }
+  
   return correspondenciasUnicas;
 }
 
