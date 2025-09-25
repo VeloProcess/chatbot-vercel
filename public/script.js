@@ -312,7 +312,7 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
         avatar.textContent = '✦';
         avatar.title = 'Resposta gerada por IA';
     } else {
-        avatar.textContent = sender === 'user' ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '🤖';
+        avatar.textContent = sender === 'user' ? (dadosAtendente?.nome ? formatarAssinatura(dadosAtendente.nome).charAt(0) : '👤') : '🤖';
     }
     const messageContentDiv = document.createElement('div');
     messageContentDiv.className = 'message-content';
