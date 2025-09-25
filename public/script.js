@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v2.6.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.7.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -304,6 +304,19 @@ async function buscarResposta(textoDaPergunta) {
             }
         } else if (data.status === 'clarification_needed' || data.status === 'clarification_needed_offline') {
             respostaFinal = data.resposta;
+            // Se há opções, vamos criar uma lista clicável
+            if (data.options && data.options.length > 0) {
+                console.log('📋 Criando lista de opções:', data.options);
+                // Usar a função addMessage original se estiver disponível para manter funcionalidade completa
+                if (typeof addMessage === 'function') {
+                    addMessage(data.resposta, 'bot', { 
+                        options: data.options, 
+                        source: data.source,
+                        sourceRow: data.sourceRow
+                    });
+                    return; // Sair da função para não duplicar a mensagem
+                }
+            }
         } else if (data.status === 'resposta_padrao' || data.status === 'sucesso_offline') {
             respostaFinal = data.resposta;
         } else {
