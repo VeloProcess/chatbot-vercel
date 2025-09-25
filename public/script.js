@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v2.3.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.4.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -262,16 +262,46 @@ async function buscarResposta(textoDaPergunta) {
 
         console.log('🤖 Resposta da IA:', data);
         
-        // Usar addVoiceMessage para mostrar a resposta
+        // Processar resposta baseada no status
+        let respostaFinal = '';
+        
         if (data.status === 'sucesso' || data.status === 'sucesso_ia' || data.status === 'sucesso_ia_avancada') {
-            addVoiceMessage(data.resposta, 'bot');
+            // Verificar se a resposta é um JSON array
+            if (data.resposta && data.resposta.trim().startsWith('[') && data.resposta.trim().endsWith(']')) {
+                try {
+                    const items = JSON.parse(data.resposta);
+                    if (Array.isArray(items) && items.length > 0) {
+                        // Processar array de itens
+                        respostaFinal = items.map(item => {
+                            if (item.title && item.content) {
+                                return `**${item.title}**\n${item.content}`;
+                            } else if (item.title) {
+                                return item.title;
+                            } else if (item.content) {
+                                return item.content;
+                            }
+                            return JSON.stringify(item);
+                        }).join('\n\n');
+                    } else {
+                        respostaFinal = data.resposta;
+                    }
+                } catch (e) {
+                    console.log('⚠️ Erro ao processar JSON da resposta:', e);
+                    respostaFinal = data.resposta;
+                }
+            } else {
+                respostaFinal = data.resposta;
+            }
         } else if (data.status === 'clarification_needed' || data.status === 'clarification_needed_offline') {
-            addVoiceMessage(data.resposta, 'bot');
+            respostaFinal = data.resposta;
         } else if (data.status === 'resposta_padrao' || data.status === 'sucesso_offline') {
-            addVoiceMessage(data.resposta, 'bot');
+            respostaFinal = data.resposta;
         } else {
-            addVoiceMessage(data.resposta || data.error || "Resposta não disponível", 'bot');
+            respostaFinal = data.resposta || data.error || "Resposta não disponível";
         }
+        
+        console.log('📝 Resposta final processada:', respostaFinal);
+        addVoiceMessage(respostaFinal, 'bot');
     } catch (error) {
         if (typeof hideTypingIndicator === 'function') {
             hideTypingIndicator();
