@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v3.3.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v3.4.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -1455,14 +1455,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('🔊 Criando áudio com formato:', result.format);
                     console.log('🔊 Tamanho do áudio base64:', result.audio ? result.audio.length : 'undefined');
                     
-                    // Usar o formato correto baseado na resposta da API
-                    const mimeType = result.format === 'mp3' ? 'audio/mpeg' : 'audio/mpeg';
-                    const audioUrl = `data:${mimeType};base64,${result.audio}`;
-                    
-                    console.log('🔊 URL do áudio criada:', audioUrl.substring(0, 50) + '...');
-                    
-                    const audio = new Audio(audioUrl);
-                    currentAudio = audio;
+                    try {
+                        // Converter base64 para Blob para evitar problemas de CSP
+                        const mimeType = result.format === 'mp3' ? 'audio/mpeg' : 'audio/mpeg';
+                        const binaryString = atob(result.audio);
+                        const bytes = new Uint8Array(binaryString.length);
+                        
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        
+                        const blob = new Blob([bytes], { type: mimeType });
+                        const audioUrl = URL.createObjectURL(blob);
+                        
+                        console.log('🔊 Blob URL criada:', audioUrl);
+                        
+                        const audio = new Audio(audioUrl);
+                        currentAudio = audio;
+                        
+                        // Limpar a URL do objeto quando o áudio terminar
+                        audio.onended = () => {
+                            URL.revokeObjectURL(audioUrl);
+                            const playBtn = document.getElementById('play-response');
+                            const stopBtn = document.getElementById('stop-audio');
+                            if (playBtn) playBtn.classList.add('hidden');
+                            if (stopBtn) stopBtn.classList.add('hidden');
+                            console.log('🔊 Áudio finalizado');
+                        };
+                        
+                    } catch (error) {
+                        console.error('❌ Erro ao criar Blob:', error);
+                        throw new Error('Erro ao processar áudio: ' + error.message);
+                    }
                     
                     // Logs de debug para o áudio
                     audio.onloadstart = () => console.log('🔊 Áudio iniciando carregamento...');
@@ -1472,14 +1496,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.error('❌ Erro no áudio:', e);
                         console.error('❌ Detalhes do erro:', audio.error);
                         addMessage('❌ Erro ao reproduzir áudio', 'bot');
-                    };
-                    
-                    audio.onended = () => {
-                        const playBtn = document.getElementById('play-response');
-                        const stopBtn = document.getElementById('stop-audio');
-                        if (playBtn) playBtn.classList.add('hidden');
-                        if (stopBtn) stopBtn.classList.add('hidden');
-                        console.log('🔊 Áudio finalizado');
                     };
 
                     await audio.play();
