@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v4.0.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v4.1.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -82,6 +82,15 @@ function addVoiceMessage(text, sender, options = null) {
     // Scroll para baixo
     chatBox.scrollTop = chatBox.scrollHeight;
     console.log('✅ Scroll executado');
+}
+
+// Mostrar controles de voz quando bot responde
+function showVoiceControls() {
+    const playBtn = document.getElementById('play-response');
+    if (playBtn) {
+        playBtn.classList.remove('hidden');
+        console.log('🔊 Botão de play mostrado');
+    }
 }
 
 async function toggleRecording() {
@@ -1583,14 +1592,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Mostrar controles de voz quando bot responde
-        function showVoiceControls() {
-            const playBtn = document.getElementById('play-response');
-            if (playBtn) {
-                playBtn.classList.remove('hidden');
-                console.log('🔊 Botão de play mostrado');
-            }
-        }
 
         // ==================== SISTEMA DE ADMINISTRAÇÃO ====================
         
