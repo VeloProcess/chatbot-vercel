@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v2.1.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.2.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -202,6 +202,58 @@ async function processAudioToText(audioBlob) {
     } catch (error) {
         console.error('❌ Erro ao processar áudio:', error);
         addVoiceMessage(`❌ Erro ao processar áudio: ${error.message}`, 'bot');
+    }
+}
+
+// Função global para buscar respostas
+async function buscarResposta(textoDaPergunta) {
+    // Verificar se as variáveis necessárias estão disponíveis
+    if (typeof ultimaPergunta !== 'undefined') {
+        ultimaPergunta = textoDaPergunta;
+    }
+    if (typeof ultimaLinhaDaFonte !== 'undefined') {
+        ultimaLinhaDaFonte = null;
+    }
+    
+    if (!textoDaPergunta.trim()) return;
+    
+    // Mostrar indicador de digitação se a função estiver disponível
+    if (typeof showTypingIndicator === 'function') {
+        showTypingIndicator();
+    }
+    
+    try {
+        // Usar MongoDB endpoint como principal
+        const url = `/api/ask-mongodb?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente?.email || 'usuario@velotax.com.br')}`;
+        console.log('🔍 Buscando resposta:', url);
+        const response = await fetch(url);
+        
+        if (typeof hideTypingIndicator === 'function') {
+            hideTypingIndicator();
+        }
+        
+        if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
+        const data = await response.json();
+
+        console.log('🤖 Resposta da IA:', data);
+        
+        // Usar addVoiceMessage para mostrar a resposta
+        if (data.status === 'sucesso' || data.status === 'sucesso_ia' || data.status === 'sucesso_ia_avancada') {
+            addVoiceMessage(data.resposta, 'bot');
+        } else if (data.status === 'clarification_needed' || data.status === 'clarification_needed_offline') {
+            addVoiceMessage(data.resposta, 'bot');
+        } else if (data.status === 'resposta_padrao' || data.status === 'sucesso_offline') {
+            addVoiceMessage(data.resposta, 'bot');
+        } else {
+            addVoiceMessage(data.resposta || data.error || "Resposta não disponível", 'bot');
+        }
+    } catch (error) {
+        if (typeof hideTypingIndicator === 'function') {
+            hideTypingIndicator();
+        }
+        
+        addVoiceMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot');
+        console.error("Detalhes do erro:", error);
     }
 }
 
