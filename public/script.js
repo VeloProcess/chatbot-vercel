@@ -452,9 +452,12 @@ async function playLastResponse(text = null) {
         }
 
         const voiceId = 'pNInz6obpgDQGcFmaJgB'; // Voice ID padrão
+        const speedSlider = document.getElementById('speed-slider');
+        const speed = speedSlider ? parseFloat(speedSlider.value) : 1.0;
         
         console.log('🔊 Texto para converter:', textToConvert);
         console.log('🔊 Voice ID:', voiceId);
+        console.log('🔊 Velocidade:', speed);
         addMessage('🔊 Convertendo resposta para áudio...', 'bot');
 
         const response = await fetch('/api/voice?action=text-to-speech', {
@@ -462,7 +465,7 @@ async function playLastResponse(text = null) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ text: textToConvert, voiceId })
+            body: JSON.stringify({ text: textToConvert, voiceId, speed })
         });
 
         if (!response.ok) {
@@ -509,6 +512,12 @@ async function playLastResponse(text = null) {
                 // Criar áudio com URL direta
                 audio = new Audio(audioUrl);
                 currentAudio = audio;
+                
+                // Aplicar velocidade do áudio
+                const speedSlider = document.getElementById('speed-slider');
+                const audioSpeed = speedSlider ? parseFloat(speedSlider.value) : 1.0;
+                audio.playbackRate = audioSpeed;
+                console.log('🔊 Velocidade do áudio aplicada:', audioSpeed + 'x');
                 
                 // Configurar eventos
                 audio.onended = () => {
@@ -1724,6 +1733,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('✅ Event listener adicionado ao botão de stop');
             } else {
                 console.error('❌ Botão de stop não encontrado');
+            }
+            
+            // Configurar controle de velocidade
+            const speedSlider = document.getElementById('speed-slider');
+            const speedValue = document.getElementById('speed-value');
+            const speedControl = document.getElementById('voice-speed-control');
+            
+            if (speedSlider && speedValue) {
+                // Atualizar valor em tempo real
+                speedSlider.addEventListener('input', function() {
+                    speedValue.textContent = this.value + 'x';
+                    console.log('🔊 Velocidade alterada para:', this.value + 'x');
+                });
+                
+                // Mostrar controle quando botão de play for clicado
+                const playBtn = document.getElementById('play-response');
+                if (playBtn) {
+                    playBtn.addEventListener('click', function() {
+                        if (speedControl) {
+                            speedControl.classList.remove('hidden');
+                        }
+                    });
+                }
+                
+                console.log('✅ Controle de velocidade configurado');
+            } else {
+                console.error('❌ Elementos de controle de velocidade não encontrados');
             }
             
         // Carregar vozes disponíveis

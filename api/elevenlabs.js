@@ -114,9 +114,10 @@ async function speechToText(audioBlob) {
 
 // ==================== TEXT-TO-SPEECH ====================
 
-async function textToSpeech(text, voiceId = 'pNInz6obpgDQGcFmaJgB') {
+async function textToSpeech(text, voiceId = 'pNInz6obpgDQGcFmaJgB', speed = 1.0) {
   try {
     console.log('🔊 Convertendo texto para áudio...');
+    console.log('🔊 Velocidade solicitada:', speed);
     
     // Verificar se a API key está configurada
     if (!ELEVENLABS_API_KEY) {
@@ -153,7 +154,8 @@ async function textToSpeech(text, voiceId = 'pNInz6obpgDQGcFmaJgB') {
       success: true,
       audio: audioBase64,
       format: 'mp3',
-      duration: response.headers['content-length'] || 0
+      duration: response.headers['content-length'] || 0,
+      speed: speed // Incluir velocidade nos metadados
     };
 
   } catch (error) {
@@ -283,13 +285,14 @@ async function handleTextToSpeech(req, res) {
   }
 
   try {
-    const { text, voiceId } = req.body;
+    const { text, voiceId, speed = 1.0 } = req.body;
     
     if (!text) {
       return res.status(400).json({ error: 'Texto não fornecido' });
     }
 
-    const result = await textToSpeech(text, voiceId);
+    console.log('🔊 Parâmetros recebidos:', { text: text.substring(0, 50) + '...', voiceId, speed });
+    const result = await textToSpeech(text, voiceId, speed);
     return res.status(200).json(result);
 
   } catch (error) {
