@@ -1459,8 +1459,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     let audioUrl;
                     
                     try {
-                        // Usar endpoint dedicado para servir áudio (evita problemas de CSP)
-                        audioUrl = `/api/audio`;
+                        // Usar endpoint de voz para servir áudio (evita problemas de CSP)
+                        audioUrl = `/api/voice?action=audio`;
                         
                         console.log('🔊 Usando endpoint de áudio:', audioUrl);
                         
