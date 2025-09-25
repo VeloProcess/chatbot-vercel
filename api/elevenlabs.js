@@ -1,4 +1,5 @@
 // api/elevenlabs.js - Integração com ElevenLabs para Speech-to-Text e Text-to-Speech
+// VERSION: v2.1.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 const axios = require('axios');
 
 // Configuração da ElevenLabs
@@ -61,9 +62,11 @@ async function speechToText(audioBlob) {
 
     console.log('🎤 Resposta da API:', response.status);
     console.log('🎤 Dados da resposta:', response.data);
+    console.log('🎤 Tipo da resposta:', typeof response.data);
     
     const transcript = response.data.text || '';
-    console.log('✅ Transcrição:', transcript);
+    console.log('✅ Transcrição recebida:', transcript);
+    console.log('✅ Tamanho da transcrição:', transcript.length);
     
     // Verificar se a transcrição não está vazia ou com texto estranho
     if (!transcript || transcript.trim().length === 0) {
@@ -86,11 +89,14 @@ async function speechToText(audioBlob) {
       throw new Error(`Transcrição contém texto de legenda inválido: "${foundInvalid}"`);
     }
     
-    return {
+    const result = {
       success: true,
       text: transcript.trim(),
       confidence: 0.9
     };
+    
+    console.log('✅ Retornando resultado:', result);
+    return result;
 
   } catch (error) {
     console.error('❌ Erro no Speech-to-Text:', error);
@@ -204,14 +210,17 @@ async function handleSpeechToText(req, res) {
   try {
     console.log('🎤 Recebendo requisição de Speech-to-Text');
     console.log('🎤 ELEVENLABS_API_KEY existe:', !!ELEVENLABS_API_KEY);
+    console.log('🎤 OPENAI_API_KEY existe:', !!process.env.OPENAI_API_KEY);
     
     const { audio } = req.body;
     
     if (!audio) {
+      console.log('❌ Áudio não fornecido no body');
       return res.status(400).json({ error: 'Áudio não fornecido' });
     }
 
     console.log('🎤 Áudio recebido, tamanho:', audio.length);
+    console.log('🎤 Primeiros 100 caracteres do áudio:', audio.substring(0, 100));
     
     if (!ELEVENLABS_API_KEY) {
       return res.status(500).json({ 
@@ -220,7 +229,10 @@ async function handleSpeechToText(req, res) {
       });
     }
 
+    console.log('🎤 Chamando speechToText...');
     const result = await speechToText(audio);
+    console.log('🎤 Resultado do speechToText:', result);
+    
     return res.status(200).json(result);
 
   } catch (error) {

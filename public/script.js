@@ -1,4 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
+// VERSION: v2.1.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -174,12 +175,17 @@ async function processAudioToText(audioBlob) {
             })
         });
 
+        console.log('🎤 Status da resposta:', response.status);
+        console.log('🎤 Headers da resposta:', response.headers);
+
         if (!response.ok) {
             const errorText = await response.text();
+            console.error('❌ Erro na API:', response.status, errorText);
             throw new Error(`Erro na API: ${response.status} - ${errorText}`);
         }
 
         const result = await response.json();
+        console.log('🎤 Resultado da API:', result);
 
         if (result.success) {
             addVoiceMessage(`🎤 Você disse: "${result.text}"`, 'user');
