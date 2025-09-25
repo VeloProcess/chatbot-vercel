@@ -10,6 +10,9 @@ let conversationSession = null;
 let isWaitingForBotResponse = false;
 let pendingBotQuestion = null;
 
+// ==================== VARIÁVEIS GLOBAIS DO SISTEMA ====================
+let dadosAtendente = null;
+
 // ==================== FUNÇÕES UTILITÁRIAS GLOBAIS ====================
 
 // Função para formatar assinatura do usuário (escopo global)
@@ -882,7 +885,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let ultimaPergunta = '';
     let ultimaLinhaDaFonte = null;
     let isTyping = false;
-    let dadosAtendente = null;
     let tokenClient = null;
     let sessionId = generateUUID();
     let connectivityStatus = 'online'; // online, offline, weak-signal, no-connection
