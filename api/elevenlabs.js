@@ -1,5 +1,5 @@
 // api/elevenlabs.js - Integração com ElevenLabs para Speech-to-Text e Text-to-Speech
-// VERSION: v2.2.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.3.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 const axios = require('axios');
 
 // Configuração da ElevenLabs
@@ -136,7 +136,7 @@ async function textToSpeech(text, voiceId = 'pNInz6obpgDQGcFmaJgB') {
       }
     }, {
       headers: {
-        'Authorization': `Bearer ${ELEVENLABS_API_KEY}`,
+        'xi-api-key': ELEVENLABS_API_KEY,
         'Content-Type': 'application/json',
         'Accept': 'audio/mpeg'
       },
@@ -188,7 +188,7 @@ async function getAvailableVoices() {
   try {
     const response = await axios.get(`${ELEVENLABS_BASE_URL}/voices`, {
       headers: {
-        'Authorization': `Bearer ${ELEVENLABS_API_KEY}`
+        'xi-api-key': ELEVENLABS_API_KEY
       },
       timeout: 10000
     });
