@@ -501,6 +501,38 @@ body.dark-theme .product-status-item-header:hover .product-name {
 
 }
 
+#refresh-cache {
+    position: absolute;
+    top: var(--espaco-md);
+    right: calc(var(--espaco-md) + 40px);
+    font-size: 20px;
+    background: none;
+    border: none;
+    padding: 4px;
+    color: inherit;
+    cursor: pointer;
+    transition: transform 0.2s;
+    border-radius: 50%;
+}
+
+#refresh-cache:hover {
+    transform: scale(1.1) rotate(180deg);
+    background: var(--hover-color);
+}
+
+#refresh-cache:active {
+    transform: scale(0.95) rotate(180deg);
+}
+
+#refresh-cache.loading {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 
 .chat-box {
     flex-grow: 1;

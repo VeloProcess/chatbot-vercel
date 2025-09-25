@@ -1,84 +1,104 @@
-// api/ask-mongodb.js - Busca no MongoDB
-const { MongoClient } = require('mongodb');
+// api/ask-mongodb.js - Busca na planilha Google Sheets
+const { google } = require('googleapis');
 
-// Configuração do MongoDB
-const MONGODB_URI = "mongodb+srv://gabrielaraujo:sGoeqQgbxlsIwnjc@velohubcentral.od7vwts.mongodb.net/";
-const DATABASE_NAME = "console_conteudo";
-const COLLECTION_NAME = "Bot_perguntas";
+// Configuração do Google Sheets
+const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
+const FAQ_SHEET_NAME = "FAQ!A:C"; // Coluna A: Pergunta, B: Resposta, C: Palavras-chave
 
 // Cache global para Vercel (persiste entre requests)
-global.mongodbCache = global.mongodbCache || {
+global.sheetsCache = global.sheetsCache || {
   data: null,
   timestamp: 0,
-  ttl: 300000 // 5 minutos
+  lastModified: null,
+  ttl: 60000 // 1 minuto - cache mais curto para atualizações mais rápidas
 };
 
-// Cliente MongoDB
-let client, db, collection;
+// Cliente Google Sheets
+let auth, sheets;
 
-// Função para conectar ao MongoDB
-async function connectToMongoDB() {
-  if (client && client.topology && client.topology.isConnected()) {
-    return { client, db, collection };
+try {
+  if (!process.env.GOOGLE_CREDENTIALS) {
+    console.warn('⚠️ GOOGLE_CREDENTIALS não configurado no ask-mongodb');
+  } else {
+    auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    });
+    sheets = google.sheets({ version: 'v4', auth });
+  }
+} catch (error) {
+  console.error('❌ Erro ao configurar Google Sheets no ask-mongodb:', error.message);
+}
+
+// Função para verificar se a planilha foi modificada
+async function checkSheetModified() {
+  if (!sheets) {
+    return false;
   }
 
   try {
-    client = new MongoClient(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // 5 segundos
-      connectTimeoutMS: 10000, // 10 segundos
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+      fields: 'properties.modifiedTime'
     });
 
-    await client.connect();
-    db = client.db(DATABASE_NAME);
-    collection = db.collection(COLLECTION_NAME);
-    
-    console.log('✅ MongoDB conectado com sucesso');
-    return { client, db, collection };
+    const lastModified = response.data.properties.modifiedTime;
+    const cacheLastModified = global.sheetsCache.lastModified;
+
+    if (!cacheLastModified || lastModified !== cacheLastModified) {
+      console.log('🔄 ask-mongodb: Planilha foi modificada, invalidando cache');
+      global.sheetsCache.lastModified = lastModified;
+      return true;
+    }
+
+    return false;
   } catch (error) {
-    console.error('❌ Erro ao conectar MongoDB:', error);
-    throw error;
+    console.error('❌ Erro ao verificar modificação da planilha:', error);
+    return false;
   }
 }
 
-// Função para buscar dados do MongoDB (com cache global)
+// Função para buscar dados da planilha (com cache global e verificação de modificação)
 async function getFaqData() {
-  // Verificar cache global primeiro
   const now = Date.now();
-  if (global.mongodbCache.data && (now - global.mongodbCache.timestamp) < global.mongodbCache.ttl) {
-    console.log('✅ ask-mongodb: Usando cache global');
-    return global.mongodbCache.data;
+  
+  // Verificar se a planilha foi modificada (sempre verificar)
+  const wasModified = await checkSheetModified();
+  
+  // Se não foi modificada e o cache ainda é válido, usar cache
+  if (!wasModified && global.sheetsCache.data && (now - global.sheetsCache.timestamp) < global.sheetsCache.ttl) {
+    console.log('✅ ask-mongodb: Usando cache global da planilha (não modificada)');
+    return global.sheetsCache.data;
   }
 
-  try {
-    const { collection } = await connectToMongoDB();
-    
-    console.log('🔍 ask-mongodb: Buscando dados do MongoDB...');
-
-    // Timeout de 8 segundos para Vercel (limite de 10s)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Timeout do MongoDB')), 8000);
-    });
-
-    const mongoPromise = collection.find({}).toArray();
-
-    const data = await Promise.race([mongoPromise, timeoutPromise]);
-
-    if (!data || data.length === 0) {
-      throw new Error("Collection Bot_perguntas vazia ou não encontrada");
-    }
-
-    // Atualizar cache global
-    global.mongodbCache.data = data;
-    global.mongodbCache.timestamp = now;
-
-    console.log('✅ ask-mongodb: Dados do MongoDB obtidos:', data.length, 'documentos');
-    return data;
-  } catch (error) {
-    console.error('❌ ask-mongodb: Erro ao buscar dados do MongoDB:', error);
-    throw error;
+  if (!sheets) {
+    throw new Error('Google Sheets não configurado');
   }
+
+  console.log('🔍 ask-mongodb: Buscando dados da planilha...');
+
+  // Timeout de 8 segundos para Vercel (limite de 10s)
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Timeout da planilha')), 8000);
+  });
+
+  const sheetsPromise = sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: FAQ_SHEET_NAME,
+  });
+
+  const response = await Promise.race([sheetsPromise, timeoutPromise]);
+
+  if (!response.data.values || response.data.values.length === 0) {
+    throw new Error("Planilha FAQ vazia ou não encontrada");
+  }
+
+  // Atualizar cache global
+  global.sheetsCache.data = response.data.values;
+  global.sheetsCache.timestamp = now;
+
+  console.log('✅ ask-mongodb: Dados da planilha obtidos:', response.data.values.length, 'linhas');
+  return response.data.values;
 }
 
 // Função para normalizar texto
@@ -87,16 +107,25 @@ function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-// Função para buscar correspondências
+// Função para buscar correspondências na planilha
 function findMatches(pergunta, faqData) {
+  const cabecalho = faqData[0];
+  const dados = faqData.slice(1);
+  const idxPergunta = cabecalho.indexOf("Pergunta");
+  const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
+  const idxResposta = cabecalho.indexOf("Resposta");
+
+  if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
+    throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas na planilha.");
+  }
+
   const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
   let todasAsCorrespondencias = [];
 
-  for (let i = 0; i < faqData.length; i++) {
-    const documento = faqData[i];
-    const textoPalavrasChave = normalizarTexto(documento.Palavras_chave || '');
-    const textoPergunta = normalizarTexto(documento.Pergunta || '');
-    const textoSinonimos = normalizarTexto(documento.Sinonimos || '');
+  for (let i = 0; i < dados.length; i++) {
+    const linhaAtual = dados[i];
+    const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
+    const textoPergunta = normalizarTexto(linhaAtual[idxPergunta] || '');
     let relevanceScore = 0;
 
     // Buscar nas palavras-chave (prioridade alta)
@@ -104,15 +133,6 @@ function findMatches(pergunta, faqData) {
       palavrasDaBusca.forEach(palavra => {
         if (textoPalavrasChave.includes(palavra)) {
           relevanceScore += 3; // Peso maior para palavras-chave
-        }
-      });
-    }
-
-    // Buscar nos sinônimos (prioridade alta)
-    if (textoSinonimos) {
-      palavrasDaBusca.forEach(palavra => {
-        if (textoSinonimos.includes(palavra)) {
-          relevanceScore += 2; // Peso alto para sinônimos
         }
       });
     }
@@ -127,24 +147,24 @@ function findMatches(pergunta, faqData) {
     }
 
     // Busca mais flexível - verificar se a pergunta contém parte do texto
-    const perguntaOriginal = documento.Pergunta || '';
+    const perguntaOriginal = linhaAtual[idxPergunta] || '';
     if (perguntaOriginal.toLowerCase().includes(pergunta.toLowerCase())) {
       relevanceScore += 4; // Peso alto para correspondência exata
     }
 
     // Busca nas palavras-chave com correspondência parcial
-    const palavrasChaveOriginal = documento.Palavras_chave || '';
+    const palavrasChaveOriginal = linhaAtual[idxPalavrasChave] || '';
     if (palavrasChaveOriginal.toLowerCase().includes(pergunta.toLowerCase())) {
       relevanceScore += 4; // Peso alto para correspondência exata
     }
 
     if (relevanceScore > 0) {
       todasAsCorrespondencias.push({
-        resposta: documento.Resposta,
-        perguntaOriginal: documento.Pergunta,
-        sourceRow: documento._id,
+        resposta: linhaAtual[idxResposta],
+        perguntaOriginal: linhaAtual[idxPergunta],
+        sourceRow: i + 2, // +2 porque começamos do índice 1 e pulamos o cabeçalho
         score: relevanceScore,
-        tabulacoes: documento.Palavras_chave || null
+        tabulacoes: linhaAtual[idxPalavrasChave] || null
       });
     }
   }
@@ -187,7 +207,7 @@ async function askMongoDBHandler(req, res) {
         status: "sucesso_offline",
         resposta: "Desculpe, não encontrei informações sobre essa pergunta na nossa base de dados. Entre em contato com nosso suporte.",
         sourceRow: 'N/A',
-        source: 'MongoDB',
+        source: 'Planilha Google Sheets',
         modo: 'offline',
         nivel: 2
       });
@@ -199,14 +219,14 @@ async function askMongoDBHandler(req, res) {
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
         tabulacoes: correspondencias[0].tabulacoes,
-        source: "MongoDB"
+        source: "Planilha Google Sheets"
       });
     } else {
       return res.status(200).json({
         status: "clarification_needed",
         resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
         options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
-        source: "MongoDB",
+        source: "Planilha Google Sheets",
         sourceRow: 'Pergunta de Esclarecimento'
       });
     }
@@ -283,6 +303,7 @@ class ConversationSession {
     });
   }
 }
+
 
 // ==================== FUNÇÕES DE CONVERSAÇÃO ====================
 
@@ -498,8 +519,16 @@ async function handleConversationAction(action, userEmail, message, baseResponse
   }
 }
 
-// Handler principal que integra conversação e busca MongoDB
+// Handler principal que integra conversação, busca e operações CRUD do MongoDB
 async function mainHandler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Verificar se é uma requisição de conversação
   if (req.query.action === 'conversation') {
     if (req.method !== 'POST') {
@@ -520,10 +549,41 @@ async function mainHandler(req, res) {
     }
   }
 
-  // Se não for conversação, continuar com o fluxo normal do ask-mongodb
+  // Verificar se é uma requisição para atualizar cache
+  if (req.query.action === 'refresh') {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Método não permitido' });
+    }
+
+    try {
+      // Forçar atualização do cache
+      global.sheetsCache.data = null;
+      global.sheetsCache.timestamp = 0;
+      global.sheetsCache.lastModified = null;
+      
+      // Buscar dados atualizados
+      const faqData = await getFaqData();
+      
+      return res.json({
+        success: true,
+        message: 'Cache atualizado com sucesso',
+        dataCount: faqData.length
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar cache:', error);
+      return res.status(500).json({ 
+        error: 'Erro ao atualizar cache',
+        details: error.message 
+      });
+    }
+  }
+
+
+  // Se não for conversação nem CRUD, continuar com o fluxo normal do ask-mongodb
   return askMongoDBHandler(req, res);
 }
 
 module.exports = mainHandler;
+
 
 // ==================== FIM DA LÓGICA DE CONVERSAÇÃO ====================

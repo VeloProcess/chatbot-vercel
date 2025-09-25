@@ -743,6 +743,7 @@ async function buscarResposta(textoDaPergunta) {
     
     if (!textoDaPergunta.trim()) return;
     
+    
     // Mostrar indicador de digitação se a função estiver disponível
     if (typeof showTypingIndicator === 'function') {
         showTypingIndicator();
@@ -854,6 +855,7 @@ async function buscarResposta(textoDaPergunta) {
         console.error("Detalhes do erro:", error);
     }
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
     // >>> INÍCIO DA CORREÇÃO - v2.0 <<<
@@ -1740,6 +1742,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const speedValue = document.getElementById('speed-value');
             const speedControl = document.getElementById('voice-speed-control');
             
+            console.log('🔊 Elementos de velocidade encontrados:');
+            console.log('- Speed slider:', speedSlider);
+            console.log('- Speed value:', speedValue);
+            console.log('- Speed control:', speedControl);
+            
             if (speedSlider && speedValue) {
                 // Atualizar valor em tempo real
                 speedSlider.addEventListener('input', function() {
@@ -1747,14 +1754,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('🔊 Velocidade alterada para:', this.value + 'x');
                 });
                 
-                // Mostrar controle quando botão de play for clicado
-                const playBtn = document.getElementById('play-response');
-                if (playBtn) {
-                    playBtn.addEventListener('click', function() {
-                        if (speedControl) {
-                            speedControl.classList.remove('hidden');
-                        }
-                    });
+                // Mostrar controle de velocidade sempre que houver controles de voz
+                if (speedControl) {
+                    speedControl.classList.remove('hidden');
+                    console.log('✅ Controle de velocidade mostrado');
                 }
                 
                 console.log('✅ Controle de velocidade configurado');
@@ -2122,11 +2125,46 @@ if (feedbackSendBtn) {
             });
         }
 
+        // Botão de refresh do cache
+        const refreshCacheBtn = document.getElementById('refresh-cache');
+        if (refreshCacheBtn) {
+            refreshCacheBtn.addEventListener('click', async () => {
+                try {
+                    refreshCacheBtn.classList.add('loading');
+                    refreshCacheBtn.disabled = true;
+                    
+                    const response = await fetch('/api/ask-mongodb?action=refresh', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        addMessage(`✅ Cache atualizado com sucesso! ${result.dataCount} registros carregados.`, 'bot');
+                    } else {
+                        addMessage(`❌ Erro ao atualizar cache: ${result.error}`, 'bot');
+                    }
+                } catch (error) {
+                    console.error('Erro ao atualizar cache:', error);
+                    addMessage(`❌ Erro ao atualizar cache: ${error.message}`, 'bot');
+                } finally {
+                    refreshCacheBtn.classList.remove('loading');
+                    refreshCacheBtn.disabled = false;
+                }
+            });
+        }
+
         setInitialTheme();
         carregarNoticias();
         carregarStatusProdutos();
         
         // Botão de admin desabilitado temporariamente
+        
+        // Inicializar funcionalidades de voz
+        initVoiceFeatures();
         
         // Inicializar indicador de conectividade
         initializeConnectivityIndicator();
