@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v3.4.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v3.5.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -1455,27 +1455,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('🔊 Criando áudio com formato:', result.format);
                     console.log('🔊 Tamanho do áudio base64:', result.audio ? result.audio.length : 'undefined');
                     
+                    let audio;
+                    let audioUrl;
+                    
                     try {
-                        // Converter base64 para Blob para evitar problemas de CSP
-                        const mimeType = result.format === 'mp3' ? 'audio/mpeg' : 'audio/mpeg';
-                        const binaryString = atob(result.audio);
-                        const bytes = new Uint8Array(binaryString.length);
+                        // Usar endpoint dedicado para servir áudio (evita problemas de CSP)
+                        audioUrl = `/api/audio`;
                         
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
-                        }
+                        console.log('🔊 Usando endpoint de áudio:', audioUrl);
                         
-                        const blob = new Blob([bytes], { type: mimeType });
-                        const audioUrl = URL.createObjectURL(blob);
-                        
-                        console.log('🔊 Blob URL criada:', audioUrl);
-                        
-                        const audio = new Audio(audioUrl);
+                        // Criar áudio com dados base64 como parâmetro
+                        audio = new Audio();
                         currentAudio = audio;
                         
-                        // Limpar a URL do objeto quando o áudio terminar
+                        // Configurar eventos antes de definir src
                         audio.onended = () => {
-                            URL.revokeObjectURL(audioUrl);
                             const playBtn = document.getElementById('play-response');
                             const stopBtn = document.getElementById('stop-audio');
                             if (playBtn) playBtn.classList.add('hidden');
@@ -1483,28 +1477,50 @@ document.addEventListener('DOMContentLoaded', () => {
                             console.log('🔊 Áudio finalizado');
                         };
                         
+                        // Enviar dados de áudio para o endpoint
+                        const audioResponse = await fetch(audioUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                audioData: result.audio,
+                                format: result.format
+                            })
+                        });
+                        
+                        if (!audioResponse.ok) {
+                            throw new Error(`Erro ao obter áudio: ${audioResponse.status}`);
+                        }
+                        
+                        // Criar URL do áudio a partir da resposta
+                        const audioBlob = await audioResponse.blob();
+                        audioUrl = URL.createObjectURL(audioBlob);
+                        audio.src = audioUrl;
+                        
+                        // Logs de debug para o áudio
+                        audio.onloadstart = () => console.log('🔊 Áudio iniciando carregamento...');
+                        audio.oncanplay = () => console.log('🔊 Áudio pronto para reprodução');
+                        audio.oncanplaythrough = () => console.log('🔊 Áudio totalmente carregado');
+                        audio.onerror = (e) => {
+                            console.error('❌ Erro no áudio:', e);
+                            console.error('❌ Detalhes do erro:', audio.error);
+                            addMessage('❌ Erro ao reproduzir áudio', 'bot');
+                        };
+
+                        await audio.play();
+                        const playBtn = document.getElementById('play-response');
+                        const stopBtn = document.getElementById('stop-audio');
+                        if (playBtn) playBtn.classList.add('hidden');
+                        if (stopBtn) stopBtn.classList.remove('hidden');
+                        
+                        addMessage('🔊 Reproduzindo resposta...', 'bot');
+                        
                     } catch (error) {
                         console.error('❌ Erro ao criar Blob:', error);
+                        if (audioUrl) URL.revokeObjectURL(audioUrl);
                         throw new Error('Erro ao processar áudio: ' + error.message);
                     }
-                    
-                    // Logs de debug para o áudio
-                    audio.onloadstart = () => console.log('🔊 Áudio iniciando carregamento...');
-                    audio.oncanplay = () => console.log('🔊 Áudio pronto para reprodução');
-                    audio.oncanplaythrough = () => console.log('🔊 Áudio totalmente carregado');
-                    audio.onerror = (e) => {
-                        console.error('❌ Erro no áudio:', e);
-                        console.error('❌ Detalhes do erro:', audio.error);
-                        addMessage('❌ Erro ao reproduzir áudio', 'bot');
-                    };
-
-                    await audio.play();
-                    const playBtn = document.getElementById('play-response');
-                    const stopBtn = document.getElementById('stop-audio');
-                    if (playBtn) playBtn.classList.add('hidden');
-                    if (stopBtn) stopBtn.classList.remove('hidden');
-                    
-                    addMessage('🔊 Reproduzindo resposta...', 'bot');
                 } else {
                     addMessage(`❌ Erro ao converter para áudio: ${result.error}`, 'bot');
                 }
