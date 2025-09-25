@@ -10,6 +10,23 @@ let conversationSession = null;
 let isWaitingForBotResponse = false;
 let pendingBotQuestion = null;
 
+// ==================== FUNÇÕES UTILITÁRIAS GLOBAIS ====================
+
+// Função para formatar assinatura do usuário (escopo global)
+function formatarAssinatura(nomeCompleto) {
+    if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
+        return '';
+    }
+    const nomes = nomeCompleto.trim().split(' ');
+    const primeiroNome = nomes[0];
+    let assinaturaFormatada = primeiroNome;
+    if (nomes.length > 1 && nomes[1]) {
+        const inicialDoSegundoNome = nomes[1].charAt(0).toUpperCase();
+        assinaturaFormatada += ` ${inicialDoSegundoNome}.`;
+    }
+    return assinaturaFormatada;
+}
+
 // ==================== FUNÇÕES GLOBAIS DE VOZ ====================
 
 // Função simplificada para adicionar mensagens (para uso nas funções de voz)
@@ -1193,19 +1210,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function formatarAssinatura(nomeCompleto) {
-        if (!nomeCompleto || typeof nomeCompleto !== 'string' || nomeCompleto.trim() === '') {
-            return '';
-        }
-        const nomes = nomeCompleto.trim().split(' ');
-        const primeiroNome = nomes[0];
-        let assinaturaFormatada = primeiroNome;
-        if (nomes.length > 1 && nomes[1]) {
-            const inicialDoSegundoNome = nomes[1].charAt(0).toUpperCase();
-            assinaturaFormatada += ` ${inicialDoSegundoNome}.`;
-        }
-        return assinaturaFormatada;
-    }
 
 
     document.getElementById('notification-button')?.addEventListener('click', () => verificarAtualizacao());
