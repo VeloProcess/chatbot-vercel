@@ -1204,9 +1204,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Cache para evitar logs duplicados
+    const loggedQuestions = new Set();
+    
     async function logQuestionOnSheet(question, email) {
         if (!question || !email) return;
+        
+        // Criar uma chave única para a pergunta
+        const questionKey = `${email}-${question.trim()}`;
+        
+        // Verificar se já foi logada recentemente (evitar duplicatas)
+        if (loggedQuestions.has(questionKey)) {
+            console.log('⚠️ Pergunta já foi logada, evitando duplicata:', question);
+            return;
+        }
+        
+        // Adicionar ao cache
+        loggedQuestions.add(questionKey);
+        console.log('📝 Adicionando pergunta ao cache:', questionKey);
+        
+        // Limpar cache após 30 segundos para permitir nova gravação da mesma pergunta
+        setTimeout(() => {
+            loggedQuestions.delete(questionKey);
+            console.log('🗑️ Removendo pergunta do cache:', questionKey);
+        }, 30 * 1000); // Reduzido para 30 segundos
+        
         try {
+            console.log('📝 Registrando pergunta na planilha:', question);
             await fetch('/api/logQuestion', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1218,8 +1242,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 })
             });
+            console.log('✅ Pergunta registrada com sucesso');
         } catch (error) {
             console.error("Erro ao registrar a pergunta na planilha:", error);
+            // Remover do cache em caso de erro para permitir nova tentativa
+            loggedQuestions.delete(questionKey);
         }
     }
 
@@ -1421,65 +1448,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async function buscarResposta(textoDaPergunta) {
-            ultimaPergunta = textoDaPergunta;
-            ultimaLinhaDaFonte = null;
-            if (!textoDaPergunta.trim()) return;
-            showTypingIndicator();
-            try {
-        // Usar MongoDB endpoint como principal
-        const url = `/api/ask-mongodb?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente.email)}`;
-                console.log('🔍 Buscando resposta:', url);
-                const response = await fetch(url);
-                hideTypingIndicator();
-                if (!response.ok) throw new Error(`Erro de rede ou API: ${response.status}`);
-                const data = await response.json();
-
-                console.log('🤖 Resposta da IA:', data);
-                
-                // Processar resposta com todos os status possíveis
-                if (data.status === 'sucesso' || data.status === 'sucesso_ia' || data.status === 'sucesso_ia_avancada') {
-                    addMessage(data.resposta, 'bot', { 
-                        sourceRow: data.sourceRow,
-                        source: data.source, 
-                        tabulacoes: data.tabulacoes
-                    });
-                } else if (data.status === 'clarification_needed' || data.status === 'clarification_needed_offline') {
-                    addMessage(data.resposta, 'bot', { 
-                        options: data.options, 
-                        source: data.source,
-                        sourceRow: data.sourceRow
-                    });
-                } else if (data.status === 'resposta_padrao' || data.status === 'sucesso_offline') {
-                    addMessage(data.resposta, 'bot', { 
-                        sourceRow: data.sourceRow || 'Sistema',
-                        source: data.source || 'Sistema'
-                    });
-                } else {
-                    addMessage(data.resposta || data.error || "Resposta não disponível", 'bot', {
-                        sourceRow: 'Erro do Bot'
-                    });
-                }
-            } catch (error) {
-                hideTypingIndicator();
-                
-                // Atualizar indicador de conectividade para erro
-                if (error.message.includes('timeout') || error.message.includes('Timeout')) {
-                    updateConnectivityIndicator('timeout');
-                } else if (error.message.includes('rede') || error.message.includes('network')) {
-                    updateConnectivityIndicator('no-connection');
-                } else {
-                    updateConnectivityIndicator('error');
-                }
-                
-                addMessage("Erro de conexão com o backend. Aguarde um instante que estamos verificando o ocorrido", 'bot', { sourceRow: 'Erro de Conexão' });
-                console.error("Detalhes do erro:", error);
-            }
-        }
 
         function handleSendMessage(text) {
             const trimmedText = text.trim();
             if (!trimmedText) return;
+            
+            console.log('📤 handleSendMessage chamado com:', trimmedText);
             
             // Remover mensagem de boas-vindas se ainda estiver visível
             const welcomeMessage = document.querySelector('.welcome-message');
