@@ -132,6 +132,11 @@ function findMatches(pergunta, faqData) {
   const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
   const idxResposta = cabecalho.indexOf("Resposta");
 
+  console.log('🔍 findMatches: Cabeçalho encontrado:', cabecalho);
+  console.log('🔍 findMatches: Índice da pergunta:', idxPergunta);
+  console.log('🔍 findMatches: Índice das palavras-chave:', idxPalavrasChave);
+  console.log('🔍 findMatches: Índice da resposta:', idxResposta);
+
   if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas na planilha.");
   }
