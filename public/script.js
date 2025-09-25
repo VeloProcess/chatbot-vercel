@@ -1459,16 +1459,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     let audioUrl;
                     
                     try {
-                        // Usar endpoint de voz para servir áudio (evita problemas de CSP)
-                        audioUrl = `/api/voice?action=audio`;
+                        // Criar um ID único para este áudio
+                        const audioId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                         
-                        console.log('🔊 Usando endpoint de áudio:', audioUrl);
+                        // Primeiro, enviar dados de áudio para criar um endpoint temporário
+                        const uploadResponse = await fetch('/api/voice?action=audio', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                audioData: result.audio,
+                                format: result.format,
+                                audioId: audioId
+                            })
+                        });
                         
-                        // Criar áudio com dados base64 como parâmetro
-                        audio = new Audio();
+                        if (!uploadResponse.ok) {
+                            throw new Error(`Erro ao enviar áudio: ${uploadResponse.status}`);
+                        }
+                        
+                        // Usar URL direta do endpoint (sem Blob)
+                        audioUrl = `/api/voice?action=audio&id=${audioId}`;
+                        
+                        console.log('🔊 Usando URL direta de áudio:', audioUrl);
+                        
+                        // Criar áudio com URL direta
+                        audio = new Audio(audioUrl);
                         currentAudio = audio;
                         
-                        // Configurar eventos antes de definir src
+                        // Configurar eventos
                         audio.onended = () => {
                             const playBtn = document.getElementById('play-response');
                             const stopBtn = document.getElementById('stop-audio');
@@ -1476,27 +1496,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (stopBtn) stopBtn.classList.add('hidden');
                             console.log('🔊 Áudio finalizado');
                         };
-                        
-                        // Enviar dados de áudio para o endpoint
-                        const audioResponse = await fetch(audioUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                audioData: result.audio,
-                                format: result.format
-                            })
-                        });
-                        
-                        if (!audioResponse.ok) {
-                            throw new Error(`Erro ao obter áudio: ${audioResponse.status}`);
-                        }
-                        
-                        // Criar URL do áudio a partir da resposta
-                        const audioBlob = await audioResponse.blob();
-                        audioUrl = URL.createObjectURL(audioBlob);
-                        audio.src = audioUrl;
                         
                         // Logs de debug para o áudio
                         audio.onloadstart = () => console.log('🔊 Áudio iniciando carregamento...');

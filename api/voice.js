@@ -60,6 +60,9 @@ module.exports = async function handler(req, res) {
   }
 }
 
+// Cache global para áudios temporários
+global.audioCache = global.audioCache || {};
+
 // Função para servir áudio (movida do audio.js)
 async function handleAudio(req, res) {
   // Configurar CORS
@@ -71,31 +74,65 @@ async function handleAudio(req, res) {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método não permitido' });
-  }
-
   try {
-    const { audioData, format = 'mp3' } = req.body;
-    
-    if (!audioData) {
-      return res.status(400).json({ error: 'Dados de áudio não fornecidos' });
-    }
+    if (req.method === 'POST') {
+      // Upload de áudio
+      const { audioData, format = 'mp3', audioId } = req.body;
+      
+      if (!audioData) {
+        return res.status(400).json({ error: 'Dados de áudio não fornecidos' });
+      }
 
-    // Converter base64 para buffer
-    const audioBuffer = Buffer.from(audioData, 'base64');
-    
-    // Definir tipo MIME baseado no formato
-    const mimeType = format === 'mp3' ? 'audio/mpeg' : 'audio/mpeg';
-    
-    // Configurar headers para streaming de áudio
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Length', audioBuffer.length);
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Accept-Ranges', 'bytes');
-    
-    // Enviar o áudio como stream
-    res.send(audioBuffer);
+      // Armazenar áudio no cache global
+      global.audioCache[audioId] = {
+        data: audioData,
+        format: format,
+        timestamp: Date.now()
+      };
+      
+      console.log('🔊 Áudio armazenado no cache:', audioId);
+      
+      return res.status(200).json({ 
+        success: true, 
+        audioId: audioId,
+        message: 'Áudio armazenado com sucesso' 
+      });
+      
+    } else if (req.method === 'GET') {
+      // Servir áudio por ID
+      const { id } = req.query;
+      
+      if (!id || !global.audioCache[id]) {
+        return res.status(404).json({ error: 'Áudio não encontrado' });
+      }
+      
+      const audioInfo = global.audioCache[id];
+      
+      // Converter base64 para buffer
+      const audioBuffer = Buffer.from(audioInfo.data, 'base64');
+      
+      // Definir tipo MIME baseado no formato
+      const mimeType = audioInfo.format === 'mp3' ? 'audio/mpeg' : 'audio/mpeg';
+      
+      // Configurar headers para streaming de áudio
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Length', audioBuffer.length);
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Disposition', 'inline');
+      
+      // Enviar o áudio como stream
+      res.send(audioBuffer);
+      
+      // Limpar cache após 5 minutos
+      setTimeout(() => {
+        delete global.audioCache[id];
+        console.log('🧹 Áudio removido do cache:', id);
+      }, 5 * 60 * 1000);
+      
+    } else {
+      return res.status(405).json({ error: 'Método não permitido' });
+    }
     
   } catch (error) {
     console.error('❌ Erro no endpoint de áudio:', error);
