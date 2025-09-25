@@ -4,6 +4,7 @@ let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
 let currentAudio = null;
+let currentStream = null; // Para gerenciar o stream de áudio
 
 // ==================== VARIÁVEIS DE CONVERSAÇÃO ====================
 let conversationSession = null;
@@ -578,7 +579,22 @@ async function toggleRecording() {
 async function startRecording() {
     try {
         console.log('🎤 Iniciando gravação...');
+        
+        // Limpar qualquer gravação anterior
+        if (mediaRecorder) {
+            console.log('🧹 Limpando MediaRecorder anterior...');
+            try {
+                if (mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            } catch (e) {
+                console.log('⚠️ Erro ao limpar MediaRecorder anterior:', e);
+            }
+            mediaRecorder = null;
+        }
+        
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        currentStream = stream; // Armazenar referência do stream
         mediaRecorder = new MediaRecorder(stream, {
             mimeType: 'audio/webm;codecs=opus'
         });
@@ -599,16 +615,6 @@ async function startRecording() {
                 await processAudioToText(audioBlob);
             } else {
                 addVoiceMessage('❌ Nenhum áudio foi gravado', 'bot');
-            }
-            
-            // Parar todas as tracks do stream
-            try {
-                stream.getTracks().forEach(track => {
-                    track.stop();
-                    console.log('🎤 Track parada:', track.kind);
-                });
-            } catch (error) {
-                console.error('❌ Erro ao parar tracks:', error);
             }
         };
 
@@ -645,18 +651,42 @@ async function startRecording() {
 
 // Parar gravação
 function stopRecording() {
+    console.log('⏹️ stopRecording chamado, isRecording:', isRecording, 'mediaRecorder:', !!mediaRecorder);
+    
     if (mediaRecorder && isRecording) {
         console.log('⏹️ Parando gravação...');
         
+        // Forçar parada imediata
+        isRecording = false;
+        
         // Parar o MediaRecorder
         try {
-            mediaRecorder.stop();
+            if (mediaRecorder.state === 'recording') {
+                console.log('⏹️ MediaRecorder está gravando, parando...');
+                mediaRecorder.stop();
+            } else {
+                console.log('⏹️ MediaRecorder não está gravando, estado:', mediaRecorder.state);
+            }
         } catch (error) {
             console.error('❌ Erro ao parar MediaRecorder:', error);
         }
         
-        // Marcar como não gravando
-        isRecording = false;
+        // Parar o stream de áudio
+        if (currentStream) {
+            try {
+                currentStream.getTracks().forEach(track => {
+                    track.stop();
+                    console.log('🎤 Track parada:', track.kind);
+                });
+            } catch (error) {
+                console.error('❌ Erro ao parar tracks:', error);
+            }
+            currentStream = null;
+        }
+        
+        // Limpar referências
+        mediaRecorder = null;
+        audioChunks = [];
         
         // Buscar elementos dinamicamente
         const voiceBtn = document.getElementById('voice-button');
@@ -678,9 +708,13 @@ function stopRecording() {
         // Mostrar mensagem de processamento
         addVoiceMessage('🔄 Processando áudio...', 'bot');
         
-        console.log('✅ Gravação parada');
+        console.log('✅ Gravação parada e recursos limpos');
     } else {
         console.log('⚠️ Tentativa de parar gravação, mas não está gravando');
+        // Forçar limpeza mesmo se não estiver gravando
+        isRecording = false;
+        mediaRecorder = null;
+        audioChunks = [];
     }
 }
 
