@@ -1,5 +1,5 @@
 // ==================== VARIÁVEIS GLOBAIS DE VOZ ====================
-// VERSION: v2.2.0 | DATE: 2025-01-22 | AUTHOR: Assistant
+// VERSION: v2.3.0 | DATE: 2025-01-22 | AUTHOR: Assistant
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -223,8 +223,33 @@ async function buscarResposta(textoDaPergunta) {
     }
     
     try {
+        // Obter email do usuário de forma segura
+        let userEmail = 'usuario@velotax.com.br'; // Fallback padrão
+        
+        // Tentar obter dadosAtendente de diferentes formas
+        if (typeof dadosAtendente !== 'undefined' && dadosAtendente?.email) {
+            userEmail = dadosAtendente.email;
+        } else if (typeof window !== 'undefined' && window.dadosAtendente?.email) {
+            userEmail = window.dadosAtendente.email;
+        } else {
+            // Tentar obter do localStorage
+            try {
+                const savedData = localStorage.getItem('dadosAtendenteChatbot');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    if (parsedData?.email) {
+                        userEmail = parsedData.email;
+                    }
+                }
+            } catch (e) {
+                console.log('⚠️ Não foi possível obter email do localStorage, usando fallback');
+            }
+        }
+        
+        console.log('📧 Email usado para busca:', userEmail);
+        
         // Usar MongoDB endpoint como principal
-        const url = `/api/ask-mongodb?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(dadosAtendente?.email || 'usuario@velotax.com.br')}`;
+        const url = `/api/ask-mongodb?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(userEmail)}`;
         console.log('🔍 Buscando resposta:', url);
         const response = await fetch(url);
         
