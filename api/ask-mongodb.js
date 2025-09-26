@@ -308,7 +308,17 @@ async function askMongoDBHandler(req, res) {
       });
     }
 
-    if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1]?.score) {
+    // Se há apenas uma correspondência ou uma correspondência claramente melhor
+    if (correspondencias.length === 1) {
+      return res.status(200).json({
+        status: "sucesso",
+        resposta: correspondencias[0].resposta,
+        sourceRow: correspondencias[0].sourceRow,
+        tabulacoes: correspondencias[0].tabulacoes,
+        source: "MongoDB"
+      });
+    } else if (correspondencias.length > 1 && correspondencias[0].score > correspondencias[1].score + 2) {
+      // Se a primeira correspondência tem score significativamente maior (diferença de 2+ pontos)
       return res.status(200).json({
         status: "sucesso",
         resposta: correspondencias[0].resposta,
@@ -317,6 +327,10 @@ async function askMongoDBHandler(req, res) {
         source: "MongoDB"
       });
     } else {
+      // Se há múltiplas correspondências com scores similares, mostrar lista
+      console.log('📋 Múltiplas correspondências encontradas:', correspondencias.length);
+      console.log('📋 Scores:', correspondencias.map(c => ({ pergunta: c.perguntaOriginal, score: c.score })));
+      
       return res.status(200).json({
         status: "clarification_needed",
         resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
