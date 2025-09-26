@@ -88,7 +88,7 @@ function addVoiceMessage(text, sender, options = null) {
             button.onclick = () => {
                 console.log('🔘 Opção clicada:', optionText);
                 addVoiceMessage(optionText, 'user');
-                buscarResposta(optionText);
+                buscarResposta(optionText, true); // true = isClarification
             };
             optionsContainer.appendChild(button);
         });
@@ -812,7 +812,7 @@ async function processAudioToText(audioBlob) {
 }
 
 // Função global para buscar respostas com sistema de conversação
-async function buscarResposta(textoDaPergunta) {
+async function buscarResposta(textoDaPergunta, isClarification = false) {
     // Verificar se as variáveis necessárias estão disponíveis
     if (typeof ultimaPergunta !== 'undefined') {
         ultimaPergunta = textoDaPergunta;
@@ -842,7 +842,14 @@ async function buscarResposta(textoDaPergunta) {
         console.log('📧 Email usado para busca:', userEmail);
         
         // Usar MongoDB endpoint como principal
-        const url = `/api/ask-mongodb?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(userEmail)}`;
+        let url = `/api/ask-mongodb?pergunta=${encodeURIComponent(textoDaPergunta)}&email=${encodeURIComponent(userEmail)}`;
+        
+        // Se é pergunta de esclarecimento, adicionar parâmetro
+        if (isClarification) {
+            url += '&isClarification=true';
+            console.log('📋 Pergunta de esclarecimento detectada');
+        }
+        
         console.log('🔍 Buscando resposta:', url);
         const response = await fetch(url);
         

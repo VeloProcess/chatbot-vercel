@@ -295,7 +295,10 @@ async function askMongoDBHandler(req, res) {
     if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
 
     console.log('🔍 ask-mongodb: Iniciando...');
-    console.log('🔍 ask-mongodb: Pergunta recebida:', { pergunta, email, usar_ia_avancada });
+    // Verificar se é uma pergunta de esclarecimento (clique em lista)
+    const isClarificationQuestion = req.query.isClarification === 'true';
+    
+    console.log('🔍 É pergunta de esclarecimento?', isClarificationQuestion);
 
     console.log('🔍 ask-mongodb: Buscando dados do MongoDB...');
     const faqData = await getFaqData();
@@ -321,6 +324,18 @@ async function askMongoDBHandler(req, res) {
       });
     }
 
+    // Se é pergunta de esclarecimento (clique em lista), SEMPRE resposta direta
+    if (isClarificationQuestion) {
+      console.log('📋 Pergunta de esclarecimento - resposta direta');
+      return res.status(200).json({
+        status: "sucesso",
+        resposta: correspondencias[0].resposta,
+        sourceRow: correspondencias[0].sourceRow,
+        tabulacoes: correspondencias[0].tabulacoes,
+        source: "MongoDB"
+      });
+    }
+    
     // Se há apenas uma correspondência, resposta direta
     if (correspondencias.length === 1) {
       return res.status(200).json({
