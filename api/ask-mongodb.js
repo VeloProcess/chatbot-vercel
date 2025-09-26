@@ -97,13 +97,29 @@ async function getFaqData() {
 }
 
 // --- FUNÇÃO PARA NORMALIZAR TEXTO ---
+// Função para normalizar texto (melhorada para acentos e voz)
 function normalizarTexto(texto) {
   if (!texto || typeof texto !== 'string') return '';
   
   // Converter para minúsculas
   let textoNormalizado = texto.toLowerCase();
   
-  // Remover acentos e caracteres especiais
+  // Mapear acentos comuns que podem ser perdidos na voz
+  const acentosMap = {
+    'á': 'a', 'à': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a',
+    'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+    'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i',
+    'ó': 'o', 'ò': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
+    'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u',
+    'ç': 'c', 'ñ': 'n'
+  };
+  
+  // Aplicar mapeamento de acentos
+  for (const [acento, semAcento] of Object.entries(acentosMap)) {
+    textoNormalizado = textoNormalizado.replace(new RegExp(acento, 'g'), semAcento);
+  }
+  
+  // Remover acentos restantes usando normalização Unicode
   textoNormalizado = textoNormalizado.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
   
   // Remover pontuação e caracteres especiais, mas manter espaços
@@ -145,7 +161,9 @@ function findMatches(pergunta, faqData) {
         sinonimos: documento.Sinonimos,
         textoPalavrasChave,
         textoPergunta,
-        textoSinonimos
+        textoSinonimos,
+        perguntaNormalizada: normalizarTexto(documento.Pergunta),
+        perguntaOriginalNormalizada: normalizarTexto(pergunta)
       });
     }
 
@@ -188,11 +206,29 @@ function findMatches(pergunta, faqData) {
       relevanceScore += 4; // Peso alto para correspondência exata
     }
 
-    // Busca flexível por palavras individuais na pergunta
+    // Busca flexível por palavras individuais na pergunta (com e sem acentos)
     const perguntaNormalizada = normalizarTexto(pergunta);
     const perguntaDocNormalizada = normalizarTexto(perguntaOriginal);
+    
+    // Busca exata normalizada
     if (perguntaDocNormalizada.includes(perguntaNormalizada)) {
-      relevanceScore += 3; // Peso médio para correspondência parcial
+      relevanceScore += 4; // Peso alto para correspondência exata
+    }
+    
+    // Busca palavra por palavra (mais flexível)
+    const palavrasPergunta = perguntaNormalizada.split(' ');
+    const palavrasDoc = perguntaDocNormalizada.split(' ');
+    
+    let palavrasEncontradas = 0;
+    palavrasPergunta.forEach(palavra => {
+      if (palavrasDoc.some(palavraDoc => palavraDoc.includes(palavra) || palavra.includes(palavraDoc))) {
+        palavrasEncontradas++;
+      }
+    });
+    
+    // Se encontrou a maioria das palavras, adicionar score
+    if (palavrasEncontradas > 0) {
+      relevanceScore += palavrasEncontradas * 2; // 2 pontos por palavra encontrada
     }
 
     // Busca flexível por palavras individuais nas palavras-chave
