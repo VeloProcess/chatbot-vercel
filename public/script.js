@@ -651,11 +651,11 @@ async function startRecording() {
 function stopRecording() {
     console.log('⏹️ stopRecording chamado, isRecording:', isRecording, 'mediaRecorder:', !!mediaRecorder);
     
-    if (mediaRecorder && isRecording) {
+    // SEMPRE parar, independente do estado
+    isRecording = false;
+    
+    if (mediaRecorder) {
         console.log('⏹️ Parando gravação...');
-        
-        // Forçar parada imediata
-        isRecording = false;
         
         // Parar o MediaRecorder
         try {
@@ -669,51 +669,48 @@ function stopRecording() {
             console.error('❌ Erro ao parar MediaRecorder:', error);
         }
         
-        // Parar o stream de áudio
-        if (currentStream) {
-            try {
-                currentStream.getTracks().forEach(track => {
-                    track.stop();
-                    console.log('🎤 Track parada:', track.kind);
-                });
-            } catch (error) {
-                console.error('❌ Erro ao parar tracks:', error);
-            }
-            currentStream = null;
-        }
-        
-        // Limpar referências
+        // Limpar referência
         mediaRecorder = null;
-        audioChunks = [];
-        
-        // Buscar elementos dinamicamente
-        const voiceBtn = document.getElementById('voice-button');
-        const recordingInd = document.getElementById('recording-indicator');
-        
-        // Restaurar botão
-        if (voiceBtn) {
-            voiceBtn.innerHTML = '🎤';
-            voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
-            voiceBtn.classList.remove('recording');
-            voiceBtn.style.animation = 'none';
-        }
-        
-        // Esconder indicador de gravação
-        if (recordingInd) {
-            recordingInd.classList.add('hidden');
-        }
-        
-        // Mostrar mensagem de processamento
-        addVoiceMessage('🔄 Processando áudio...', 'bot');
-        
-        console.log('✅ Gravação parada e recursos limpos');
-    } else {
-        console.log('⚠️ Tentativa de parar gravação, mas não está gravando');
-        // Forçar limpeza mesmo se não estiver gravando
-        isRecording = false;
-        mediaRecorder = null;
-        audioChunks = [];
     }
+    
+    // Parar o stream de áudio
+    if (currentStream) {
+        try {
+            currentStream.getTracks().forEach(track => {
+                track.stop();
+                console.log('🎤 Track parada:', track.kind);
+            });
+        } catch (error) {
+            console.error('❌ Erro ao parar tracks:', error);
+        }
+        currentStream = null;
+    }
+    
+    // Limpar chunks
+    audioChunks = [];
+    
+    // Buscar elementos dinamicamente
+    const voiceBtn = document.getElementById('voice-button');
+    const recordingInd = document.getElementById('recording-indicator');
+    
+    // Restaurar botão
+    if (voiceBtn) {
+        voiceBtn.innerHTML = '🎤';
+        voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+        voiceBtn.classList.remove('recording');
+        voiceBtn.style.animation = 'none';
+        voiceBtn.style.border = 'none';
+    }
+    
+    // Esconder indicador de gravação
+    if (recordingInd) {
+        recordingInd.classList.add('hidden');
+    }
+    
+    // Mostrar mensagem de processamento
+    addVoiceMessage('🔄 Processando áudio...', 'bot');
+    
+    console.log('✅ Gravação parada completamente');
 }
 
 // Processar áudio para texto

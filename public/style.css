@@ -399,15 +399,6 @@ body.dark-theme .product-status-item-header:hover .product-name {
     color: var(--cor-texto-claro);
 }
 
-.status-indicator {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--cor-sucesso);
-    margin-left: var(--espaco-sm);
-    animation: pulse 2s infinite;
-}
 
 /* --- 📶 INDICADOR DE CONECTIVIDADE --- */
 .connectivity-indicator {
