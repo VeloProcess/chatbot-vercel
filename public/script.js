@@ -5,6 +5,7 @@ let mediaRecorder = null;
 let audioChunks = [];
 let currentAudio = null;
 let currentStream = null; // Para gerenciar o stream de áudio
+let isProcessingRecording = false; // Para evitar múltiplas chamadas simultâneas
 
 // ==================== VARIÁVEIS DE CONVERSAÇÃO ====================
 let conversationSession = null;
@@ -561,15 +562,30 @@ async function playLastResponse(text = null) {
 }
 
 async function toggleRecording() {
-    console.log('🎤 Toggle recording chamado, isRecording:', isRecording);
+    console.log('🎤 Toggle recording chamado, isRecording:', isRecording, 'isProcessingRecording:', isProcessingRecording);
     
     // Evitar múltiplas chamadas simultâneas
-    if (isRecording) {
-        console.log('🎤 Parando gravação...');
-        stopRecording();
-    } else {
-        console.log('🎤 Iniciando gravação...');
-        await startRecording();
+    if (isProcessingRecording) {
+        console.log('⚠️ Já processando gravação, ignorando...');
+        return;
+    }
+    
+    isProcessingRecording = true;
+    
+    try {
+        if (isRecording) {
+            console.log('🎤 Parando gravação...');
+            stopRecording();
+        } else {
+            console.log('🎤 Iniciando gravação...');
+            await startRecording();
+        }
+    } finally {
+        // Liberar o controle após um pequeno delay
+        setTimeout(() => {
+            isProcessingRecording = false;
+            console.log('✅ Controle de gravação liberado');
+        }, 500);
     }
 }
 
@@ -577,6 +593,12 @@ async function toggleRecording() {
 async function startRecording() {
     try {
         console.log('🎤 Iniciando gravação...');
+        
+        // Verificar se já está gravando
+        if (isRecording) {
+            console.log('⚠️ Já está gravando, ignorando...');
+            return;
+        }
         
         // Limpar qualquer gravação anterior
         if (mediaRecorder) {
@@ -607,6 +629,13 @@ async function startRecording() {
 
         mediaRecorder.onstop = async () => {
             console.log('🎤 Evento onstop disparado, chunks:', audioChunks.length);
+            
+            // Verificar se ainda está marcado como gravando
+            if (!isRecording) {
+                console.log('⚠️ Gravação já foi parada, ignorando onstop');
+                return;
+            }
+            
             if (audioChunks.length > 0) {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 console.log('🎤 Blob criado:', audioBlob);
@@ -654,10 +683,9 @@ function stopRecording() {
     // SEMPRE parar, independente do estado
     isRecording = false;
     
+    // Parar o MediaRecorder primeiro
     if (mediaRecorder) {
-        console.log('⏹️ Parando gravação...');
-        
-        // Parar o MediaRecorder
+        console.log('⏹️ Parando MediaRecorder...');
         try {
             if (mediaRecorder.state === 'recording') {
                 console.log('⏹️ MediaRecorder está gravando, parando...');
@@ -669,7 +697,7 @@ function stopRecording() {
             console.error('❌ Erro ao parar MediaRecorder:', error);
         }
         
-        // Limpar referência
+        // Limpar referência imediatamente
         mediaRecorder = null;
     }
     
