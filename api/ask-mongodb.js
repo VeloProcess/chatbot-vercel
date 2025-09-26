@@ -99,7 +99,20 @@ async function getFaqData() {
 // --- FUNÇÃO PARA NORMALIZAR TEXTO ---
 function normalizarTexto(texto) {
   if (!texto || typeof texto !== 'string') return '';
-  return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
+  
+  // Converter para minúsculas
+  let textoNormalizado = texto.toLowerCase();
+  
+  // Remover acentos e caracteres especiais
+  textoNormalizado = textoNormalizado.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+  
+  // Remover pontuação e caracteres especiais, mas manter espaços
+  textoNormalizado = textoNormalizado.replace(/[^\w\s]/gi, '');
+  
+  // Remover espaços extras e trim
+  textoNormalizado = textoNormalizado.replace(/\s+/g, ' ').trim();
+  
+  return textoNormalizado;
 }
 
 // --- FUNÇÃO PARA BUSCAR CORRESPONDÊNCIAS ---
@@ -136,29 +149,29 @@ function findMatches(pergunta, faqData) {
       });
     }
 
+    // Buscar na pergunta (prioridade MÁXIMA - coluna A)
+    if (textoPergunta) {
+      palavrasDaBusca.forEach(palavra => {
+        if (textoPergunta.includes(palavra)) {
+          relevanceScore += 5; // Peso máximo para pergunta (coluna A)
+        }
+      });
+    }
+
     // Buscar nas palavras-chave (prioridade alta)
     if (textoPalavrasChave) {
       palavrasDaBusca.forEach(palavra => {
         if (textoPalavrasChave.includes(palavra)) {
-          relevanceScore += 3; // Peso maior para palavras-chave
+          relevanceScore += 3; // Peso alto para palavras-chave
         }
       });
     }
 
-    // Buscar nos sinônimos (prioridade alta)
+    // Buscar nos sinônimos (prioridade média)
     if (textoSinonimos) {
       palavrasDaBusca.forEach(palavra => {
         if (textoSinonimos.includes(palavra)) {
-          relevanceScore += 2; // Peso alto para sinônimos
-        }
-      });
-    }
-
-    // Buscar na pergunta (prioridade menor)
-    if (textoPergunta) {
-      palavrasDaBusca.forEach(palavra => {
-        if (textoPergunta.includes(palavra)) {
-          relevanceScore += 1; // Peso menor para pergunta
+          relevanceScore += 2; // Peso médio para sinônimos
         }
       });
     }
@@ -308,7 +321,7 @@ async function askMongoDBHandler(req, res) {
       });
     }
 
-    // Se há apenas uma correspondência ou uma correspondência claramente melhor
+    // Se há apenas uma correspondência, resposta direta
     if (correspondencias.length === 1) {
       return res.status(200).json({
         status: "sucesso",
@@ -317,17 +330,8 @@ async function askMongoDBHandler(req, res) {
         tabulacoes: correspondencias[0].tabulacoes,
         source: "MongoDB"
       });
-    } else if (correspondencias.length > 1 && correspondencias[0].score > correspondencias[1].score + 2) {
-      // Se a primeira correspondência tem score significativamente maior (diferença de 2+ pontos)
-      return res.status(200).json({
-        status: "sucesso",
-        resposta: correspondencias[0].resposta,
-        sourceRow: correspondencias[0].sourceRow,
-        tabulacoes: correspondencias[0].tabulacoes,
-        source: "MongoDB"
-      });
     } else {
-      // Se há múltiplas correspondências com scores similares, mostrar lista
+      // Se há múltiplas correspondências, SEMPRE mostrar lista
       console.log('📋 Múltiplas correspondências encontradas:', correspondencias.length);
       console.log('📋 Scores:', correspondencias.map(c => ({ pergunta: c.perguntaOriginal, score: c.score })));
       
