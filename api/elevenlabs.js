@@ -48,8 +48,8 @@ async function speechToText(audioBlob) {
     const form = new FormData();
     
     form.append('file', audioBuffer, {
-      filename: 'audio.webm',
-      contentType: 'audio/webm'
+      filename: 'audio.wav',
+      contentType: 'audio/wav'
     });
     form.append('model', 'whisper-1');
     // Remover parâmetros que podem causar erro 400
@@ -58,8 +58,8 @@ async function speechToText(audioBlob) {
     // form.append('temperature', '0.0');
     
     console.log('🎤 Parâmetros da requisição:', {
-      filename: 'audio.webm',
-      contentType: 'audio/webm',
+      filename: 'audio.wav',
+      contentType: 'audio/wav',
       model: 'whisper-1',
       audioSize: audioBuffer.length
     });
@@ -120,7 +120,7 @@ async function speechToText(audioBlob) {
   } catch (error) {
     console.error('❌ Erro no Speech-to-Text:', error);
     console.error('❌ Status:', error.response?.status);
-    console.error('❌ Dados do erro:', error.response?.data);
+    console.error('❌ Dados do erro:', JSON.stringify(error.response?.data, null, 2));
     console.error('❌ Headers do erro:', error.response?.headers);
     console.error('❌ Configuração da requisição:', {
       url: 'https://api.openai.com/v1/audio/transcriptions',
@@ -129,6 +129,11 @@ async function speechToText(audioBlob) {
       audioSize: audioBlob.length,
       audioType: 'audio/webm'
     });
+    
+    // Log adicional para debug
+    if (error.response?.data?.error) {
+      console.error('❌ Erro específico da OpenAI:', error.response.data.error);
+    }
     
     return {
       success: false,
