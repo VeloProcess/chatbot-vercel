@@ -113,12 +113,21 @@ async function speechToText(audioBlob) {
     console.error('❌ Erro no Speech-to-Text:', error);
     console.error('❌ Status:', error.response?.status);
     console.error('❌ Dados do erro:', error.response?.data);
+    console.error('❌ Headers do erro:', error.response?.headers);
+    console.error('❌ Configuração da requisição:', {
+      url: 'https://api.openai.com/v1/audio/transcriptions',
+      method: 'POST',
+      timeout: 60000,
+      audioSize: audioBlob.length,
+      audioType: 'audio/webm'
+    });
     
     return {
       success: false,
       error: error.message,
       text: '',
-      details: error.response?.data
+      details: error.response?.data,
+      statusCode: error.response?.status
     };
   }
 }

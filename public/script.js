@@ -844,6 +844,8 @@ async function processAudioToText(audioBlob) {
             }, 500);
         } else {
             updateVoiceMessage(progressMessage, `❌ Erro ao processar áudio: ${result.error}`);
+            console.error('❌ Detalhes do erro:', result.details);
+            console.error('❌ Status code:', result.statusCode);
         }
 
     } catch (error) {
