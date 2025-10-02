@@ -36,6 +36,13 @@ async function speechToText(audioBlob) {
       throw new Error('Buffer de áudio está vazio');
     }
     
+    // Otimização: Verificar se o áudio não é muito grande (limite de 25MB da OpenAI)
+    const maxSize = 25 * 1024 * 1024; // 25MB
+    if (audioBuffer.length > maxSize) {
+      console.log('⚠️ Áudio muito grande, pode causar lentidão:', audioBuffer.length);
+      // Podemos implementar compressão aqui se necessário
+    }
+    
     // Criar FormData para OpenAI Whisper
     const FormData = require('form-data');
     const form = new FormData();
@@ -49,15 +56,19 @@ async function speechToText(audioBlob) {
     form.append('response_format', 'json');
     form.append('temperature', '0.0'); // Reduzir criatividade para melhor precisão
     
-    // Fazer requisição para OpenAI Whisper
+    // Fazer requisição para OpenAI Whisper com configurações otimizadas
     const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', form, {
       headers: {
         'Authorization': `Bearer ${cleanApiKey}`,
         ...form.getHeaders()
       },
-      timeout: 30000,
+      timeout: 60000, // Aumentar timeout para 60 segundos
       maxContentLength: Infinity,
-      maxBodyLength: Infinity
+      maxBodyLength: Infinity,
+      // Configurações adicionais para melhor performance
+      validateStatus: function (status) {
+        return status >= 200 && status < 300; // Aceitar apenas status de sucesso
+      }
     });
 
     console.log('🎤 Resposta da API:', response.status);

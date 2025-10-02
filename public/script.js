@@ -757,6 +757,9 @@ async function processAudioToText(audioBlob) {
     try {
         addVoiceMessage('🎤 Processando áudio...', 'bot');
         
+        // Mostrar indicador de progresso mais detalhado
+        const progressMessage = addVoiceMessage('⏳ Enviando áudio para transcrição...', 'bot');
+        
         console.log('🎤 Tipo do audioBlob:', typeof audioBlob);
         console.log('🎤 audioBlob:', audioBlob);
         
@@ -768,6 +771,9 @@ async function processAudioToText(audioBlob) {
         // Converter blob para base64
         const arrayBuffer = await audioBlob.arrayBuffer();
         console.log('🎤 ArrayBuffer criado, tamanho:', arrayBuffer.byteLength);
+        
+        // Atualizar mensagem de progresso
+        updateVoiceMessage(progressMessage, '🔄 Convertendo áudio para texto...');
         
         // Converter para base64 de forma mais segura
         const uint8Array = new Uint8Array(arrayBuffer);
@@ -781,6 +787,9 @@ async function processAudioToText(audioBlob) {
         
         const base64Audio = btoa(binaryString);
         console.log('🎤 Base64 criado, tamanho:', base64Audio.length);
+        
+        // Atualizar mensagem de progresso
+        updateVoiceMessage(progressMessage, '🚀 Enviando para OpenAI Whisper...');
         
         const response = await fetch('/api/voice?action=speech-to-text', {
             method: 'POST',
@@ -805,20 +814,32 @@ async function processAudioToText(audioBlob) {
         console.log('🎤 Resultado da API:', result);
 
         if (result.success) {
-            addVoiceMessage(`🎤 Você disse: "${result.text}"`, 'user');
-            // Chamar buscarResposta se estiver disponível
-            if (typeof buscarResposta === 'function') {
-                buscarResposta(result.text);
-            } else {
-                addVoiceMessage('❌ Função buscarResposta não disponível', 'bot');
-            }
+            updateVoiceMessage(progressMessage, '✅ Transcrição concluída!');
+            
+            // Pequeno delay para mostrar a mensagem de sucesso
+            setTimeout(() => {
+                addVoiceMessage(`🎤 Você disse: "${result.text}"`, 'user');
+                // Chamar buscarResposta se estiver disponível
+                if (typeof buscarResposta === 'function') {
+                    buscarResposta(result.text);
+                } else {
+                    addVoiceMessage('❌ Função buscarResposta não disponível', 'bot');
+                }
+            }, 500);
         } else {
-            addVoiceMessage(`❌ Erro ao processar áudio: ${result.error}`, 'bot');
+            updateVoiceMessage(progressMessage, `❌ Erro ao processar áudio: ${result.error}`);
         }
 
     } catch (error) {
         console.error('❌ Erro ao processar áudio:', error);
         addVoiceMessage(`❌ Erro ao processar áudio: ${error.message}`, 'bot');
+    }
+}
+
+// Função auxiliar para atualizar mensagens de voz
+function updateVoiceMessage(messageElement, newText) {
+    if (messageElement && messageElement.querySelector('.message-content')) {
+        messageElement.querySelector('.message-content').textContent = newText;
     }
 }
 
