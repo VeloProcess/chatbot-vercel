@@ -89,7 +89,7 @@ function addVoiceMessage(text, sender, options = null) {
             button.onclick = () => {
                 console.log('🔘 Opção clicada:', optionText);
                 addVoiceMessage(optionText, 'user');
-                buscarResposta(optionText, true, ultimaPergunta); // true = isClarification, ultimaPergunta = original
+                buscarResposta(optionText, true); // true = isClarification
             };
             optionsContainer.appendChild(button);
         });
@@ -862,7 +862,7 @@ function updateVoiceMessage(messageElement, newText) {
 }
 
 // Função global para buscar respostas com sistema de conversação
-async function buscarResposta(textoDaPergunta, isClarification = false, perguntaOriginal = null) {
+async function buscarResposta(textoDaPergunta, isClarification = false) {
     // Verificar se as variáveis necessárias estão disponíveis
     if (typeof ultimaPergunta !== 'undefined') {
         ultimaPergunta = textoDaPergunta;
@@ -897,9 +897,6 @@ async function buscarResposta(textoDaPergunta, isClarification = false, pergunta
         // Se é pergunta de esclarecimento, adicionar parâmetro
         if (isClarification) {
             url += '&isClarification=true';
-            if (perguntaOriginal) {
-                url += `&originalQuestion=${encodeURIComponent(perguntaOriginal)}`;
-            }
             console.log('📋 Pergunta de esclarecimento detectada');
         }
         

@@ -252,11 +252,18 @@ function findMatches(pergunta, faqData) {
         console.log(`⚠️ Documento ${i + 1} tem pergunta vazia!`, documento);
       }
       
-      // Usar palavras-chave como fallback se pergunta estiver vazia
+      // Usar pergunta original se disponível, senão palavras-chave, senão resposta resumida
       let perguntaParaLista = documento.Pergunta || '';
       if (!perguntaParaLista || perguntaParaLista.trim() === '') {
-        perguntaParaLista = documento.Palavras_chave || `Tópico ${i + 1}`;
-        console.log(`🔄 Usando palavras-chave como fallback para documento ${i + 1}:`, perguntaParaLista);
+        if (documento.Palavras_chave && documento.Palavras_chave.trim() !== '') {
+          perguntaParaLista = documento.Palavras_chave;
+        } else if (documento.Resposta && documento.Resposta.trim() !== '') {
+          // Usar primeiras palavras da resposta como título
+          perguntaParaLista = documento.Resposta.substring(0, 50) + '...';
+        } else {
+          perguntaParaLista = `Tópico ${i + 1}`;
+        }
+        console.log(`🔄 Usando fallback para documento ${i + 1}:`, perguntaParaLista);
       }
       
       todasAsCorrespondencias.push({
@@ -393,35 +400,26 @@ async function askMongoDBHandler(req, res) {
     // Se é pergunta de esclarecimento (clique em lista), SEMPRE resposta direta
     if (isClarificationQuestion) {
       console.log('📋 Pergunta de esclarecimento - resposta direta');
+      console.log('📋 Pergunta clicada:', pergunta);
       
-      // Se a pergunta é um "Tópico X", buscar pela pergunta original do produto
-      if (pergunta.startsWith('Tópico ')) {
-        console.log('📋 Detectado clique em tópico genérico, buscando pela pergunta original');
-        const perguntaOriginal = req.query.originalQuestion || 'crédito trabalhador';
-        console.log('📋 Pergunta original:', perguntaOriginal);
-        
-        // Buscar novamente com a pergunta original
-        const correspondenciasOriginais = findMatches(perguntaOriginal, faqData);
-        console.log('📋 Correspondências originais encontradas:', correspondenciasOriginais.length);
-        
-        if (correspondenciasOriginais.length > 0) {
-          // Usar o índice do tópico para pegar a resposta correta
-          const indiceTopico = parseInt(pergunta.replace('Tópico ', '')) - 1;
-          const respostaEscolhida = correspondenciasOriginais[indiceTopico];
-          
-          if (respostaEscolhida) {
-            console.log('📋 Resposta escolhida:', respostaEscolhida);
-            return res.status(200).json({
-              status: "sucesso",
-              resposta: respostaEscolhida.resposta,
-              sourceRow: respostaEscolhida.sourceRow,
-              tabulacoes: respostaEscolhida.tabulacoes,
-              source: "MongoDB"
-            });
-          }
-        }
+      // Buscar correspondência exata pela pergunta clicada
+      const correspondenciaExata = correspondencias.find(c => 
+        c.perguntaOriginal.toLowerCase().trim() === pergunta.toLowerCase().trim()
+      );
+      
+      if (correspondenciaExata) {
+        console.log('📋 Correspondência exata encontrada:', correspondenciaExata);
+        return res.status(200).json({
+          status: "sucesso",
+          resposta: correspondenciaExata.resposta,
+          sourceRow: correspondenciaExata.sourceRow,
+          tabulacoes: correspondenciaExata.tabulacoes,
+          source: "MongoDB"
+        });
       }
       
+      // Se não encontrou correspondência exata, usar a primeira
+      console.log('📋 Usando primeira correspondência como fallback');
       return res.status(200).json({
         status: "sucesso",
         resposta: correspondencias[0].resposta,
