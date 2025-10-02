@@ -75,6 +75,19 @@ async function getFaqData() {
     if (documents.length > 0) {
       console.log('🔍 Primeiro documento:', JSON.stringify(documents[0], null, 2));
       console.log('🔍 Estrutura dos campos:', Object.keys(documents[0]));
+      
+      // Log detalhado dos primeiros 3 documentos
+      for (let i = 0; i < Math.min(3, documents.length); i++) {
+        const doc = documents[i];
+        console.log(`🔍 Documento ${i + 1} detalhado:`, {
+          _id: doc._id,
+          pergunta: doc.pergunta,
+          palavrasChave: doc.palavrasChave,
+          resposta: doc.resposta,
+          sinonimos: doc.sinonimos,
+          todosOsCampos: Object.keys(doc)
+        });
+      }
     }
 
     if (documents.length === 0) {
@@ -148,21 +161,21 @@ function findMatches(pergunta, faqData) {
 
   for (let i = 0; i < faqData.length; i++) {
     const documento = faqData[i];
-    const textoPalavrasChave = normalizarTexto(documento.Palavras_chave || '');
-    const textoPergunta = normalizarTexto(documento.Pergunta || '');
-    const textoSinonimos = normalizarTexto(documento.Sinonimos || '');
+    const textoPalavrasChave = normalizarTexto(documento.palavrasChave || '');
+    const textoPergunta = normalizarTexto(documento.pergunta || '');
+    const textoSinonimos = normalizarTexto(documento.sinonimos || '');
     let relevanceScore = 0;
 
     // Log detalhado para debug (apenas para os primeiros 3 documentos)
     if (i < 3) {
       console.log(`🔍 Documento ${i + 1}:`, {
-        pergunta: documento.Pergunta,
-        palavrasChave: documento.Palavras_chave,
-        sinonimos: documento.Sinonimos,
+        pergunta: documento.pergunta,
+        palavrasChave: documento.palavrasChave,
+        sinonimos: documento.sinonimos,
         textoPalavrasChave,
         textoPergunta,
         textoSinonimos,
-        perguntaNormalizada: normalizarTexto(documento.Pergunta),
+        perguntaNormalizada: normalizarTexto(documento.pergunta),
         perguntaOriginalNormalizada: normalizarTexto(pergunta)
       });
     }
@@ -195,13 +208,13 @@ function findMatches(pergunta, faqData) {
     }
 
     // Busca mais flexível - verificar se a pergunta contém parte do texto
-    const perguntaOriginal = documento.Pergunta || '';
+    const perguntaOriginal = documento.pergunta || '';
     if (perguntaOriginal.toLowerCase().includes(pergunta.toLowerCase())) {
       relevanceScore += 4; // Peso alto para correspondência exata
     }
 
     // Busca nas palavras-chave com correspondência parcial
-    const palavrasChaveOriginal = documento.Palavras_chave || '';
+    const palavrasChaveOriginal = documento.palavrasChave || '';
     if (palavrasChaveOriginal.toLowerCase().includes(pergunta.toLowerCase())) {
       relevanceScore += 4; // Peso alto para correspondência exata
     }
@@ -239,27 +252,27 @@ function findMatches(pergunta, faqData) {
 
     if (relevanceScore > 0) {
       console.log(`✅ Correspondência encontrada no documento ${i + 1}:`, {
-        pergunta: documento.Pergunta,
-        perguntaOriginal: documento.Pergunta || '',
+        pergunta: documento.pergunta,
+        perguntaOriginal: documento.pergunta || '',
         score: relevanceScore,
-        palavrasChave: documento.Palavras_chave,
-        sinonimos: documento.Sinonimos,
-        resposta: documento.Resposta
+        palavrasChave: documento.palavrasChave,
+        sinonimos: documento.sinonimos,
+        resposta: documento.resposta
       });
       
       // Verificar se perguntaOriginal não está vazia
-      if (!documento.Pergunta || documento.Pergunta.trim() === '') {
+      if (!documento.pergunta || documento.pergunta.trim() === '') {
         console.log(`⚠️ Documento ${i + 1} tem pergunta vazia!`, documento);
       }
       
       // Usar pergunta original se disponível, senão palavras-chave, senão resposta resumida
-      let perguntaParaLista = documento.Pergunta || '';
+      let perguntaParaLista = documento.pergunta || '';
       if (!perguntaParaLista || perguntaParaLista.trim() === '') {
-        if (documento.Palavras_chave && documento.Palavras_chave.trim() !== '') {
-          perguntaParaLista = documento.Palavras_chave;
-        } else if (documento.Resposta && documento.Resposta.trim() !== '') {
+        if (documento.palavrasChave && documento.palavrasChave.trim() !== '') {
+          perguntaParaLista = documento.palavrasChave;
+        } else if (documento.resposta && documento.resposta.trim() !== '') {
           // Usar primeiras palavras da resposta como título
-          perguntaParaLista = documento.Resposta.substring(0, 50) + '...';
+          perguntaParaLista = documento.resposta.substring(0, 50) + '...';
         } else {
           perguntaParaLista = `Tópico ${i + 1}`;
         }
@@ -267,11 +280,11 @@ function findMatches(pergunta, faqData) {
       }
       
       todasAsCorrespondencias.push({
-        resposta: documento.Resposta || '',
+        resposta: documento.resposta || '',
         perguntaOriginal: perguntaParaLista,
         sourceRow: documento._id || (i + 1), // Usar _id se disponível, senão índice
         score: relevanceScore,
-        tabulacoes: documento.Palavras_chave || null
+        tabulacoes: documento.palavrasChave || null
       });
     }
   }
