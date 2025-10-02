@@ -348,7 +348,9 @@ async function askMongoDBHandler(req, res) {
       pergunta.toLowerCase().includes(produto.toLowerCase())
     );
     
+    console.log('🔍 Pergunta recebida:', pergunta);
     console.log('🔍 É clique em produto?', isProdutoClick);
+    console.log('🔍 Produtos verificados:', produtos);
     
     const correspondencias = findMatches(pergunta, faqData);
     console.log('🔍 ask-mongodb: Correspondências encontradas:', correspondencias.length);
@@ -385,6 +387,7 @@ async function askMongoDBHandler(req, res) {
     if (isProdutoClick && correspondencias.length > 0) {
       console.log('📋 Clique em produto - sempre mostrar lista:', correspondencias.length);
       console.log('📋 Scores:', correspondencias.map(c => ({ pergunta: c.perguntaOriginal, score: c.score })));
+      console.log('📋 Opções que serão enviadas:', correspondencias.map(c => c.perguntaOriginal).slice(0, 12));
       
       return res.status(200).json({
         status: "clarification_needed",
@@ -394,6 +397,11 @@ async function askMongoDBHandler(req, res) {
         sourceRow: 'Pergunta de Esclarecimento'
       });
     }
+    
+    // Debug: verificar se chegou até aqui
+    console.log('🔍 Não é clique em produto ou não há correspondências');
+    console.log('🔍 isProdutoClick:', isProdutoClick);
+    console.log('🔍 correspondencias.length:', correspondencias.length);
     
     // Se há apenas uma correspondência, resposta direta
     if (correspondencias.length === 1) {
