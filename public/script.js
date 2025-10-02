@@ -581,6 +581,7 @@ async function toggleRecording() {
         return;
     }
     
+    // Marcar como processando para evitar duplo clique
     isProcessingRecording = true;
     
     try {
@@ -592,11 +593,11 @@ async function toggleRecording() {
             await startRecording();
         }
     } finally {
-        // Liberar o controle após um pequeno delay
+        // Liberar o controle após um pequeno delay para evitar duplo clique
         setTimeout(() => {
             isProcessingRecording = false;
             console.log('✅ Controle de gravação liberado');
-        }, 500);
+        }, 1000); // Aumentar para 1 segundo para evitar cliques muito rápidos
     }
 }
 
@@ -1879,14 +1880,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (result.success && result.voices.length > 0) {
-                    voiceSelector.innerHTML = '';
-                    result.voices.forEach(voice => {
-                        const option = document.createElement('option');
-                        option.value = voice.id;
-                        option.textContent = voice.name;
-                        voiceSelector.appendChild(option);
-                    });
-                    voiceSelector.classList.remove('hidden');
+                    console.log('🎵 Vozes carregadas:', result.voices.length);
+                    // Se houver um seletor de voz no futuro, podemos usar aqui
+                } else {
+                    console.log('⚠️ Nenhuma voz disponível ou erro ao carregar');
                 }
 
             } catch (error) {
@@ -2057,24 +2054,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Configurar botão de voz - FUNCIONALIDADE ATIVADA
         function setupVoiceButton() {
             const voiceBtn = document.getElementById('voice-button');
-            if (voiceBtn) {
-                // Configurar botão de voz - ATIVADO
-                voiceBtn.innerHTML = '🎤';
-                voiceBtn.classList.remove('voice-btn-disabled');
-                voiceBtn.onclick = function() {
-                    console.log('🎤 Botão de voz clicado!');
-                    console.log('🎤 Tentando chamar toggleRecording...');
-                    try {
-                        toggleRecording();
-                    } catch (error) {
-                        console.error('❌ Erro ao chamar toggleRecording:', error);
-                        addMessage('❌ Erro ao iniciar gravação: ' + error.message, 'bot');
-                    }
-                };
-                console.log('✅ Botão de voz configurado e ATIVADO');
-            } else {
-                console.error('❌ Botão de voz não encontrado');
-            }
+            // O botão de voz já foi configurado na função initVoiceFeatures()
+            // Não precisamos configurar novamente aqui
         }
 
         // Configurar botão de play
