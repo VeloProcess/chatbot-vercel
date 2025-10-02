@@ -958,31 +958,40 @@ async function buscarResposta(textoDaPergunta, isClarification = false) {
         }
         
         // ==================== PROCESSAMENTO CONVERSACIONAL ====================
-        console.log('💬 Tornando resposta conversacional...');
-        const respostaConversacional = await makeResponseConversational(textoDaPergunta, respostaFinal);
+        // Só processar conversacionalmente se NÃO for pergunta de esclarecimento
+        if (!isClarification) {
+            console.log('💬 Tornando resposta conversacional...');
+            const respostaConversacional = await makeResponseConversational(textoDaPergunta, respostaFinal);
+            
+            // Gerar frase de conversação
+            const fraseConversacao = generateConversationPhrase(textoDaPergunta);
+            console.log('🗣️ Frase de conversação gerada:', fraseConversacao);
+            
+            // Combinar frase de conversação com resposta conversacional
+            const respostaCompleta = `${fraseConversacao}\n\n${respostaConversacional}`;
+            
+            console.log('📝 Resposta final processada:', respostaCompleta);
+            console.log('📝 Chamando addVoiceMessage...');
+            addVoiceMessage(respostaCompleta, 'bot');
+            console.log('✅ addVoiceMessage chamada com sucesso');
+        } else {
+            // Para perguntas de esclarecimento, resposta direta sem processamento conversacional
+            console.log('📋 Resposta direta para esclarecimento');
+            addVoiceMessage(respostaFinal, 'bot');
+        }
         
-        // Gerar frase de conversação
-        const fraseConversacao = generateConversationPhrase(textoDaPergunta);
-        console.log('🗣️ Frase de conversação gerada:', fraseConversacao);
-        
-        // Combinar frase de conversação com resposta conversacional
-        const respostaCompleta = `${fraseConversacao}\n\n${respostaConversacional}`;
-        
-        console.log('📝 Resposta final processada:', respostaCompleta);
-        console.log('📝 Chamando addVoiceMessage...');
-        addVoiceMessage(respostaCompleta, 'bot');
-        console.log('✅ addVoiceMessage chamada com sucesso');
-        
-        // Reproduzir áudio automaticamente para entrada por voz
-        console.log('🔊 Iniciando reprodução automática de áudio...');
-        setTimeout(async () => {
-            try {
-                await playLastResponse(respostaCompleta);
-                console.log('✅ Reprodução automática de áudio concluída');
-            } catch (error) {
-                console.error('❌ Erro na reprodução automática:', error);
-            }
-        }, 1000); // Aguardar 1 segundo para garantir que a mensagem foi exibida
+        // Reproduzir áudio automaticamente para entrada por voz (apenas se não for esclarecimento)
+        if (!isClarification) {
+            console.log('🔊 Iniciando reprodução automática de áudio...');
+            setTimeout(async () => {
+                try {
+                    await playLastResponse(respostaCompleta);
+                    console.log('✅ Reprodução automática de áudio concluída');
+                } catch (error) {
+                    console.error('❌ Erro na reprodução automática:', error);
+                }
+            }, 1000); // Aguardar 1 segundo para garantir que a mensagem foi exibida
+        }
     } catch (error) {
         if (typeof hideTypingIndicator === 'function') {
             hideTypingIndicator();
