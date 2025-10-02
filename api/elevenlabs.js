@@ -15,6 +15,7 @@ async function speechToText(audioBlob) {
   try {
     console.log('🎤 Convertendo áudio para texto usando OpenAI Whisper...');
     console.log('🎤 Tamanho do áudio base64:', audioBlob.length);
+    console.log('🎤 Primeiros 100 caracteres do áudio:', audioBlob.substring(0, 100));
     
     // Usar OpenAI Whisper em vez da ElevenLabs
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -30,6 +31,7 @@ async function speechToText(audioBlob) {
     // Converter base64 para buffer
     const audioBuffer = Buffer.from(audioBlob, 'base64');
     console.log('🎤 Tamanho do buffer:', audioBuffer.length);
+    console.log('🎤 Primeiros 20 bytes do buffer:', audioBuffer.slice(0, 20));
     
     // Verificar se o buffer não está vazio
     if (audioBuffer.length === 0) {
@@ -41,6 +43,11 @@ async function speechToText(audioBlob) {
     if (audioBuffer.length > maxSize) {
       console.log('⚠️ Áudio muito grande, pode causar lentidão:', audioBuffer.length);
       // Podemos implementar compressão aqui se necessário
+    }
+    
+    // Verificar se o áudio é muito pequeno (menos de 1KB pode ser problema)
+    if (audioBuffer.length < 1024) {
+      console.log('⚠️ Áudio muito pequeno, pode causar erro:', audioBuffer.length);
     }
     
     // Criar FormData para OpenAI Whisper
