@@ -252,9 +252,16 @@ function findMatches(pergunta, faqData) {
         console.log(`⚠️ Documento ${i + 1} tem pergunta vazia!`, documento);
       }
       
+      // Usar palavras-chave como fallback se pergunta estiver vazia
+      let perguntaParaLista = documento.Pergunta || '';
+      if (!perguntaParaLista || perguntaParaLista.trim() === '') {
+        perguntaParaLista = documento.Palavras_chave || `Tópico ${i + 1}`;
+        console.log(`🔄 Usando palavras-chave como fallback para documento ${i + 1}:`, perguntaParaLista);
+      }
+      
       todasAsCorrespondencias.push({
         resposta: documento.Resposta || '',
-        perguntaOriginal: documento.Pergunta || '',
+        perguntaOriginal: perguntaParaLista,
         sourceRow: documento._id || (i + 1), // Usar _id se disponível, senão índice
         score: relevanceScore,
         tabulacoes: documento.Palavras_chave || null
@@ -399,12 +406,29 @@ async function askMongoDBHandler(req, res) {
     if (isProdutoClick && correspondencias.length > 0) {
       console.log('📋 Clique em produto - sempre mostrar lista:', correspondencias.length);
       console.log('📋 Scores:', correspondencias.map(c => ({ pergunta: c.perguntaOriginal, score: c.score })));
-      console.log('📋 Opções que serão enviadas:', correspondencias.map(c => c.perguntaOriginal).slice(0, 12));
+      // Filtrar opções vazias
+      const opcoesValidas = correspondencias
+        .map(c => c.perguntaOriginal)
+        .filter(opcao => opcao && opcao.trim() !== '')
+        .slice(0, 12);
+      
+      console.log('📋 Opções válidas filtradas:', opcoesValidas);
+      
+      if (opcoesValidas.length === 0) {
+        console.log('⚠️ Nenhuma opção válida encontrada, usando resposta direta');
+        return res.status(200).json({
+          status: "sucesso",
+          resposta: correspondencias[0].resposta,
+          sourceRow: correspondencias[0].sourceRow,
+          tabulacoes: correspondencias[0].tabulacoes,
+          source: "MongoDB"
+        });
+      }
       
       return res.status(200).json({
         status: "clarification_needed",
         resposta: `Aqui estão as informações sobre "${pergunta}". Escolha o tópico que melhor se encaixa na sua dúvida:`,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
+        options: opcoesValidas,
         source: "MongoDB",
         sourceRow: 'Pergunta de Esclarecimento'
       });
@@ -429,10 +453,29 @@ async function askMongoDBHandler(req, res) {
       console.log('📋 Múltiplas correspondências encontradas:', correspondencias.length);
       console.log('📋 Scores:', correspondencias.map(c => ({ pergunta: c.perguntaOriginal, score: c.score })));
       
+      // Filtrar opções vazias
+      const opcoesValidas = correspondencias
+        .map(c => c.perguntaOriginal)
+        .filter(opcao => opcao && opcao.trim() !== '')
+        .slice(0, 12);
+      
+      console.log('📋 Opções válidas filtradas (múltiplas):', opcoesValidas);
+      
+      if (opcoesValidas.length === 0) {
+        console.log('⚠️ Nenhuma opção válida encontrada, usando resposta direta');
+        return res.status(200).json({
+          status: "sucesso",
+          resposta: correspondencias[0].resposta,
+          sourceRow: correspondencias[0].sourceRow,
+          tabulacoes: correspondencias[0].tabulacoes,
+          source: "MongoDB"
+        });
+      }
+      
       return res.status(200).json({
         status: "clarification_needed",
         resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
-        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
+        options: opcoesValidas,
         source: "MongoDB",
         sourceRow: 'Pergunta de Esclarecimento'
       });
