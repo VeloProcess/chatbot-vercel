@@ -980,7 +980,7 @@ async function buscarResposta(textoDaPergunta, isClarification = false) {
             addVoiceMessage(respostaFinal, 'bot');
         }
         
-        // Reproduzir áudio automaticamente para entrada por voz (apenas se não for esclarecimento)
+        // Reproduzir áudio automaticamente (TTS ativo)
         if (!isClarification) {
             console.log('🔊 Iniciando reprodução automática de áudio...');
             setTimeout(async () => {
@@ -1816,17 +1816,15 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('- Voice selector:', voiceSel);
             console.log('- Recording indicator:', recordingInd);
             
-            // Configurar botão de voz
+            // Configurar botão de voz - STT DESATIVADO (apenas TTS ativo)
             if (voiceBtn) {
-                // Remover listeners existentes
-                voiceBtn.removeEventListener('click', toggleRecording);
-                // Adicionar novo listener
+                // Desativar gravação de voz (STT)
                 voiceBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    console.log('🎤 Botão de voz clicado!');
-                    toggleRecording();
+                    console.log('🎤 Botão de voz clicado - STT desativado temporariamente');
+                    addMessage('🎤 Gravação de voz temporariamente desativada. Use o chat por texto.', 'bot');
                 });
-                console.log('✅ Event listener adicionado ao botão de voz');
+                console.log('✅ Event listener adicionado ao botão de voz (STT desativado)');
             } else {
                 console.error('❌ Botão de voz não encontrado');
             }
@@ -2054,7 +2052,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🚀 DOM carregado, configurando botões...');
             
-            // Configurar todos os botões
+            // Configurar todos os botões (apenas TTS ativo)
             setupVoiceButton();
             setupPlayButton();
             setupStopButton();
@@ -2069,7 +2067,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('load', () => {
             console.log('🌐 Janela carregada, verificando botões...');
             setTimeout(() => {
-            setupVoiceButton();
+            setupVoiceButton(); // STT desativado, TTS ativo
             setupPlayButton();
             setupStopButton();
             setupExpandableSidebars();
@@ -2204,7 +2202,7 @@ if (feedbackSendBtn) {
         
         // Botão de admin desabilitado temporariamente
         
-        // Inicializar funcionalidades de voz
+        // Inicializar funcionalidades de voz (apenas TTS ativo)
         initVoiceFeatures();
         
         // Inicializar indicador de conectividade
