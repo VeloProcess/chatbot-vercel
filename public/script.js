@@ -2183,6 +2183,107 @@ if (feedbackSendBtn) {
         initializeConnectivityIndicator();
     }
 
+// ==========================================================================
+// SISTEMA DE NOTIFICAÇÃO ÚNICA POR COMMIT
+// ==========================================================================
+
+// Configuração da notificação atual
+const CURRENT_COMMIT_HASH = '6662a07'; // Hash do commit atual
+const NOTIFICATION_CONFIG = {
+    title: '🚀 Atualização Disponível!',
+    content: 'O Veloprocess foi atualizado com melhorias e correções. Recarregue a página para ter a melhor experiência!',
+    showDuration: 8000, // 8 segundos
+    autoHide: true
+};
+
+// Função para verificar se deve mostrar a notificação
+function shouldShowNotification() {
+    const lastSeenCommit = localStorage.getItem('lastSeenCommit');
+    return lastSeenCommit !== CURRENT_COMMIT_HASH;
+}
+
+// Função para marcar commit como visto
+function markCommitAsSeen() {
+    localStorage.setItem('lastSeenCommit', CURRENT_COMMIT_HASH);
+}
+
+// Função para criar e mostrar a notificação
+function showCommitNotification() {
+    if (!shouldShowNotification()) {
+        return;
+    }
+
+    // Criar elemento da notificação
+    const notification = document.createElement('div');
+    notification.className = 'commit-notification';
+    notification.innerHTML = `
+        <div class="commit-notification-header">
+            <div class="commit-notification-title">
+                <span>${NOTIFICATION_CONFIG.title}</span>
+            </div>
+            <button class="commit-notification-close" onclick="hideCommitNotification()">×</button>
+        </div>
+        <div class="commit-notification-content">
+            ${NOTIFICATION_CONFIG.content}
+        </div>
+        <div class="commit-notification-actions">
+            <button class="commit-notification-btn" onclick="hideCommitNotification()">Mais tarde</button>
+            <button class="commit-notification-btn primary" onclick="reloadPage()">Recarregar</button>
+        </div>
+    `;
+
+    // Adicionar ao body
+    document.body.appendChild(notification);
+
+    // Mostrar com animação
+    setTimeout(() => {
+        notification.classList.add('show');
+        notification.classList.add('pulse');
+    }, 100);
+
+    // Auto-hide se configurado
+    if (NOTIFICATION_CONFIG.autoHide) {
+        setTimeout(() => {
+            hideCommitNotification();
+        }, NOTIFICATION_CONFIG.showDuration);
+    }
+
+    // Marcar como visto
+    markCommitAsSeen();
+}
+
+// Função para esconder a notificação
+function hideCommitNotification() {
+    const notification = document.querySelector('.commit-notification');
+    if (notification) {
+        notification.classList.remove('show');
+        notification.classList.add('hide');
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 400);
+    }
+}
+
+// Função para recarregar a página
+function reloadPage() {
+    window.location.reload();
+}
+
+// Inicializar notificação quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+    // Aguardar um pouco para garantir que tudo carregou
+    setTimeout(() => {
+        showCommitNotification();
+    }, 2000);
+});
+
+// ==========================================================================
+// FIM DO SISTEMA DE NOTIFICAÇÃO
+// ==========================================================================
+
     // Inicia todo o processo de autenticação
     initGoogleSignIn();
 });
