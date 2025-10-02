@@ -52,9 +52,17 @@ async function speechToText(audioBlob) {
       contentType: 'audio/webm'
     });
     form.append('model', 'whisper-1');
-    form.append('language', 'pt');
-    form.append('response_format', 'json');
-    form.append('temperature', '0.0'); // Reduzir criatividade para melhor precisão
+    // Remover parâmetros que podem causar erro 400
+    // form.append('language', 'pt');
+    // form.append('response_format', 'json');
+    // form.append('temperature', '0.0');
+    
+    console.log('🎤 Parâmetros da requisição:', {
+      filename: 'audio.webm',
+      contentType: 'audio/webm',
+      model: 'whisper-1',
+      audioSize: audioBuffer.length
+    });
     
     // Fazer requisição para OpenAI Whisper com configurações otimizadas
     const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', form, {
