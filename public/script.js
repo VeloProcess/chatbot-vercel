@@ -6,6 +6,7 @@ let audioChunks = [];
 let currentAudio = null;
 let currentStream = null; // Para gerenciar o stream de áudio
 let isProcessingRecording = false; // Para evitar múltiplas chamadas simultâneas
+let audioProcessed = false; // Para evitar processamento duplicado
 
 // ==================== VARIÁVEIS DE CONVERSAÇÃO ====================
 let conversationSession = null;
@@ -642,13 +643,16 @@ async function startRecording() {
         mediaRecorder.onstop = async () => {
             console.log('🎤 Evento onstop disparado, chunks:', audioChunks.length);
             
-            // Verificar se ainda está marcado como gravando
-            if (!isRecording) {
-                console.log('⚠️ Gravação já foi parada, ignorando onstop');
+            // Evitar processamento duplicado
+            if (audioProcessed) {
+                console.log('⚠️ Áudio já foi processado, ignorando onstop');
                 return;
             }
             
+            // Processar áudio independentemente do estado de isRecording
+            // pois o evento onstop pode ser disparado após isRecording ser false
             if (audioChunks.length > 0) {
+                audioProcessed = true; // Marcar como processado
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 console.log('🎤 Blob criado:', audioBlob);
                 await processAudioToText(audioBlob);
@@ -659,6 +663,7 @@ async function startRecording() {
 
         mediaRecorder.start(1000); // Coletar dados a cada 1 segundo
         isRecording = true;
+        audioProcessed = false; // Resetar flag de processamento
         
         // Buscar elementos dinamicamente
         const voiceBtn = document.getElementById('voice-button');
@@ -702,6 +707,16 @@ function stopRecording() {
             if (mediaRecorder.state === 'recording') {
                 console.log('⏹️ MediaRecorder está gravando, parando...');
                 mediaRecorder.stop();
+                
+                // Fallback: processar áudio após um pequeno delay se onstop não funcionar
+                setTimeout(async () => {
+                    if (audioChunks.length > 0 && !audioProcessed) {
+                        console.log('🔄 Fallback: processando áudio após timeout');
+                        audioProcessed = true; // Marcar como processado
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        await processAudioToText(audioBlob);
+                    }
+                }, 2000); // 2 segundos de timeout
             } else {
                 console.log('⏹️ MediaRecorder não está gravando, estado:', mediaRecorder.state);
             }
