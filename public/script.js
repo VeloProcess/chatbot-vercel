@@ -552,12 +552,23 @@ async function playLastResponse(text = null) {
                 throw new Error('Erro ao processar áudio: ' + error.message);
             }
         } else {
-            addMessage(`❌ Erro ao converter para áudio: ${result.error}`, 'bot');
+            // Verificar se é erro de créditos esgotados
+            if (result.error && result.error.includes('Limite de requisições excedido na API ElevenLabs')) {
+                addMessage('Ops! Parece que seus créditos acabaram por enquanto😓. Fala com o nosso suporte pra gente poder continuar te ajudando com os próximos passos.', 'bot');
+            } else {
+                addMessage(`❌ Erro ao converter para áudio: ${result.error}`, 'bot');
+            }
         }
 
     } catch (error) {
         console.error('❌ Erro ao reproduzir áudio:', error);
-        addMessage(`❌ Erro ao reproduzir áudio: ${error.message}`, 'bot');
+        
+        // Verificar se é erro de créditos esgotados
+        if (error.message && error.message.includes('429')) {
+            addMessage('Ops! Parece que seus créditos acabaram por enquanto😓. Fala com o nosso suporte pra gente poder continuar te ajudando com os próximos passos.', 'bot');
+        } else {
+            addMessage(`❌ Erro ao reproduzir áudio: ${error.message}`, 'bot');
+        }
     }
 }
 
