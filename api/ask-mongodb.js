@@ -341,6 +341,15 @@ async function askMongoDBHandler(req, res) {
     console.log('🔍 ask-mongodb: Dados obtidos:', faqData ? faqData.length : 'null', 'documentos');
     
     console.log('🔍 ask-mongodb: Buscando correspondências...');
+    
+    // Verificar se é um clique em botão de produto (sempre mostrar lista)
+    const produtos = ['antecipação', 'crédito pessoal', 'crédito trabalhador', 'crédito do trabalhador', 'liquidação antecipada'];
+    const isProdutoClick = produtos.some(produto => 
+      pergunta.toLowerCase().includes(produto.toLowerCase())
+    );
+    
+    console.log('🔍 É clique em produto?', isProdutoClick);
+    
     const correspondencias = findMatches(pergunta, faqData);
     console.log('🔍 ask-mongodb: Correspondências encontradas:', correspondencias.length);
 
@@ -369,6 +378,20 @@ async function askMongoDBHandler(req, res) {
         sourceRow: correspondencias[0].sourceRow,
         tabulacoes: correspondencias[0].tabulacoes,
         source: "MongoDB"
+      });
+    }
+    
+    // Se é clique em produto, SEMPRE mostrar lista
+    if (isProdutoClick && correspondencias.length > 0) {
+      console.log('📋 Clique em produto - sempre mostrar lista:', correspondencias.length);
+      console.log('📋 Scores:', correspondencias.map(c => ({ pergunta: c.perguntaOriginal, score: c.score })));
+      
+      return res.status(200).json({
+        status: "clarification_needed",
+        resposta: `Aqui estão as informações sobre "${pergunta}". Escolha o tópico que melhor se encaixa na sua dúvida:`,
+        options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
+        source: "MongoDB",
+        sourceRow: 'Pergunta de Esclarecimento'
       });
     }
     
