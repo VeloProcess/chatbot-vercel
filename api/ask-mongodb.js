@@ -393,6 +393,35 @@ async function askMongoDBHandler(req, res) {
     // Se é pergunta de esclarecimento (clique em lista), SEMPRE resposta direta
     if (isClarificationQuestion) {
       console.log('📋 Pergunta de esclarecimento - resposta direta');
+      
+      // Se a pergunta é um "Tópico X", buscar pela pergunta original do produto
+      if (pergunta.startsWith('Tópico ')) {
+        console.log('📋 Detectado clique em tópico genérico, buscando pela pergunta original');
+        const perguntaOriginal = req.query.originalQuestion || 'crédito trabalhador';
+        console.log('📋 Pergunta original:', perguntaOriginal);
+        
+        // Buscar novamente com a pergunta original
+        const correspondenciasOriginais = findMatches(perguntaOriginal, faqData);
+        console.log('📋 Correspondências originais encontradas:', correspondenciasOriginais.length);
+        
+        if (correspondenciasOriginais.length > 0) {
+          // Usar o índice do tópico para pegar a resposta correta
+          const indiceTopico = parseInt(pergunta.replace('Tópico ', '')) - 1;
+          const respostaEscolhida = correspondenciasOriginais[indiceTopico];
+          
+          if (respostaEscolhida) {
+            console.log('📋 Resposta escolhida:', respostaEscolhida);
+            return res.status(200).json({
+              status: "sucesso",
+              resposta: respostaEscolhida.resposta,
+              sourceRow: respostaEscolhida.sourceRow,
+              tabulacoes: respostaEscolhida.tabulacoes,
+              source: "MongoDB"
+            });
+          }
+        }
+      }
+      
       return res.status(200).json({
         status: "sucesso",
         resposta: correspondencias[0].resposta,
