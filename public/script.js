@@ -2170,38 +2170,6 @@ if (feedbackSendBtn) {
             });
         }
 
-        // Botão de refresh do cache
-        const refreshCacheBtn = document.getElementById('refresh-cache');
-        if (refreshCacheBtn) {
-            refreshCacheBtn.addEventListener('click', async () => {
-                try {
-                    refreshCacheBtn.classList.add('loading');
-                    refreshCacheBtn.disabled = true;
-                    
-                    const response = await fetch('/api/ask-mongodb?action=refresh', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        addMessage(`✅ Cache atualizado com sucesso! ${result.dataCount} registros carregados.`, 'bot');
-                    } else {
-                        addMessage(`❌ Erro ao atualizar cache: ${result.error}`, 'bot');
-                    }
-                } catch (error) {
-                    console.error('Erro ao atualizar cache:', error);
-                    addMessage(`❌ Erro ao atualizar cache: ${error.message}`, 'bot');
-                } finally {
-                    refreshCacheBtn.classList.remove('loading');
-                    refreshCacheBtn.disabled = false;
-                }
-            });
-        }
-
         setInitialTheme();
         carregarNoticias();
         carregarStatusProdutos();
