@@ -1816,15 +1816,17 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('- Voice selector:', voiceSel);
             console.log('- Recording indicator:', recordingInd);
             
-            // Configurar botão de voz - STT DESATIVADO (apenas TTS ativo)
+            // Configurar botão de voz
             if (voiceBtn) {
-                // Desativar gravação de voz (STT)
+                // Remover listeners existentes
+                voiceBtn.removeEventListener('click', toggleRecording);
+                // Adicionar novo listener
                 voiceBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    console.log('🎤 Botão de voz clicado - STT desativado temporariamente');
-                    addMessage('🎤 Gravação de voz temporariamente desativada. Use o chat por texto.', 'bot');
+                    console.log('🎤 Botão de voz clicado!');
+                    toggleRecording();
                 });
-                console.log('✅ Event listener adicionado ao botão de voz (STT desativado)');
+                console.log('✅ Event listener adicionado ao botão de voz');
             } else {
                 console.error('❌ Botão de voz não encontrado');
             }
