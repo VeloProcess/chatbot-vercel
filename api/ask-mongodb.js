@@ -240,10 +240,17 @@ function findMatches(pergunta, faqData) {
     if (relevanceScore > 0) {
       console.log(`✅ Correspondência encontrada no documento ${i + 1}:`, {
         pergunta: documento.Pergunta,
+        perguntaOriginal: documento.Pergunta || '',
         score: relevanceScore,
         palavrasChave: documento.Palavras_chave,
-        sinonimos: documento.Sinonimos
+        sinonimos: documento.Sinonimos,
+        resposta: documento.Resposta
       });
+      
+      // Verificar se perguntaOriginal não está vazia
+      if (!documento.Pergunta || documento.Pergunta.trim() === '') {
+        console.log(`⚠️ Documento ${i + 1} tem pergunta vazia!`, documento);
+      }
       
       todasAsCorrespondencias.push({
         resposta: documento.Resposta || '',
@@ -270,6 +277,11 @@ function findMatches(pergunta, faqData) {
   console.log('🔍 Total de correspondências encontradas:', correspondenciasUnicas.length);
   if (correspondenciasUnicas.length > 0) {
     console.log('🔍 Melhor correspondência:', correspondenciasUnicas[0]);
+    console.log('🔍 Todas as correspondências:', correspondenciasUnicas.map(c => ({
+      perguntaOriginal: c.perguntaOriginal,
+      score: c.score,
+      isEmpty: !c.perguntaOriginal || c.perguntaOriginal.trim() === ''
+    })));
   }
   
   return correspondenciasUnicas;
