@@ -76,6 +76,26 @@ function addVoiceMessage(text, sender, options = null) {
     
     messageContentDiv.appendChild(messageDiv);
     
+    // Adicionar botões de feedback para respostas do bot
+    if (sender === 'bot') {
+        ultimaLinhaDaFonte = 'Sistema'; // Para addVoiceMessage, usar 'Sistema' como sourceRow
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.className = 'feedback-container';
+        const positiveBtn = document.createElement('button');
+        positiveBtn.className = 'feedback-btn positive';
+        positiveBtn.textContent = '👍';
+        positiveBtn.title = 'Resposta útil e correta';
+        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
+        const negativeBtn = document.createElement('button');
+        negativeBtn.className = 'feedback-btn negative';
+        negativeBtn.textContent = '👎';
+        negativeBtn.title = 'Resposta incorreta ou incompleta';
+        negativeBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+        feedbackContainer.appendChild(positiveBtn);
+        feedbackContainer.appendChild(negativeBtn);
+        messageContentDiv.appendChild(feedbackContainer);
+    }
+    
     // Se há opções, criar lista igual à função addMessage original
     if (options && Array.isArray(options) && options.length > 0) {
         console.log('📋 Criando lista de opções:', options);
