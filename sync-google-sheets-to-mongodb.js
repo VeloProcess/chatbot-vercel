@@ -49,12 +49,14 @@ async function getSheetData() {
 
         // Converter para objetos (pular cabeçalho se houver)
         const data = rows.slice(1).map((row, index) => ({
-            Pergunta: row[0] || '',
-            Resposta: row[1] || '',
-            Palavras_chave: row[2] || '',
-            Sinonimos: row[3] || '',
-            _sheetRow: index + 2 // Linha na planilha (para debug)
-        })).filter(item => item.Pergunta.trim() !== ''); // Filtrar linhas vazias
+            pergunta: row[0] || '',
+            resposta: row[1] || '',
+            palavrasChave: row[2] || '',
+            sinonimos: row[3] || '',
+            tabulacao: row[4] || '',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        })).filter(item => item.pergunta.trim() !== ''); // Filtrar linhas vazias
 
         console.log('✅ Dados da planilha obtidos:', data.length, 'registros');
         return data;
@@ -94,14 +96,18 @@ async function syncData(sheetData, mongoData, client) {
     
     // Mapear dados da planilha
     sheetData.forEach(item => {
-        const key = item.Pergunta.toLowerCase().trim();
-        sheetMap.set(key, item);
+        if (item.pergunta && typeof item.pergunta === 'string') {
+            const key = item.pergunta.toLowerCase().trim();
+            sheetMap.set(key, item);
+        }
     });
     
     // Mapear dados do MongoDB
     mongoData.forEach(item => {
-        const key = item.Pergunta.toLowerCase().trim();
-        mongoMap.set(key, item);
+        if (item.pergunta && typeof item.pergunta === 'string') {
+            const key = item.pergunta.toLowerCase().trim();
+            mongoMap.set(key, item);
+        }
     });
     
     let added = 0;
@@ -116,21 +122,27 @@ async function syncData(sheetData, mongoData, client) {
             // Item não existe no MongoDB - ADICIONAR
             await collection.insertOne(sheetItem);
             added++;
-            console.log('➕ Adicionado:', sheetItem.Pergunta);
+            console.log('➕ Adicionado:', sheetItem.pergunta);
         } else {
             // Item existe - verificar se precisa ATUALIZAR
             const needsUpdate = 
-                mongoItem.Resposta !== sheetItem.Resposta ||
-                mongoItem.Palavras_chave !== sheetItem.Palavras_chave ||
-                mongoItem.Sinonimos !== sheetItem.Sinonimos;
+                mongoItem.resposta !== sheetItem.resposta ||
+                mongoItem.palavrasChave !== sheetItem.palavrasChave ||
+                mongoItem.sinonimos !== sheetItem.sinonimos ||
+                mongoItem.tabulacao !== sheetItem.tabulacao;
             
             if (needsUpdate) {
+                // Atualizar com updatedAt
+                const updateData = {
+                    ...sheetItem,
+                    updatedAt: new Date()
+                };
                 await collection.updateOne(
                     { _id: mongoItem._id },
-                    { $set: sheetItem }
+                    { $set: updateData }
                 );
                 updated++;
-                console.log('🔄 Atualizado:', sheetItem.Pergunta);
+                console.log('🔄 Atualizado:', sheetItem.pergunta);
             }
         }
     }
@@ -140,7 +152,7 @@ async function syncData(sheetData, mongoData, client) {
         if (!sheetMap.has(key)) {
             await collection.deleteOne({ _id: mongoItem._id });
             removed++;
-            console.log('➖ Removido:', mongoItem.Pergunta);
+            console.log('➖ Removido:', mongoItem.pergunta);
         }
     }
     

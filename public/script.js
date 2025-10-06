@@ -409,7 +409,7 @@ function addMessage(text, sender, { sourceRow = null, options = [], source = 'Pl
         positiveBtn.className = 'feedback-btn positive';
         positiveBtn.textContent = '👍';
         positiveBtn.title = 'Resposta útil e correta';
-        positiveBtn.onclick = () => abrirModalFeedback(feedbackContainer);
+        positiveBtn.onclick = () => enviarFeedback('logFeedbackPositivo', feedbackContainer);
         const negativeBtn = document.createElement('button');
         negativeBtn.className = 'feedback-btn negative';
         negativeBtn.textContent = '👎';
@@ -1561,303 +1561,301 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typingIndicator) typingIndicator.classList.add('hidden');
     }
 
+    async function enviarFeedback(action, container, sugestao = null) {
+        if (!ultimaPergunta || !ultimaLinhaDaFonte) {
+            console.error("FALHA: Feedback não enviado.");
+            return;
+        }
+        container.textContent = 'Obrigado pelo feedback!';
+        container.className = 'feedback-thanks';
 
-        async function enviarFeedback(action, container, sugestao = null) {
-            if (!ultimaPergunta || !ultimaLinhaDaFonte) {
-                console.error("FALHA: Feedback não enviado.");
-                return;
+        console.log("Enviando para a API de Feedback:", { action, question: ultimaPergunta, sourceRow: ultimaLinhaDaFonte, email: dadosAtendente.email, sugestao });
+        try {
+            const response = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: action,
+                    email: dadosAtendente.email,
+                    pergunta: ultimaPergunta,
+                    resposta: ultimaLinhaDaFonte,
+                    sugestao: sugestao
+                })
+            });
+            
+            if (response.ok) {
+                console.log("✅ Feedback enviado com sucesso!");
+            } else {
+                console.error("❌ Erro ao enviar feedback:", await response.text());
             }
-            container.textContent = 'Obrigado pelo feedback!';
-            container.className = 'feedback-thanks';
-
-                console.log("Enviando para a API de Feedback:", { action, question: ultimaPergunta, sourceRow: ultimaLinhaDaFonte, email: dadosAtendente.email, sugestao });
-            try {
-                const response = await fetch('/api/feedback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: action,
-                        email: dadosAtendente.email,
-                        pergunta: ultimaPergunta,
-                        resposta: ultimaLinhaDaFonte,
-                        sugestao: sugestao
-                    })
-                });
-                
-                if (response.ok) {
-                    console.log("✅ Feedback enviado com sucesso!");
-                } else {
-                    console.error("❌ Erro ao enviar feedback:", await response.text());
-                }
-            } catch (error) {
-                console.error("ERRO DE REDE ao enviar feedback:", error);
-            }
+        } catch (error) {
+            console.error("ERRO DE REDE ao enviar feedback:", error);
         }
+    }
 
-
-        function handleSendMessage(text) {
-            const trimmedText = text.trim();
-            if (!trimmedText) return;
-            
-            console.log('📤 handleSendMessage chamado com:', trimmedText);
-            
-            // Remover mensagem de boas-vindas se ainda estiver visível
-            const welcomeMessage = document.querySelector('.welcome-message');
-            if (welcomeMessage) {
-                welcomeMessage.remove();
-            }
-            
-            addMessage(trimmedText, 'user');
-            logQuestionOnSheet(trimmedText, dadosAtendente.email);
-            buscarResposta(trimmedText);
-            userInput.value = '';
-        }
-
-        // ==================== FUNÇÕES DA IA AVANÇADA ====================
-
-        function mostrarFollowUps(followups) {
-            if (!followups || followups.length === 0) return;
-            
-            const followUpHTML = `
-                <div class="followups-container">
-                    <h4>💡 Perguntas relacionadas:</h4>
-                    <div class="followups-lista">
-                        ${followups.map(followup => `
-                            <div class="followup-item" onclick="handleFollowUp('${followup.replace(/'/g, "\\'")}')">
-                                <span class="followup-texto">${followup}</span>
-                                <span class="followup-arrow">→</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            
-            addMessage(followUpHTML, "bot", { source: "IA Avançada", html: true });
-        }
-
-        function mostrarSugestoesProativas(sugestoes) {
-            if (!sugestoes || sugestoes.length === 0) return;
-            
-            const sugestoesHTML = `
-                <div class="sugestoes-proativas-container">
-                    <h4>🔍 Informações adicionais:</h4>
-                    <div class="sugestoes-proativas-lista">
-                        ${sugestoes.map(sugestao => `
-                            <div class="sugestao-proativa-item">
-                                <span class="sugestao-tipo">${getTipoIcon(sugestao.tipo)}</span>
-                                <div class="sugestao-conteudo">
-                                    <strong>${sugestao.titulo}</strong>
-                                    <p>${sugestao.conteudo}</p>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            
-            addMessage(sugestoesHTML, "bot", { source: "IA Avançada", html: true });
-        }
-
-        function mostrarSugestoesRelacionadas(sugestoes) {
-            if (!sugestoes || sugestoes.length === 0) return;
-            
-            const sugestoesHTML = `
-                <div class="sugestoes-relacionadas-container">
-                    <h4>🔗 Tópicos relacionados:</h4>
-                    <div class="sugestoes-relacionadas-lista">
-                        ${sugestoes.map(sugestao => `
-                            <div class="sugestao-relacionada-item" onclick="handleSugestaoRelacionada('${sugestao.replace(/'/g, "\\'")}')">
-                                <span class="sugestao-relacionada-texto">${sugestao}</span>
-                                <span class="sugestao-relacionada-arrow">→</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            
-            addMessage(sugestoesHTML, "bot", { source: "IA Avançada", html: true });
-        }
-
-        function getTipoIcon(tipo) {
-            const icons = {
-                'INFO': 'ℹ️',
-                'AVISO': '⚠️',
-                'LINK': '🔗',
-                'PROCEDIMENTO': '📋'
-            };
-            return icons[tipo] || 'ℹ️';
-        }
-
-        function handleFollowUp(followup) {
-            addMessage(followup, 'user');
-            buscarResposta(followup);
-        }
-
-        function handleSugestaoRelacionada(sugestao) {
-            addMessage(sugestao, 'user');
-            buscarResposta(sugestao);
-        }
-
-        // Tornar funções globais para onclick
-        window.handleFollowUp = handleFollowUp;
-        window.handleSugestaoRelacionada = handleSugestaoRelacionada;
-
-        // ==================== ABAS LATERAIS EXPANSÍVEIS ====================
+    function handleSendMessage(text) {
+        const trimmedText = text.trim();
+        if (!trimmedText) return;
         
-        // Configurar abas laterais expansíveis
-        function setupExpandableSidebars() {
-            const leftSidebar = document.getElementById('sidebar');
-            const rightSidebar = document.getElementById('news-panel');
-            const expandLeftBtn = document.getElementById('expand-left-sidebar');
-            const expandRightBtn = document.getElementById('expand-right-sidebar');
-            const collapseLeftBtn = document.getElementById('collapse-left-sidebar');
-            const collapseRightBtn = document.getElementById('collapse-right-sidebar');
-
-            // Função toggle para sidebar esquerda
-            function toggleLeftSidebar() {
-                if (leftSidebar.classList.contains('sidebar-collapsed')) {
-                    leftSidebar.classList.remove('sidebar-collapsed');
-                    leftSidebar.classList.add('sidebar-expanded');
-                    console.log('📂 Sidebar esquerda expandida');
-                } else {
-                    leftSidebar.classList.remove('sidebar-expanded');
-                    leftSidebar.classList.add('sidebar-collapsed');
-                    console.log('📁 Sidebar esquerda colapsada');
-                }
-            }
-
-            // Função toggle para sidebar direita
-            function toggleRightSidebar() {
-                if (rightSidebar.classList.contains('sidebar-collapsed')) {
-                    rightSidebar.classList.remove('sidebar-collapsed');
-                    rightSidebar.classList.add('sidebar-expanded');
-                    console.log('📂 Sidebar direita expandida');
-                } else {
-                    rightSidebar.classList.remove('sidebar-expanded');
-                    rightSidebar.classList.add('sidebar-collapsed');
-                    console.log('📁 Sidebar direita colapsada');
-                }
-            }
-
-            // Botão de expansão esquerda - toggle
-            if (expandLeftBtn && leftSidebar) {
-                expandLeftBtn.addEventListener('click', toggleLeftSidebar);
-            }
-
-            // Botão de colapso esquerda - toggle
-            if (collapseLeftBtn && leftSidebar) {
-                collapseLeftBtn.addEventListener('click', toggleLeftSidebar);
-            }
-
-            // Botão de expansão direita - toggle
-            if (expandRightBtn && rightSidebar) {
-                expandRightBtn.addEventListener('click', toggleRightSidebar);
-            }
-
-            // Botão de colapso direita - toggle
-            if (collapseRightBtn && rightSidebar) {
-                collapseRightBtn.addEventListener('click', toggleRightSidebar);
-            }
-
-            console.log('✅ Abas laterais expansíveis configuradas - Toggle completo implementado');
-        }
-
-        // ==================== FUNÇÃO DE CLIQUE EM PRODUTOS ====================
+        console.log('📤 handleSendMessage chamado com:', trimmedText);
         
-        function handleProductClick(productName) {
-            console.log(`🛍️ Produto clicado: ${productName}`);
-            
-            // Mapear produtos para comandos específicos
-            const productCommands = {
-                'Antecipação': 'antecipação',
-                'Crédito pessoal': 'crédito pessoal',
-                'Crédito do trabalhador': 'crédito do trabalhador',
-                'Liquidação antecipada': 'liquidação antecipada'
-            };
-            
-            const command = productCommands[productName] || productName.toLowerCase();
-            
-            // Adicionar mensagem do usuário simulando a pergunta
-            addMessage(`Informações sobre ${productName}`, 'user');
-            
-            // Buscar resposta sobre o produto
-            buscarResposta(command);
-            
-            // Scroll para baixo para mostrar a resposta
-            setTimeout(() => {
-                scrollToBottom();
-            }, 100);
+        // Remover mensagem de boas-vindas se ainda estiver visível
+        const welcomeMessage = document.querySelector('.welcome-message');
+        if (welcomeMessage) {
+            welcomeMessage.remove();
+        }
+        
+        addMessage(trimmedText, 'user');
+        logQuestionOnSheet(trimmedText, dadosAtendente.email);
+        buscarResposta(trimmedText);
+        userInput.value = '';
+    }
+
+    // ==================== FUNÇÕES DA IA AVANÇADA ====================
+
+    function mostrarFollowUps(followups) {
+        if (!followups || followups.length === 0) return;
+        
+        const followUpHTML = `
+            <div class="followups-container">
+                <h4>💡 Perguntas relacionadas:</h4>
+                <div class="followups-lista">
+                    ${followups.map(followup => `
+                        <div class="followup-item" onclick="handleFollowUp('${followup.replace(/'/g, "\\'")}')">
+                            <span class="followup-texto">${followup}</span>
+                            <span class="followup-arrow">→</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        addMessage(followUpHTML, "bot", { source: "IA Avançada", html: true });
+    }
+
+    function mostrarSugestoesProativas(sugestoes) {
+        if (!sugestoes || sugestoes.length === 0) return;
+        
+        const sugestoesHTML = `
+            <div class="sugestoes-proativas-container">
+                <h4>🔍 Informações adicionais:</h4>
+                <div class="sugestoes-proativas-lista">
+                    ${sugestoes.map(sugestao => `
+                        <div class="sugestao-proativa-item">
+                            <span class="sugestao-tipo">${getTipoIcon(sugestao.tipo)}</span>
+                            <div class="sugestao-conteudo">
+                                <strong>${sugestao.titulo}</strong>
+                                <p>${sugestao.conteudo}</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        addMessage(sugestoesHTML, "bot", { source: "IA Avançada", html: true });
+    }
+
+    function mostrarSugestoesRelacionadas(sugestoes) {
+        if (!sugestoes || sugestoes.length === 0) return;
+        
+        const sugestoesHTML = `
+            <div class="sugestoes-relacionadas-container">
+                <h4>🔗 Tópicos relacionados:</h4>
+                <div class="sugestoes-relacionadas-lista">
+                    ${sugestoes.map(sugestao => `
+                        <div class="sugestao-relacionada-item" onclick="handleSugestaoRelacionada('${sugestao.replace(/'/g, "\\'")}')">
+                            <span class="sugestao-relacionada-texto">${sugestao}</span>
+                            <span class="sugestao-relacionada-arrow">→</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        addMessage(sugestoesHTML, "bot", { source: "IA Avançada", html: true });
+    }
+
+    function getTipoIcon(tipo) {
+        const icons = {
+            'INFO': 'ℹ️',
+            'AVISO': '⚠️',
+            'LINK': '🔗',
+            'PROCEDIMENTO': '📋'
+        };
+        return icons[tipo] || 'ℹ️';
+    }
+
+    function handleFollowUp(followup) {
+        addMessage(followup, 'user');
+        buscarResposta(followup);
+    }
+
+    function handleSugestaoRelacionada(sugestao) {
+        addMessage(sugestao, 'user');
+        buscarResposta(sugestao);
+    }
+
+    // Tornar funções globais para onclick
+    window.handleFollowUp = handleFollowUp;
+    window.handleSugestaoRelacionada = handleSugestaoRelacionada;
+
+    // ==================== ABAS LATERAIS EXPANSÍVEIS ====================
+    
+    // Configurar abas laterais expansíveis
+    function setupExpandableSidebars() {
+        const leftSidebar = document.getElementById('sidebar');
+        const rightSidebar = document.getElementById('news-panel');
+        const expandLeftBtn = document.getElementById('expand-left-sidebar');
+        const expandRightBtn = document.getElementById('expand-right-sidebar');
+        const collapseLeftBtn = document.getElementById('collapse-left-sidebar');
+        const collapseRightBtn = document.getElementById('collapse-right-sidebar');
+
+        // Função toggle para sidebar esquerda
+        function toggleLeftSidebar() {
+            if (leftSidebar.classList.contains('sidebar-collapsed')) {
+                leftSidebar.classList.remove('sidebar-collapsed');
+                leftSidebar.classList.add('sidebar-expanded');
+                console.log('📂 Sidebar esquerda expandida');
+            } else {
+                leftSidebar.classList.remove('sidebar-expanded');
+                leftSidebar.classList.add('sidebar-collapsed');
+                console.log('📁 Sidebar esquerda colapsada');
+            }
         }
 
-        // ==================== FUNCIONALIDADES DE VOZ ====================
+        // Função toggle para sidebar direita
+        function toggleRightSidebar() {
+            if (rightSidebar.classList.contains('sidebar-collapsed')) {
+                rightSidebar.classList.remove('sidebar-collapsed');
+                rightSidebar.classList.add('sidebar-expanded');
+                console.log('📂 Sidebar direita expandida');
+            } else {
+                rightSidebar.classList.remove('sidebar-expanded');
+                rightSidebar.classList.add('sidebar-collapsed');
+                console.log('📁 Sidebar direita colapsada');
+            }
+        }
 
-        // Elementos de voz
-        const voiceButton = document.getElementById('voice-button');
-        const playResponseButton = document.getElementById('play-response');
-        const stopAudioButton = document.getElementById('stop-audio');
-        const voiceSelector = document.getElementById('voice-selector');
-        const recordingIndicator = document.getElementById('recording-indicator');
+        // Botão de expansão esquerda - toggle
+        if (expandLeftBtn && leftSidebar) {
+            expandLeftBtn.addEventListener('click', toggleLeftSidebar);
+        }
 
-        // Inicializar funcionalidades de voz
-        function initVoiceFeatures() {
-            console.log('🎤 Inicializando funcionalidades de voz...');
-            
-            // Buscar elementos dinamicamente
-            const voiceBtn = document.getElementById('voice-button');
-            const playBtn = document.getElementById('play-response');
-            const stopBtn = document.getElementById('stop-audio');
-            const voiceSel = document.getElementById('voice-selector');
-            const recordingInd = document.getElementById('recording-indicator');
-            
-            console.log('Elementos encontrados:');
-            console.log('- Voice button:', voiceBtn);
-            console.log('- Play button:', playBtn);
-            console.log('- Stop button:', stopBtn);
-            console.log('- Voice selector:', voiceSel);
-            console.log('- Recording indicator:', recordingInd);
-            
-            // Configurar botão de voz
-            if (voiceBtn) {
-                // Remover listeners existentes
-                voiceBtn.removeEventListener('click', toggleRecording);
-                // Adicionar novo listener
-                voiceBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('🎤 Botão de voz clicado!');
-                    toggleRecording();
-                });
-                console.log('✅ Event listener adicionado ao botão de voz');
-            } else {
-                console.error('❌ Botão de voz não encontrado');
-            }
-            
-            // Configurar botão de play
-            if (playBtn) {
-                playBtn.removeEventListener('click', playLastResponse);
-                playBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('🔊 Botão de play clicado!');
-                    playLastResponse();
-                });
-                console.log('✅ Event listener adicionado ao botão de play');
-            } else {
-                console.error('❌ Botão de play não encontrado');
-            }
-            
-            // Configurar botão de stop
-            if (stopBtn) {
-                stopBtn.removeEventListener('click', stopAudio);
-                stopBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('⏹️ Botão de stop clicado!');
-                    stopAudio();
-                });
-                console.log('✅ Event listener adicionado ao botão de stop');
-            } else {
-                console.error('❌ Botão de stop não encontrado');
-            }
-            
-            
+        // Botão de colapso esquerda - toggle
+        if (collapseLeftBtn && leftSidebar) {
+            collapseLeftBtn.addEventListener('click', toggleLeftSidebar);
+        }
+
+        // Botão de expansão direita - toggle
+        if (expandRightBtn && rightSidebar) {
+            expandRightBtn.addEventListener('click', toggleRightSidebar);
+        }
+
+        // Botão de colapso direita - toggle
+        if (collapseRightBtn && rightSidebar) {
+            collapseRightBtn.addEventListener('click', toggleRightSidebar);
+        }
+
+        console.log('✅ Abas laterais expansíveis configuradas - Toggle completo implementado');
+    }
+
+    // ==================== FUNÇÃO DE CLIQUE EM PRODUTOS ====================
+    
+    function handleProductClick(productName) {
+        console.log(`🛍️ Produto clicado: ${productName}`);
+        
+        // Mapear produtos para comandos específicos
+        const productCommands = {
+            'Antecipação': 'antecipação',
+            'Crédito pessoal': 'crédito pessoal',
+            'Crédito do trabalhador': 'crédito do trabalhador',
+            'Liquidação antecipada': 'liquidação antecipada'
+        };
+        
+        const command = productCommands[productName] || productName.toLowerCase();
+        
+        // Adicionar mensagem do usuário simulando a pergunta
+        addMessage(`Informações sobre ${productName}`, 'user');
+        
+        // Buscar resposta sobre o produto
+        buscarResposta(command);
+        
+        // Scroll para baixo para mostrar a resposta
+        setTimeout(() => {
+            scrollToBottom();
+        }, 100);
+    }
+
+    // ==================== FUNCIONALIDADES DE VOZ ====================
+
+    // Elementos de voz
+    const voiceButton = document.getElementById('voice-button');
+    const playResponseButton = document.getElementById('play-response');
+    const stopAudioButton = document.getElementById('stop-audio');
+    const voiceSelector = document.getElementById('voice-selector');
+    const recordingIndicator = document.getElementById('recording-indicator');
+
+    // Inicializar funcionalidades de voz
+    function initVoiceFeatures() {
+        console.log('🎤 Inicializando funcionalidades de voz...');
+        
+        // Buscar elementos dinamicamente
+        const voiceBtn = document.getElementById('voice-button');
+        const playBtn = document.getElementById('play-response');
+        const stopBtn = document.getElementById('stop-audio');
+        const voiceSel = document.getElementById('voice-selector');
+        const recordingInd = document.getElementById('recording-indicator');
+        
+        console.log('Elementos encontrados:');
+        console.log('- Voice button:', voiceBtn);
+        console.log('- Play button:', playBtn);
+        console.log('- Stop button:', stopBtn);
+        console.log('- Voice selector:', voiceSel);
+        console.log('- Recording indicator:', recordingInd);
+        
+        // Configurar botão de voz
+        if (voiceBtn) {
+            // Remover listeners existentes
+            voiceBtn.removeEventListener('click', toggleRecording);
+            // Adicionar novo listener
+            voiceBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('🎤 Botão de voz clicado!');
+                toggleRecording();
+            });
+            console.log('✅ Event listener adicionado ao botão de voz');
+        } else {
+            console.error('❌ Botão de voz não encontrado');
+        }
+        
+        // Configurar botão de play
+        if (playBtn) {
+            playBtn.removeEventListener('click', playLastResponse);
+            playBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('🔊 Botão de play clicado!');
+                playLastResponse();
+            });
+            console.log('✅ Event listener adicionado ao botão de play');
+        } else {
+            console.error('❌ Botão de play não encontrado');
+        }
+        
+        // Configurar botão de stop
+        if (stopBtn) {
+            stopBtn.removeEventListener('click', stopAudio);
+            stopBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('⏹️ Botão de stop clicado!');
+                stopAudio();
+            });
+            console.log('✅ Event listener adicionado ao botão de stop');
+        } else {
+            console.error('❌ Botão de stop não encontrado');
+        }
+        
+        
         // Carregar vozes disponíveis
         loadAvailableVoices();
         
@@ -1878,197 +1876,194 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
+    // Funções removidas - movidas para escopo global
 
-        // Funções removidas - movidas para escopo global
+    // Função removida - movida para escopo global
 
-        // Função removida - movida para escopo global
-
-
-        // Parar áudio
-        function stopAudio() {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
-                currentAudio = null;
-                
-                const playBtn = document.getElementById('play-response');
-                const stopBtn = document.getElementById('stop-audio');
-                
-                if (playBtn) playBtn.classList.remove('hidden');
-                if (stopBtn) stopBtn.classList.add('hidden');
-            }
+    // Parar áudio
+    function stopAudio() {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            currentAudio = null;
+            
+            const playBtn = document.getElementById('play-response');
+            const stopBtn = document.getElementById('stop-audio');
+            
+            if (playBtn) playBtn.classList.remove('hidden');
+            if (stopBtn) stopBtn.classList.add('hidden');
         }
+    }
 
-        // Carregar vozes disponíveis
-        async function loadAvailableVoices() {
-            try {
-                const response = await fetch('/api/voice?action=voices');
-                const result = await response.json();
+    // Carregar vozes disponíveis
+    async function loadAvailableVoices() {
+        try {
+            const response = await fetch('/api/voice?action=voices');
+            const result = await response.json();
 
-                if (result.success && result.voices.length > 0) {
-                    console.log('🎵 Vozes carregadas:', result.voices.length);
-                    // Se houver um seletor de voz no futuro, podemos usar aqui
-                } else {
-                    console.log('⚠️ Nenhuma voz disponível ou erro ao carregar');
-                }
-
-            } catch (error) {
-                console.error('❌ Erro ao carregar vozes:', error);
+            if (result.success && result.voices.length > 0) {
+                console.log('🎵 Vozes carregadas:', result.voices.length);
+                // Se houver um seletor de voz no futuro, podemos usar aqui
+            } else {
+                console.log('⚠️ Nenhuma voz disponível ou erro ao carregar');
             }
+
+        } catch (error) {
+            console.error('❌ Erro ao carregar vozes:', error);
         }
+    }
 
-
-        // ==================== SISTEMA DE ADMINISTRAÇÃO ====================
+    // ==================== SISTEMA DE ADMINISTRAÇÃO ====================
+    
+    // Verificar se usuário é admin
+    function isAdmin() {
+        if (!dadosAtendente) {
+            console.log('❌ dadosAtendente não encontrado');
+            return false;
+        }
         
-        // Verificar se usuário é admin
-        function isAdmin() {
-            if (!dadosAtendente) {
-                console.log('❌ dadosAtendente não encontrado');
-                return false;
-            }
-            
-            const adminRoles = ['Admin', 'Supervisor', 'Diretor'];
-            const userRole = dadosAtendente.funcao;
-            
-            // Fallback: verificar se o email é de admin baseado no domínio e nome
-            const isAdminEmail = dadosAtendente.email.includes('gabriel.araujo') || 
-                               dadosAtendente.email.includes('admin') || 
-                               dadosAtendente.email.includes('diretor') || 
-                               dadosAtendente.email.includes('velotax');
-            
-            const isAdminUser = adminRoles.includes(userRole) || isAdminEmail;
-            
-            console.log('🔍 Verificação de admin:', {
-                email: dadosAtendente.email,
-                funcao: userRole,
-                adminRoles: adminRoles,
-                isAdminEmail: isAdminEmail,
-                isAdmin: isAdminUser
-            });
-            
-            return isAdminUser;
-        }
-
-        // Função removida - botão de admin desabilitado temporariamente
-
-        // Função removida - painel administrativo desabilitado temporariamente
-
-        // Carregar usuários online
-        async function loadOnlineUsers() {
-            try {
-                console.log('🔄 Carregando usuários online...');
-                const response = await fetch('/api/admin?action=getOnlineUsers');
-                const data = await response.json();
-
-                if (data.success) {
-                    displayOnlineUsers(data.onlineUsers);
-                    updateUsersCount(data.total);
-                } else {
-                    console.error('Erro ao carregar usuários:', data.error);
-                    alert('Erro ao carregar usuários online');
-                }
-            } catch (error) {
-                console.error('Erro ao carregar usuários online:', error);
-                alert('Erro de conexão ao carregar usuários');
-            }
-        }
-
-        // Exibir usuários online
-        function displayOnlineUsers(users) {
-            const usersList = document.getElementById('users-list');
-            if (!usersList) return;
-
-            if (users.length === 0) {
-                usersList.innerHTML = '<div class="user-item"><div class="user-info">Nenhum usuário online no momento</div></div>';
-                return;
-            }
-
-            usersList.innerHTML = users.map(user => `
-                <div class="user-item">
-                    <div class="user-info">
-                        <div class="user-email">${user.email}</div>
-                        <div class="user-name">${user.nome}</div>
-                        <div class="user-role">${user.cargo}</div>
-                    </div>
-                    <div class="user-actions">
-                        <span class="user-status">Online</span>
-                        <button class="admin-button danger" onclick="forceLogoutUserByEmail('${user.email}')">
-                            🚪 Deslogar
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Atualizar contador de usuários
-        function updateUsersCount(count) {
-            const countElement = document.getElementById('users-count');
-            if (countElement) {
-                countElement.textContent = `${count} usuário${count !== 1 ? 's' : ''} online`;
-            }
-        }
-
-        // Forçar logout de usuário específico
-        async function forceLogoutUserByEmail(email) {
-            if (!confirm(`Tem certeza que deseja deslogar o usuário ${email}?`)) {
-                return;
-            }
-
-            try {
-                console.log(`🔴 Deslogando usuário: ${email}`);
-                const response = await fetch(`/api/admin?action=forceLogout&email=${encodeURIComponent(email)}&adminEmail=${encodeURIComponent(dadosAtendente.email)}`);
-                const data = await response.json();
-
-                if (data.success) {
-                    alert(`Usuário ${email} foi deslogado com sucesso!`);
-                    loadOnlineUsers(); // Recarregar lista
-                } else {
-                    alert(`Erro ao deslogar usuário: ${data.error}`);
-                }
-            } catch (error) {
-                console.error('Erro ao deslogar usuário:', error);
-                alert('Erro de conexão ao deslogar usuário');
-            }
-        }
-
-        // Forçar logout via input
-        async function forceLogoutUser() {
-            const emailInput = document.getElementById('force-logout-email');
-            const email = emailInput.value.trim();
-
-            if (!email) {
-                alert('Por favor, digite o email do usuário');
-                return;
-            }
-
-            if (!email.includes('@velotax.com.br')) {
-                alert('Email deve ser do domínio @velotax.com.br');
-                return;
-            }
-
-            await forceLogoutUserByEmail(email);
-            emailInput.value = ''; // Limpar input
-        }
-
-        // Inicialização simples e direta
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 DOM carregado, configurando botões...');
-            
-            // Configurar todos os botões (apenas TTS ativo)
-            setupVoiceButton();
-            setupPlayButton();
-            setupStopButton();
-            
-            // Painel administrativo desabilitado temporariamente
-            
-            // Carregar vozes
-            loadAvailableVoices();
+        const adminRoles = ['Admin', 'Supervisor', 'Diretor'];
+        const userRole = dadosAtendente.funcao;
+        
+        // Fallback: verificar se o email é de admin baseado no domínio e nome
+        const isAdminEmail = dadosAtendente.email.includes('gabriel.araujo') || 
+                           dadosAtendente.email.includes('admin') || 
+                           dadosAtendente.email.includes('diretor') || 
+                           dadosAtendente.email.includes('velotax');
+        
+        const isAdminUser = adminRoles.includes(userRole) || isAdminEmail;
+        
+        console.log('🔍 Verificação de admin:', {
+            email: dadosAtendente.email,
+            funcao: userRole,
+            adminRoles: adminRoles,
+            isAdminEmail: isAdminEmail,
+            isAdmin: isAdminUser
         });
+        
+        return isAdminUser;
+    }
 
-        // Também tentar quando a janela carregar
-        window.addEventListener('load', () => {
-            console.log('🌐 Janela carregada, verificando botões...');
-            setTimeout(() => {
+    // Função removida - botão de admin desabilitado temporariamente
+
+    // Função removida - painel administrativo desabilitado temporariamente
+
+    // Carregar usuários online
+    async function loadOnlineUsers() {
+        try {
+            console.log('🔄 Carregando usuários online...');
+            const response = await fetch('/api/admin?action=getOnlineUsers');
+            const data = await response.json();
+
+            if (data.success) {
+                displayOnlineUsers(data.onlineUsers);
+                updateUsersCount(data.total);
+            } else {
+                console.error('Erro ao carregar usuários:', data.error);
+                alert('Erro ao carregar usuários online');
+            }
+        } catch (error) {
+            console.error('Erro ao carregar usuários online:', error);
+            alert('Erro de conexão ao carregar usuários');
+        }
+    }
+
+    // Exibir usuários online
+    function displayOnlineUsers(users) {
+        const usersList = document.getElementById('users-list');
+        if (!usersList) return;
+
+        if (users.length === 0) {
+            usersList.innerHTML = '<div class="user-item"><div class="user-info">Nenhum usuário online no momento</div></div>';
+            return;
+        }
+
+        usersList.innerHTML = users.map(user => `
+            <div class="user-item">
+                <div class="user-info">
+                    <div class="user-email">${user.email}</div>
+                    <div class="user-name">${user.nome}</div>
+                    <div class="user-role">${user.cargo}</div>
+                </div>
+                <div class="user-actions">
+                    <span class="user-status">Online</span>
+                    <button class="admin-button danger" onclick="forceLogoutUserByEmail('${user.email}')">
+                        🚪 Deslogar
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Atualizar contador de usuários
+    function updateUsersCount(count) {
+        const countElement = document.getElementById('users-count');
+        if (countElement) {
+            countElement.textContent = `${count} usuário${count !== 1 ? 's' : ''} online`;
+        }
+    }
+
+    // Forçar logout de usuário específico
+    async function forceLogoutUserByEmail(email) {
+        if (!confirm(`Tem certeza que deseja deslogar o usuário ${email}?`)) {
+            return;
+        }
+
+        try {
+            console.log(`🔴 Deslogando usuário: ${email}`);
+            const response = await fetch(`/api/admin?action=forceLogout&email=${encodeURIComponent(email)}&adminEmail=${encodeURIComponent(dadosAtendente.email)}`);
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`Usuário ${email} foi deslogado com sucesso!`);
+                loadOnlineUsers(); // Recarregar lista
+            } else {
+                alert(`Erro ao deslogar usuário: ${data.error}`);
+            }
+        } catch (error) {
+            console.error('Erro ao deslogar usuário:', error);
+            alert('Erro de conexão ao deslogar usuário');
+        }
+    }
+
+    // Forçar logout via input
+    async function forceLogoutUser() {
+        const emailInput = document.getElementById('force-logout-email');
+        const email = emailInput.value.trim();
+
+        if (!email) {
+            alert('Por favor, digite o email do usuário');
+            return;
+        }
+
+        if (!email.includes('@velotax.com.br')) {
+            alert('Email deve ser do domínio @velotax.com.br');
+            return;
+        }
+
+        await forceLogoutUserByEmail(email);
+        emailInput.value = ''; // Limpar input
+    }
+
+    // Inicialização simples e direta
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 DOM carregado, configurando botões...');
+        
+        // Configurar todos os botões (apenas TTS ativo)
+        setupVoiceButton();
+        setupPlayButton();
+        setupStopButton();
+        
+        // Painel administrativo desabilitado temporariamente
+        
+        // Carregar vozes
+        loadAvailableVoices();
+    });
+
+    // Também tentar quando a janela carregar
+    window.addEventListener('load', () => {
+        console.log('🌐 Janela carregada, verificando botões...');
+        setTimeout(() => {
             setupVoiceButton(); // STT desativado, TTS ativo
             setupPlayButton();
             setupStopButton();
@@ -2076,140 +2071,138 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     });
 
+    // Configurar botão de voz - FUNCIONALIDADE ATIVADA
+    function setupVoiceButton() {
+        const voiceBtn = document.getElementById('voice-button');
+        // O botão de voz já foi configurado na função initVoiceFeatures()
+        // Não precisamos configurar novamente aqui
+    }
 
-        // Configurar botão de voz - FUNCIONALIDADE ATIVADA
-        function setupVoiceButton() {
-            const voiceBtn = document.getElementById('voice-button');
-            // O botão de voz já foi configurado na função initVoiceFeatures()
-            // Não precisamos configurar novamente aqui
+    // Configurar botão de play
+    function setupPlayButton() {
+        const playBtn = document.getElementById('play-response');
+        if (playBtn) {
+            // Configurar botão de play - ATIVADO
+            playBtn.innerHTML = '🔊';
+            playBtn.classList.remove('voice-btn-disabled');
+            playBtn.onclick = function() {
+                console.log('🔊 Botão de play ativado!');
+                playLastResponse();
+            };
+            console.log('✅ Botão de play configurado e ATIVADO');
         }
+    }
 
-        // Configurar botão de play
-        function setupPlayButton() {
-            const playBtn = document.getElementById('play-response');
-            if (playBtn) {
-                // Configurar botão de play - ATIVADO
-                playBtn.innerHTML = '🔊';
-                playBtn.classList.remove('voice-btn-disabled');
-                playBtn.onclick = function() {
-                    console.log('🔊 Botão de play ativado!');
-                    playLastResponse();
-                };
-                console.log('✅ Botão de play configurado e ATIVADO');
-            }
+    // Configurar botão de stop
+    function setupStopButton() {
+        const stopBtn = document.getElementById('stop-audio');
+        if (stopBtn) {
+            stopBtn.addEventListener('click', function() {
+                console.log('⏹️ Botão de stop clicado!');
+                stopAudio();
+            });
+            console.log('✅ Botão de stop configurado');
         }
-
-        // Configurar botão de stop
-        function setupStopButton() {
-            const stopBtn = document.getElementById('stop-audio');
-            if (stopBtn) {
-                stopBtn.addEventListener('click', function() {
-                    console.log('⏹️ Botão de stop clicado!');
-                    stopAudio();
-                });
-                console.log('✅ Botão de stop configurado');
-            }
-        }
+    }
 
 
         
 
 
-        userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleSendMessage(userInput.value);
-            }
-        });
-        sendButton.addEventListener('click', () => handleSendMessage(userInput.value));
-
-        document.querySelectorAll('#sidebar li[data-question]').forEach(item => {
-            item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
-        });
-
-
-const feedbackOverlay = document.getElementById('feedback-overlay');
-const feedbackSendBtn = document.getElementById('feedback-send');
-const feedbackCancelBtn = document.getElementById('feedback-cancel');
-const feedbackText = document.getElementById('feedback-comment');
-        let activeFeedbackContainer = null;
-
-        function abrirModalFeedback(container) {
-            activeFeedbackContainer = container;
-            feedbackOverlay.classList.remove('hidden');
-            if (feedbackText) feedbackText.focus();
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSendMessage(userInput.value);
         }
+    });
+    sendButton.addEventListener('click', () => handleSendMessage(userInput.value));
 
-function fecharModalFeedback() {
+    document.querySelectorAll('#sidebar li[data-question]').forEach(item => {
+        item.addEventListener('click', (e) => handleSendMessage(e.currentTarget.getAttribute('data-question')));
+    });
+
+    const feedbackOverlay = document.getElementById('feedback-overlay');
+    const feedbackSendBtn = document.getElementById('feedback-send');
+    const feedbackCancelBtn = document.getElementById('feedback-cancel');
+    const feedbackText = document.getElementById('feedback-comment');
+    let activeFeedbackContainer = null;
+
+    function abrirModalFeedback(container) {
+        activeFeedbackContainer = container;
+        feedbackOverlay.classList.remove('hidden');
+        if (feedbackText) feedbackText.focus();
+    }
+
+    function fecharModalFeedback() {
         feedbackOverlay.classList.add('hidden');
         if (feedbackText) feedbackText.value = '';
-            activeFeedbackContainer = null;
-}
-
-if (feedbackCancelBtn) {
-    feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
-}
-
-if (feedbackSendBtn) {
-    feedbackSendBtn.addEventListener('click', () => {
-        const sugestao = feedbackText ? feedbackText.value.trim() : '';
-                if (activeFeedbackContainer) {
-                    enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
-        fecharModalFeedback();
-                } else {
-                    console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
-                }
-    });
-}
-
-        function setInitialTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
-                body.classList.add('dark-theme');
-                themeSwitcher.innerHTML = ' ☾ ';
-            } else {
-                body.classList.remove('dark-theme');
-                themeSwitcher.innerHTML = ' ☀︎ ';
-            }
-        }
-
-        async function handleLogout() {
-            await logUserStatus('offline');
-            localStorage.removeItem('dadosAtendenteChatbot');
-            dadosAtendente = null;
-            location.reload();
-        }
-
-        if (logoutButton) {
-            logoutButton.addEventListener('click', handleLogout);
-        }
-
-        const geminiButton = document.getElementById('gemini-button');
-        if (geminiButton) {
-            geminiButton.addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
-        }
-
-        if (themeSwitcher) {
-            themeSwitcher.addEventListener('click', () => {
-                body.classList.toggle('dark-theme');
-                const isDark = body.classList.contains('dark-theme');
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                themeSwitcher.innerHTML = isDark ? '☾' : '☀︎';
-            });
-        }
-
-        setInitialTheme();
-        carregarNoticias();
-        carregarStatusProdutos();
-        
-        // Botão de admin desabilitado temporariamente
-        
-        // Inicializar funcionalidades de voz (apenas TTS ativo)
-        initVoiceFeatures();
-        
-        // Inicializar indicador de conectividade
-        initializeConnectivityIndicator();
+        activeFeedbackContainer = null;
     }
+
+    if (feedbackCancelBtn) {
+        feedbackCancelBtn.addEventListener('click', fecharModalFeedback);
+    }
+
+    if (feedbackSendBtn) {
+        feedbackSendBtn.addEventListener('click', () => {
+            const sugestao = feedbackText ? feedbackText.value.trim() : '';
+            if (activeFeedbackContainer) {
+                enviarFeedback('logFeedbackNegativo', activeFeedbackContainer, sugestao || null);
+                fecharModalFeedback();
+            } else {
+                console.error("FALHA: Nenhum 'activeFeedbackContainer' encontrado.");
+            }
+        });
+    }
+
+    function setInitialTheme() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            body.classList.add('dark-theme');
+            themeSwitcher.innerHTML = ' ☾ ';
+        } else {
+            body.classList.remove('dark-theme');
+            themeSwitcher.innerHTML = ' ☀︎ ';
+        }
+    }
+
+    async function handleLogout() {
+        await logUserStatus('offline');
+        localStorage.removeItem('dadosAtendenteChatbot');
+        dadosAtendente = null;
+        location.reload();
+    }
+
+    if (logoutButton) {
+        logoutButton.addEventListener('click', handleLogout);
+    }
+
+    const geminiButton = document.getElementById('gemini-button');
+    if (geminiButton) {
+        geminiButton.addEventListener('click', () => window.open('https://gemini.google.com/app?hl=pt-BR', '_blank'));
+    }
+
+    if (themeSwitcher) {
+        themeSwitcher.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            const isDark = body.classList.contains('dark-theme');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeSwitcher.innerHTML = isDark ? '☾' : '☀︎';
+        });
+    }
+
+    setInitialTheme();
+    carregarNoticias();
+    carregarStatusProdutos();
+    
+    // Botão de admin desabilitado temporariamente
+    
+    // Inicializar funcionalidades de voz (apenas TTS ativo)
+    initVoiceFeatures();
+    
+    // Inicializar indicador de conectividade
+    initializeConnectivityIndicator();
+}
 
 // ==========================================================================
 // SISTEMA DE NOTIFICAÇÃO ÚNICA POR COMMIT
