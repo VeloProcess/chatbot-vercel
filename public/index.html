@@ -6,6 +6,45 @@
     <title>Veloprocess - Migração para VELOHUB</title>
     <link rel="icon" type="image/png" href="https://github.com/VeloProcess/PDP-Portal-de-Processos-/blob/main/unnamed%20(2).png?raw=true">
     <style>
+        :root {
+            /* Paleta exata do projeto */
+            --cor-fundo: #f0f4f8;
+            --cor-container: #ffffff;
+            --cor-caixa-chat: #eaf2ff;
+            --cor-texto-principal: #333;
+            --cor-borda: #d1e3f0;
+            --cor-azul-claro: #a7d9ee;
+            --cor-azul-medio: #1634FF;
+            --cor-azul-escuro: #000058;
+            --cor-balao-bot: #D6E4FF;
+            --cor-sombra: rgba(0, 0, 0, 0.1);
+            --cor-texto-link: #1a73e8;
+            --cor-foco: #4d90fe;
+            --cor-sucesso: #4CAF50;
+            --cor-erro: #f44336;
+            --cor-alerta: #FF9800;
+            --cor-info: #2196F3;
+            --cor-texto-claro: #ffffff;
+            --cor-destaque: #1694FF;
+            --cor-destaque-forte: var(--cor-azul-escuro);
+            --cor-destaque-claro: #eaf2ff;
+            
+            /* Espaçamentos */
+            --espaco-xs: 4px;
+            --espaco-sm: 8px;
+            --espaco-md: 16px;
+            --espaco-lg: 24px;
+            --espaco-xl: 32px;
+            
+            /* Bordas */
+            --borda-raio: 12px;
+            --borda-raio-sm: 8px;
+            
+            /* Transições */
+            --transicao-normal: 0.3s ease;
+            --transicao-lenta: 0.5s ease;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,12 +53,13 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            background: linear-gradient(135deg, var(--cor-azul-medio) 0%, var(--cor-azul-escuro) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            color: var(--cor-texto-principal);
         }
 
         .container {
@@ -27,21 +67,22 @@
             width: 100%;
             max-width: 1200px;
             height: 100vh;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+            background: var(--cor-container);
+            border-radius: var(--borda-raio);
+            box-shadow: 0 25px 50px var(--cor-sombra);
             overflow: hidden;
+            border: 1px solid var(--cor-borda);
         }
 
         .left-panel {
             flex: 1;
-            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            background: linear-gradient(135deg, var(--cor-azul-medio) 0%, var(--cor-azul-escuro) 100%);
             position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
+            padding: var(--espaco-xl);
         }
 
         .left-panel::before {
@@ -58,12 +99,13 @@
 
         .gear-icon {
             position: absolute;
-            top: 2rem;
-            left: 2rem;
+            top: var(--espaco-lg);
+            left: var(--espaco-lg);
             width: 60px;
             height: 60px;
-            color: #60a5fa;
+            color: var(--cor-azul-claro);
             opacity: 0.7;
+            z-index: 2;
         }
 
         .gear-icon svg {
@@ -73,29 +115,31 @@
 
         .gear-icon-small {
             position: absolute;
-            top: 3rem;
-            left: 4rem;
+            top: calc(var(--espaco-lg) + 20px);
+            left: calc(var(--espaco-lg) + 30px);
             width: 30px;
             height: 30px;
-            color: #93c5fd;
+            color: var(--cor-azul-claro);
             opacity: 0.5;
+            z-index: 2;
         }
 
         .lock-icon {
             width: 120px;
             height: 120px;
-            color: #1f2937;
-            margin-bottom: 2rem;
+            color: var(--cor-texto-claro);
+            margin-bottom: var(--espaco-lg);
             z-index: 2;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
         }
 
         .right-panel {
             flex: 1.5;
-            background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
+            background: linear-gradient(180deg, var(--cor-azul-medio) 0%, var(--cor-destaque) 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: 3rem;
+            padding: var(--espaco-xl);
             position: relative;
         }
 
@@ -104,77 +148,113 @@
             top: 0;
             left: 0;
             right: 0;
-            background: #374151;
-            color: white;
-            padding: 1rem 2rem;
+            background: var(--cor-azul-escuro);
+            color: var(--cor-texto-claro);
+            padding: var(--espaco-md) var(--espaco-lg);
             text-align: center;
             font-weight: 500;
             font-size: 0.9rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
         .banner::after {
             content: '→';
             position: absolute;
-            right: 2rem;
+            right: var(--espaco-lg);
             top: 50%;
             transform: translateY(-50%);
             font-size: 1.2rem;
+            color: var(--cor-azul-claro);
         }
 
         .content {
-            color: white;
+            color: var(--cor-texto-claro);
             margin-top: 4rem;
+            z-index: 2;
         }
 
         .title {
             font-size: 2.5rem;
             font-weight: 700;
-            margin-bottom: 1.5rem;
+            margin-bottom: var(--espaco-lg);
             line-height: 1.2;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .subtitle {
             font-size: 1.2rem;
-            margin-bottom: 2rem;
-            opacity: 0.9;
-            line-height: 1.5;
+            margin-bottom: var(--espaco-xl);
+            opacity: 0.95;
+            line-height: 1.6;
+            font-weight: 400;
         }
 
         .redirect-button {
-            background: white;
-            color: #1e3a8a;
-            padding: 1rem 2rem;
-            border: none;
-            border-radius: 12px;
+            background: var(--cor-container);
+            color: var(--cor-azul-medio);
+            padding: var(--espaco-md) var(--espaco-xl);
+            border: 2px solid var(--cor-container);
+            border-radius: var(--borda-raio);
             font-size: 1.1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all var(--transicao-normal);
+            box-shadow: 0 4px 15px var(--cor-sombra);
             text-decoration: none;
             display: inline-block;
-            margin-bottom: 3rem;
+            margin-bottom: var(--espaco-xl);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .redirect-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .redirect-button:hover::before {
+            left: 100%;
         }
 
         .redirect-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-            background: #f8fafc;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            background: var(--cor-destaque-claro);
+            border-color: var(--cor-azul-claro);
+        }
+
+        .redirect-button:active {
+            transform: translateY(0);
+        }
+
+        .countdown {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: var(--espaco-sm);
+            font-weight: 500;
         }
 
         .gears-illustration {
             position: absolute;
-            bottom: 2rem;
-            right: 2rem;
+            bottom: var(--espaco-lg);
+            right: var(--espaco-lg);
             width: 200px;
             height: 150px;
+            z-index: 1;
         }
 
         .gear {
             position: absolute;
-            border: 3px solid #1f2937;
+            border: 3px solid var(--cor-texto-claro);
             border-radius: 50%;
             background: transparent;
+            opacity: 0.7;
         }
 
         .gear-1 {
@@ -182,6 +262,7 @@
             height: 60px;
             top: 20px;
             left: 20px;
+            animation: rotate 20s linear infinite;
         }
 
         .gear-2 {
@@ -189,6 +270,7 @@
             height: 40px;
             top: 50px;
             left: 80px;
+            animation: rotate 15s linear infinite reverse;
         }
 
         .gear-3 {
@@ -196,6 +278,7 @@
             height: 80px;
             top: 60px;
             left: 100px;
+            animation: rotate 25s linear infinite;
         }
 
         .arrow {
@@ -204,9 +287,10 @@
             right: 20px;
             width: 0;
             height: 0;
-            border-left: 20px solid #1f2937;
+            border-left: 20px solid var(--cor-texto-claro);
             border-top: 10px solid transparent;
             border-bottom: 10px solid transparent;
+            opacity: 0.8;
         }
 
         .arrow::after {
@@ -216,30 +300,34 @@
             right: -25px;
             width: 0;
             height: 0;
-            border-left: 15px solid #1f2937;
+            border-left: 15px solid var(--cor-texto-claro);
             border-top: 6px solid transparent;
             border-bottom: 6px solid transparent;
         }
 
         .brand {
             position: absolute;
-            bottom: 2rem;
-            right: 2rem;
+            bottom: var(--espaco-lg);
+            right: var(--espaco-lg);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            color: #1f2937;
+            gap: var(--espaco-sm);
+            color: var(--cor-texto-claro);
             font-weight: 600;
             font-size: 1.1rem;
+            z-index: 2;
         }
 
         .brand-icon {
             width: 24px;
             height: 24px;
+            opacity: 0.9;
         }
 
         .brand-text {
             text-decoration: underline;
+            text-decoration-color: var(--cor-azul-claro);
+            text-underline-offset: 2px;
         }
 
         /* Responsive */
@@ -247,16 +335,17 @@
             .container {
                 flex-direction: column;
                 height: auto;
-                margin: 1rem;
-                border-radius: 15px;
+                margin: var(--espaco-md);
+                border-radius: var(--borda-raio);
             }
 
             .left-panel {
                 min-height: 300px;
+                padding: var(--espaco-lg);
             }
 
             .right-panel {
-                padding: 2rem;
+                padding: var(--espaco-lg);
             }
 
             .title {
@@ -269,6 +358,14 @@
 
             .gears-illustration {
                 display: none;
+            }
+
+            .brand {
+                position: relative;
+                bottom: auto;
+                right: auto;
+                margin-top: var(--espaco-lg);
+                justify-content: center;
             }
         }
 
@@ -284,12 +381,50 @@
             }
         }
 
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         .content {
             animation: fadeInUp 0.8s ease-out;
         }
 
         .redirect-button {
             animation: fadeInUp 1s ease-out 0.3s both;
+        }
+
+        .lock-icon {
+            animation: fadeInUp 1.2s ease-out 0.6s both;
+        }
+
+        /* Loading state */
+        .redirect-button.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .redirect-button.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid var(--cor-azul-medio);
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -307,13 +442,13 @@
                 <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
             </svg>
         </div>
-
+        
         <!-- Right Panel -->
         <div class="right-panel">
             <div class="banner">
                 Obrigado por nos acompanhar – estamos de mudança.
-            </div>
-            
+        </div>
+
             <div class="content">
                 <h1 class="title">Este endereço foi desativado</h1>
                 <p class="subtitle">
@@ -321,9 +456,13 @@
                     Clique no botão abaixo para seguir para o novo endereço de transferência.
                 </p>
                 
-                <a href="https://app.velohub.velotax.com.br" class="redirect-button" target="_blank">
+                <a href="https://app.velohub.velotax.com.br" class="redirect-button" id="redirectBtn" target="_blank">
                     Acessar VELOHUB
                 </a>
+                
+                <div class="countdown" id="countdown">
+                    Redirecionamento automático em <span id="timer">10</span> segundos
+                </div>
             </div>
 
             <div class="gears-illustration">
@@ -343,15 +482,44 @@
     </div>
 
     <script>
-        // Auto-redirect após 10 segundos (opcional)
-        setTimeout(() => {
-            if (confirm('Você será redirecionado automaticamente para o VELOHUB em 5 segundos. Deseja ir agora?')) {
-                window.location.href = 'https://app.velohub.velotax.com.br';
-            }
-        }, 10000);
+        let countdown = 10;
+        const timerElement = document.getElementById('timer');
+        const redirectBtn = document.getElementById('redirectBtn');
+        const countdownElement = document.getElementById('countdown');
 
-        // Analytics ou tracking (se necessário)
+        // Contador regressivo
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            timerElement.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                redirectBtn.classList.add('loading');
+                countdownElement.textContent = 'Redirecionando...';
+                
+                setTimeout(() => {
+                    window.location.href = 'https://app.velohub.velotax.com.br';
+                }, 1000);
+            }
+        }, 1000);
+
+        // Cancelar redirecionamento automático ao clicar no botão
+        redirectBtn.addEventListener('click', () => {
+            clearInterval(countdownInterval);
+            redirectBtn.classList.add('loading');
+            countdownElement.textContent = 'Redirecionando...';
+        });
+
+        // Analytics ou tracking
         console.log('Página de migração carregada - Redirecionando para VELOHUB');
+        
+        // Opcional: Tracking de eventos
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'page_view', {
+                page_title: 'Migração VELOHUB',
+                page_location: window.location.href
+            });
+        }
     </script>
 </body>
 </html>
