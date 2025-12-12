@@ -2,8 +2,8 @@
 const { google } = require('googleapis');
 
 // Configuração do Google Sheets
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:D";
+const SPREADSHEET_ID = "1d0h9zr4haDx6etLtdMqPVsBXdVvH7n9OsRdqAhOJOp0";
+const FAQ_SHEET_NAME = "FAQ!A:D"; // Pergunta, Resposta, Palavras-chave, Sinônimos
 
 // Cache global para Vercel (persiste entre requests)
 global.faqCache = global.faqCache || {
@@ -78,9 +78,20 @@ function normalizarTexto(texto) {
 function findMatches(pergunta, faqData) {
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
-  const idxPergunta = cabecalho.indexOf("Pergunta");
-  const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
-  const idxResposta = cabecalho.indexOf("Resposta");
+  
+  // Busca case-insensitive das colunas
+  const idxPergunta = cabecalho.findIndex(col => 
+    col && col.toLowerCase().includes('pergunta')
+  );
+  const idxPalavrasChave = cabecalho.findIndex(col => 
+    col && (col.toLowerCase().includes('palavra') || col.toLowerCase().includes('chave'))
+  );
+  const idxResposta = cabecalho.findIndex(col => 
+    col && col.toLowerCase().includes('resposta')
+  );
+  const idxSinonimos = cabecalho.findIndex(col => 
+    col && col.toLowerCase().includes('sinonimo')
+  );
 
   if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
     throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
@@ -102,7 +113,7 @@ function findMatches(pergunta, faqData) {
         perguntaOriginal: linhaAtual[idxPergunta],
         sourceRow: i + 2,
         score: relevanceScore,
-        tabulacoes: linhaAtual[3] || null
+        sinonimos: idxSinonimos !== -1 ? (linhaAtual[idxSinonimos] || null) : null
       });
     }
   }
@@ -165,7 +176,7 @@ module.exports = async function handler(req, res) {
         status: "sucesso_offline",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
-        tabulacoes: correspondencias[0].tabulacoes,
+        sinonimos: correspondencias[0].sinonimos,
         source: "Planilha Google Sheets",
         modo: 'offline',
         nivel: 2

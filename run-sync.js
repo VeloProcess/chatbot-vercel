@@ -1,10 +1,10 @@
-// Script simples para executar a sincronização
+// Script simples para validar a planilha Google Sheets
 require('dotenv').config();
-const { main } = require('./sync-google-sheets-to-mongodb');
+const { main } = require('./validate-google-sheets');
 
-console.log('🔄 Iniciando sincronização...');
+console.log('🔄 Iniciando validação da planilha...');
 main().then(() => {
-    console.log('✅ Sincronização concluída!');
+    console.log('✅ Validação concluída!');
     process.exit(0);
 }).catch(error => {
     console.error('❌ Erro:', error);

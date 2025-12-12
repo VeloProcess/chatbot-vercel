@@ -8,8 +8,8 @@
 
 const CONFIG = {
   // IDs das planilhas
-  SPREADSHEET_ID: "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ",
-  LOG_SHEET_NAME: "Log_Feedback",
+  SPREADSHEET_ID: "1d0h9zr4haDx6etLtdMqPVsBXdVvH7n9OsRdqAhOJOp0",
+  LOG_SHEET_NAME: "LOGS",
   
   // Destinatários dos relatórios
   EMAIL_RECIPIENTS: {
@@ -138,7 +138,7 @@ function doGet(e) {
  */
 function calcularTop10Perguntas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetPerguntas = ss.getSheetByName("Log_Perguntas");
+  const sheetPerguntas = ss.getSheetByName("LOGS");
   const sheetFreq = ss.getSheetByName("Perguntas_Frequentes") || ss.insertSheet("Perguntas_Frequentes");
 
   const lastRow = sheetPerguntas.getLastRow();
@@ -334,8 +334,8 @@ function gerarDadosRelatorio(logSheet, tipo = 'semanal') {
     return { email: null, pergunta: null, valido: false };
   }
 
-  // 1. Dados da aba Log_Perguntas (perguntas dos usuários)
-  const logPerguntasSheet = spreadsheet.getSheetByName("Log_Perguntas");
+  // 1. Dados da aba LOGS (perguntas dos usuários)
+  const logPerguntasSheet = spreadsheet.getSheetByName("LOGS");
   if (logPerguntasSheet) {
     const perguntasData = logPerguntasSheet.getDataRange().getValues();
     perguntasData.slice(1).forEach(row => {
@@ -349,18 +349,18 @@ function gerarDadosRelatorio(logSheet, tipo = 'semanal') {
               email: dadosCorrigidos.email,
               pergunta: dadosCorrigidos.pergunta,
               resposta: row[3] || '',
-              fonte: 'Log_Perguntas',
+              fonte: 'LOGS',
               tipo: 'pergunta'
             });
           }
         }
       }
     });
-    console.log(`Log_Perguntas: ${dadosCombinados.filter(d => d.fonte === 'Log_Perguntas').length} registros`);
+    console.log(`LOGS: ${dadosCombinados.filter(d => d.fonte === 'LOGS').length} registros`);
   }
   
-  // 2. Dados da aba Log_Feedback (se existir)
-  const logFeedbackSheet = spreadsheet.getSheetByName("Log_Feedback");
+  // 2. Dados da aba LOGS (feedback)
+  const logFeedbackSheet = spreadsheet.getSheetByName("LOGS");
   if (logFeedbackSheet) {
     const feedbackData = logFeedbackSheet.getDataRange().getValues();
     feedbackData.slice(1).forEach(row => {
@@ -376,14 +376,14 @@ function gerarDadosRelatorio(logSheet, tipo = 'semanal') {
               feedback: row[3] || '',
               rating: row[4] || 0,
               resposta: row[5] || '',
-              fonte: row[6] || 'Log_Feedback',
+              fonte: row[6] || 'LOGS',
               tipo: 'feedback'
             });
           }
         }
       }
     });
-    console.log(`Log_Feedback: ${dadosCombinados.filter(d => d.tipo === 'feedback').length} registros`);
+    console.log(`LOGS: ${dadosCombinados.filter(d => d.tipo === 'feedback').length} registros`);
   }
   
   // Filtrar emails de teste (remover gabriel.araujo@velotax.com.br e joao.silva@velotax.com.br)
@@ -951,7 +951,7 @@ function testarDetecaoRatings() {
     console.log('Testando detecao de ratings...');
     
     const spreadsheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
-    const logSheet = spreadsheet.getSheetByName("Log_Perguntas") || spreadsheet.getSheetByName("Log_Feedback");
+    const logSheet = spreadsheet.getSheetByName("LOGS");
     
     if (!logSheet) {
       console.log('Nenhuma aba de logs encontrada');
@@ -1021,7 +1021,7 @@ function analisarEstruturaDados() {
     console.log('Analisando estrutura dos dados...');
     
     const spreadsheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
-    const logSheet = spreadsheet.getSheetByName("Log_Perguntas") || spreadsheet.getSheetByName("Log_Feedback");
+    const logSheet = spreadsheet.getSheetByName("LOGS");
     
     if (!logSheet) {
       console.log('Nenhuma aba de logs encontrada');
@@ -1109,7 +1109,7 @@ function debugarDados() {
     });
     
     // Verificar cada aba relevante
-    const abasRelevantes = ['Log_Perguntas', 'Log_Feedback', 'Perguntas_Frequentes'];
+    const abasRelevantes = ['LOGS', 'Perguntas_Frequentes'];
     
     abasRelevantes.forEach(nomeAba => {
       const sheet = spreadsheet.getSheetByName(nomeAba);
@@ -1132,7 +1132,7 @@ function debugarDados() {
     
     // Testar correção de estrutura
     console.log('\nTestando correcao de estrutura de dados...');
-    const logSheet = spreadsheet.getSheetByName("Log_Perguntas") || spreadsheet.getSheetByName("Log_Feedback");
+    const logSheet = spreadsheet.getSheetByName("LOGS");
     if (logSheet) {
       const data = logSheet.getDataRange().getValues();
       console.log('Primeiras 5 linhas antes da correcao:');
@@ -1218,8 +1218,7 @@ INSTRUÇÕES DE USO:
    - Execute testarSistema() para verificar se está funcionando
 
 5. ESTRUTURA DA PLANILHA:
-   - Aba "Log_Perguntas": Data, Email, Pergunta, Resposta
-   - Aba "Log_Feedback": Data, Email, Pergunta, Feedback, Rating, Resposta
+   - Aba "LOGS": Todos os logs (Perguntas, Feedback, Acessos, etc.)
    - Aba "Perguntas_Frequentes": Pergunta, Resposta, Palavras-chave
 
 6. CORREÇÕES AUTOMÁTICAS:

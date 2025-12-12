@@ -1,18 +1,11 @@
-// api/ask-mongodb.js - Sistema que funcionava maravilhosamente bem
-const { MongoClient } = require('mongodb');
+// api/ask-mongodb.js - Sistema migrado para Google Sheets
 const { google } = require('googleapis');
 
-// --- CONFIGURAÇÃO MONGODB (versão que funcionava) ---
-const MONGODB_URI = "mongodb+srv://gabrielaraujo:sGoeqQgbxlsIwnjc@velohubcentral.od7vwts.mongodb.net/";
-const DB_NAME = "console_conteudo";
-const FAQ_COLLECTION = "Bot_perguntas";
-
-// --- CONFIGURAÇÃO GOOGLE SHEETS PARA LOGS ---
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
+// --- CONFIGURAÇÃO GOOGLE SHEETS (fonte principal de dados) ---
+const SPREADSHEET_ID = "1d0h9zr4haDx6etLtdMqPVsBXdVvH7n9OsRdqAhOJOp0";
+const FAQ_SHEET_NAME = "FAQ!A:D"; // Pergunta, Resposta, Palavras-chave, Sinônimos
 
 // --- CLIENTES ---
-let mongoClient = null;
-let db = null;
 let auth, sheets;
 
 // --- CACHE LOCAL ---
@@ -25,51 +18,90 @@ let localFaqCache = {
 
 // --- CONFIGURAÇÕES DE TIMEOUT ---
 const TIMEOUTS = {
-  MONGODB: 5000,              // 5 segundos
+  SHEETS: 5000,              // 5 segundos
   CACHE_SYNC: 10000           // 10 segundos
 };
 
-// --- FUNÇÕES DE CONEXÃO MONGODB ---
-async function connectToMongoDB() {
-  if (mongoClient && db) {
-    return { mongoClient, db };
+// --- CONFIGURAR GOOGLE SHEETS ---
+try {
+  if (!process.env.GOOGLE_CREDENTIALS) {
+    console.warn('⚠️ GOOGLE_CREDENTIALS não configurado');
+  } else {
+    auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    });
+    sheets = google.sheets({ version: 'v4', auth });
+    console.log('✅ Google Sheets configurado');
   }
-
-  try {
-    mongoClient = new MongoClient(MONGODB_URI);
-    await mongoClient.connect();
-    db = mongoClient.db(DB_NAME);
-    
-    console.log('✅ Conectado ao MongoDB:', DB_NAME);
-    return { mongoClient, db };
-  } catch (error) {
-    console.error('❌ Erro ao conectar MongoDB:', error);
-    throw error;
-  }
+} catch (error) {
+  console.error('❌ Erro ao configurar Google Sheets:', error.message);
 }
 
-// --- FUNÇÃO PARA BUSCAR DADOS DO MONGODB ---
+// --- FUNÇÃO PARA BUSCAR DADOS DO GOOGLE SHEETS ---
 async function getFaqData() {
   const now = Date.now();
   
   // Verificar cache primeiro
   if (localFaqCache.data && (now - localFaqCache.timestamp) < localFaqCache.syncInterval) {
-    console.log('✅ Usando cache local do MongoDB');
+    console.log('✅ Usando cache local do Google Sheets');
     return localFaqCache.data;
   }
 
   try {
-    console.log('🔍 Buscando dados do MongoDB...');
-    console.log('🔍 MONGODB_URI:', MONGODB_URI);
-    console.log('🔍 DB_NAME:', DB_NAME);
-    console.log('🔍 FAQ_COLLECTION:', FAQ_COLLECTION);
-    
-    const { mongoClient: client, db: database } = await connectToMongoDB();
-    const collection = database.collection(FAQ_COLLECTION);
+    if (!sheets) {
+      throw new Error('Google Sheets não configurado');
+    }
 
-    // Buscar todos os documentos
-    const documents = await collection.find({}).toArray();
-    console.log('✅ Documentos encontrados:', documents.length);
+    console.log('🔍 Buscando dados do Google Sheets...');
+    console.log('🔍 SPREADSHEET_ID:', SPREADSHEET_ID);
+    console.log('🔍 FAQ_SHEET_NAME:', FAQ_SHEET_NAME);
+    
+    const response = await Promise.race([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: FAQ_SHEET_NAME,
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('SHEETS_TIMEOUT')), TIMEOUTS.SHEETS)
+      )
+    ]);
+
+    const rows = response.data.values || [];
+    
+    if (rows.length === 0) {
+      throw new Error('Nenhum dado encontrado na planilha');
+    }
+
+    // Converter linhas da planilha para objetos (pular cabeçalho se houver)
+    const cabecalho = rows[0];
+    const dados = rows.slice(1);
+    
+    // Mapear índices das colunas
+    const idxPergunta = cabecalho.findIndex(col => 
+      col && (col.toLowerCase().includes('pergunta') || col.toLowerCase().includes('pergunta'))
+    );
+    const idxResposta = cabecalho.findIndex(col => 
+      col && col.toLowerCase().includes('resposta')
+    );
+    const idxPalavrasChave = cabecalho.findIndex(col => 
+      col && (col.toLowerCase().includes('palavra') || col.toLowerCase().includes('chave'))
+    );
+    const idxSinonimos = cabecalho.findIndex(col => 
+      col && col.toLowerCase().includes('sinonimo')
+    );
+    // Converter para objetos no formato esperado
+    const documents = dados
+      .map((row, index) => ({
+        _id: index + 1, // ID baseado no índice da linha
+        pergunta: row[idxPergunta] || '',
+        resposta: row[idxResposta] || '',
+        palavrasChave: row[idxPalavrasChave] || '',
+        sinonimos: row[idxSinonimos] || ''
+      }))
+      .filter(doc => doc.pergunta && doc.pergunta.trim() !== ''); // Filtrar linhas vazias
+
+    console.log('✅ Dados encontrados:', documents.length, 'registros');
     
     // Log dos primeiros documentos para debug
     if (documents.length > 0) {
@@ -91,7 +123,7 @@ async function getFaqData() {
     }
 
     if (documents.length === 0) {
-      throw new Error(`Nenhum documento encontrado na coleção ${FAQ_COLLECTION}`);
+      throw new Error('Nenhum registro válido encontrado na planilha');
     }
 
     // Atualizar cache
@@ -99,12 +131,19 @@ async function getFaqData() {
     localFaqCache.timestamp = now;
     localFaqCache.lastSync = new Date().toISOString();
 
-    console.log('✅ Dados do MongoDB obtidos:', documents.length, 'documentos');
+    console.log('✅ Dados do Google Sheets obtidos:', documents.length, 'registros');
     return documents;
 
   } catch (error) {
-    console.error('❌ Erro ao buscar dados do MongoDB:', error);
+    console.error('❌ Erro ao buscar dados do Google Sheets:', error);
     console.error('❌ Stack trace:', error.stack);
+    
+    // Se tem cache antigo, usar ele
+    if (localFaqCache.data) {
+      console.log('⚠️ Usando cache antigo devido ao erro');
+      return localFaqCache.data;
+    }
+    
     throw error;
   }
 }
@@ -284,7 +323,7 @@ function findMatches(pergunta, faqData) {
         perguntaOriginal: perguntaParaLista,
         sourceRow: documento._id || (i + 1), // Usar _id se disponível, senão índice
         score: relevanceScore,
-        tabulacoes: documento.palavrasChave || null
+        sinonimos: documento.sinonimos || null
       });
     }
   }
@@ -314,21 +353,7 @@ function findMatches(pergunta, faqData) {
   return correspondenciasUnicas;
 }
 
-// --- CONFIGURAR GOOGLE SHEETS PARA LOGS ---
-try {
-  if (!process.env.GOOGLE_CREDENTIALS) {
-    console.warn('⚠️ GOOGLE_CREDENTIALS não configurado para logs');
-  } else {
-    auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    sheets = google.sheets({ version: 'v4', auth });
-    console.log('✅ Google Sheets configurado para logs');
-  }
-} catch (error) {
-  console.error('❌ Erro ao configurar Google Sheets para logs:', error.message);
-}
+// Google Sheets já configurado acima
 
 // --- FUNÇÕES DE LOG NO GOOGLE SHEETS ---
 async function logQuestionOnSheet(question, email) {
@@ -343,7 +368,7 @@ async function logQuestionOnSheet(question, email) {
     
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_Perguntas!A:C',
+      range: 'LOGS!A:C',
       valueInputOption: 'RAW',
       insertDataOption: 'INSERT_ROWS',
       resource: { values }
@@ -375,9 +400,9 @@ async function askMongoDBHandler(req, res) {
     
     console.log('🔍 É pergunta de esclarecimento?', isClarificationQuestion);
 
-    console.log('🔍 ask-mongodb: Buscando dados do MongoDB...');
+    console.log('🔍 ask-mongodb: Buscando dados do Google Sheets...');
     const faqData = await getFaqData();
-    console.log('🔍 ask-mongodb: Dados obtidos:', faqData ? faqData.length : 'null', 'documentos');
+    console.log('🔍 ask-mongodb: Dados obtidos:', faqData ? faqData.length : 'null', 'registros');
     
     console.log('🔍 ask-mongodb: Buscando correspondências...');
     
@@ -404,7 +429,7 @@ async function askMongoDBHandler(req, res) {
         status: "sucesso_offline",
         resposta: "Desculpe, não encontrei informações sobre essa pergunta na nossa base de dados. Entre em contato com nosso suporte.",
         sourceRow: 'N/A',
-        source: 'MongoDB',
+        source: 'Google Sheets',
         modo: 'offline',
         nivel: 2
       });
@@ -426,8 +451,8 @@ async function askMongoDBHandler(req, res) {
           status: "sucesso",
           resposta: correspondenciaExata.resposta,
           sourceRow: correspondenciaExata.sourceRow,
-          tabulacoes: correspondenciaExata.tabulacoes,
-          source: "MongoDB"
+          sinonimos: correspondenciaExata.sinonimos,
+          source: "Google Sheets"
         });
       }
       
@@ -437,8 +462,8 @@ async function askMongoDBHandler(req, res) {
         status: "sucesso",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
-        tabulacoes: correspondencias[0].tabulacoes,
-        source: "MongoDB"
+        sinonimos: correspondencias[0].sinonimos,
+        source: "Google Sheets"
       });
     }
     
@@ -460,8 +485,8 @@ async function askMongoDBHandler(req, res) {
           status: "sucesso",
           resposta: correspondencias[0].resposta,
           sourceRow: correspondencias[0].sourceRow,
-          tabulacoes: correspondencias[0].tabulacoes,
-          source: "MongoDB"
+          sinonimos: correspondencias[0].sinonimos,
+          source: "Google Sheets"
         });
       }
       
@@ -469,7 +494,7 @@ async function askMongoDBHandler(req, res) {
         status: "clarification_needed",
         resposta: `Aqui estão as informações sobre "${pergunta}". Escolha o tópico que melhor se encaixa na sua dúvida:`,
         options: opcoesValidas,
-        source: "MongoDB",
+        source: "Google Sheets",
         sourceRow: 'Pergunta de Esclarecimento'
       });
     }
@@ -485,8 +510,8 @@ async function askMongoDBHandler(req, res) {
         status: "sucesso",
         resposta: correspondencias[0].resposta,
         sourceRow: correspondencias[0].sourceRow,
-        tabulacoes: correspondencias[0].tabulacoes,
-        source: "MongoDB"
+        sinonimos: correspondencias[0].sinonimos,
+        source: "Google Sheets"
       });
     } else {
       // Se há múltiplas correspondências, SEMPRE mostrar lista
@@ -507,8 +532,8 @@ async function askMongoDBHandler(req, res) {
           status: "sucesso",
           resposta: correspondencias[0].resposta,
           sourceRow: correspondencias[0].sourceRow,
-          tabulacoes: correspondencias[0].tabulacoes,
-          source: "MongoDB"
+          sinonimos: correspondencias[0].sinonimos,
+          source: "Google Sheets"
         });
       }
       
@@ -516,7 +541,7 @@ async function askMongoDBHandler(req, res) {
         status: "clarification_needed",
         resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
         options: opcoesValidas,
-        source: "MongoDB",
+        source: "Google Sheets",
         sourceRow: 'Pergunta de Esclarecimento'
       });
     }

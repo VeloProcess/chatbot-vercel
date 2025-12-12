@@ -10,7 +10,7 @@ const DB_NAME = "console_conteudo";
 const COLLECTION_NAME = "Bot_perguntas";
 
 // --- CONFIGURAÇÃO GOOGLE SHEETS ---
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ"; // Substitua pelo ID da sua planilha
+const SPREADSHEET_ID = "1d0h9zr4haDx6etLtdMqPVsBXdVvH7n9OsRdqAhOJOp0"; // Substitua pelo ID da sua planilha
 const SHEET_NAME = "FAQ!A:E"; // Ajuste conforme suas colunas
 
 // --- CONFIGURAR GOOGLE SHEETS ---

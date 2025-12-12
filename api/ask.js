@@ -1,13 +1,12 @@
-// api/ask.js (Versão OpenAI Completa – Memória de Sessão e Busca em Sites + IA Avançada + Sistema Offline)
+// api/ask.js (Versão Busca Local - OpenAI DESATIVADO)
 
 const { google } = require('googleapis');
 const axios = require('axios');
-const OpenAI = require('openai');
-const { processarComIA } = require('./ai-advanced');
+// OpenAI DESATIVADO - usando apenas busca local
 
 // --- CONFIGURAÇÃO ---
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
-const FAQ_SHEET_NAME = "FAQ!A:D";
+const SPREADSHEET_ID = "1d0h9zr4haDx6etLtdMqPVsBXdVvH7n9OsRdqAhOJOp0";
+const FAQ_SHEET_NAME = "FAQ!A:D"; // Pergunta, Resposta, Palavras-chave, Sinônimos
 const CACHE_DURATION_SECONDS = 300; // 5 minutos para cache local
 const SYNC_INTERVAL_MS = 300000; // 5 minutos para sincronização
 
@@ -17,35 +16,36 @@ const SHEETS_TIMEOUT_MS = 3000; // 3 segundos
 const OFFLINE_RESPONSE_TIMEOUT_MS = 2000; // 2 segundos para resposta offline
 
 // --- CLIENTE GOOGLE SHEETS ---
-let auth, sheets, openai;
+let auth, sheets;
 
 try {
   // Verificar se as credenciais existem
   if (!process.env.GOOGLE_CREDENTIALS) {
     console.warn('⚠️ GOOGLE_CREDENTIALS não configurado');
   } else {
+    let credentials;
+    try {
+      credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+      console.log('✅ Credenciais parseadas. Email:', credentials.client_email);
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse do JSON das credenciais:', parseError.message);
+      console.error('❌ Verifique se o JSON no .env está correto (sem quebras de linha ou aspas incorretas)');
+      throw parseError;
+    }
+    
     auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+      credentials: credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
     sheets = google.sheets({ version: 'v4', auth });
+    console.log('✅ Google Sheets cliente configurado com sucesso');
   }
 } catch (error) {
   console.error('❌ Erro ao configurar Google Sheets:', error.message);
+  console.error('❌ Stack:', error.stack);
 }
 
-// --- CLIENTE OPENAI ---
-try {
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn('⚠️ OPENAI_API_KEY não configurado');
-  } else {
-    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-} catch (error) {
-  console.error('❌ Erro ao configurar OpenAI:', error.message);
-}
-
-const modeloOpenAI = "gpt-4o-mini"; // Ajustável
+// OpenAI DESATIVADO - usando apenas busca local
 
 // --- MEMÓRIA DE SESSÃO POR USUÁRIO ---
 let userSessions = {}; // { email: { contexto: "", ultimaPergunta: "" } }
@@ -69,34 +69,10 @@ let connectivityMonitor = {
 
 // --- FUNÇÕES DE DETECÇÃO DE LATÊNCIA E CACHE OFFLINE ---
 
+// Função de conectividade removida - OpenAI desativado
 async function checkConnectivity() {
-  try {
-    // Verificação simples - apenas verificar se as configurações existem
-    if (!process.env.OPENAI_API_KEY) {
-      console.log('⚠️ OpenAI API key não configurada');
-      offlineCache.isOnline = false;
-      return false;
-    }
-    
-    // Verificar se o cliente OpenAI está configurado
-    if (!openai) {
-      console.log('⚠️ Cliente OpenAI não configurado');
-      offlineCache.isOnline = false;
-      return false;
-    }
-    
-    // Se chegou aqui, assumir que está online
-    offlineCache.isOnline = true;
-    offlineCache.connectionFailures = 0;
-    console.log('✅ Conectividade verificada: ONLINE');
-    return true;
-    
-  } catch (error) {
-    console.log('❌ Erro na verificação de conectividade:', error.message);
-    offlineCache.connectionFailures++;
-    offlineCache.isOnline = false;
-    return false;
-  }
+  // Sempre retornar true para Google Sheets
+  return true;
 }
 
 async function getFaqDataWithTimeout() {
@@ -106,24 +82,58 @@ async function getFaqDataWithTimeout() {
     }
     
     console.log('🔍 ask.js: Buscando dados da planilha...');
+    console.log('🔍 SPREADSHEET_ID:', SPREADSHEET_ID);
+    console.log('🔍 FAQ_SHEET_NAME:', FAQ_SHEET_NAME);
     
-    // Timeout de 2 segundos para evitar FUNCTION_INVOCATION_TIMEOUT
+    // Timeout aumentado para 5 segundos
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Timeout da planilha')), 2000);
+      setTimeout(() => reject(new Error('Timeout da planilha')), 5000);
     });
     
     const sheetsPromise = sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: FAQ_SHEET_NAME,
+    }).catch(error => {
+      // Capturar erros específicos do Google Sheets API
+      console.error('❌ Erro do Google Sheets API:', error);
+      if (error.response) {
+        console.error('❌ Status:', error.response.status);
+        console.error('❌ Data:', JSON.stringify(error.response.data, null, 2));
+        if (error.response.status === 403) {
+          throw new Error('PERMISSION_DENIED: A conta de serviço não tem permissão para acessar a planilha.');
+        }
+        if (error.response.status === 404) {
+          throw new Error('NOT_FOUND: Planilha não encontrada. Verifique o SPREADSHEET_ID.');
+        }
+      }
+      // Verificar se a mensagem de erro contém "permission"
+      if (error.message && error.message.toLowerCase().includes('permission')) {
+        throw new Error('PERMISSION_DENIED: ' + error.message);
+      }
+      throw error;
     });
     
     const response = await Promise.race([sheetsPromise, timeoutPromise]);
     
+    if (!response || !response.data) {
+      console.error('❌ Resposta inválida do Google Sheets:', response);
+      throw new Error("Resposta inválida do Google Sheets");
+    }
+    
     if (!response.data.values || response.data.values.length === 0) {
-      throw new Error("Planilha FAQ vazia ou não encontrada");
+      console.error('❌ Planilha vazia ou sem dados');
+      throw new Error("Planilha FAQ vazia ou não encontrada. Verifique se há dados na planilha.");
+    }
+    
+    // Verificar se tem pelo menos cabeçalho + 1 linha de dados
+    if (response.data.values.length < 2) {
+      console.warn('⚠️ Planilha tem apenas cabeçalho, sem dados');
+      throw new Error("Planilha tem apenas cabeçalho. Adicione pelo menos uma linha de dados.");
     }
     
     console.log('✅ ask.js: Dados da planilha obtidos:', response.data.values.length, 'linhas');
+    console.log('📋 Primeira linha (cabeçalho):', response.data.values[0]);
+    console.log('📋 Segunda linha (primeiro dado):', response.data.values[1]);
     return response.data.values;
     
   } catch (error) {
@@ -193,14 +203,23 @@ async function getFaqDataOffline() {
 
 // --- FUNÇÕES DE APOIO ---
 async function getFaqData() {
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: FAQ_SHEET_NAME,
-  });
-  if (!response.data.values || response.data.values.length === 0) {
-    throw new Error("Não foi possível ler dados da planilha FAQ ou ela está vazia.");
+  if (!sheets) {
+    throw new Error('Google Sheets não configurado');
   }
-  return response.data.values;
+  
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: FAQ_SHEET_NAME,
+    });
+    if (!response.data.values || response.data.values.length === 0) {
+      throw new Error("Não foi possível ler dados da planilha FAQ ou ela está vazia.");
+    }
+    return response.data.values;
+  } catch (error) {
+    console.error('❌ Erro em getFaqData:', error.message);
+    throw error;
+  }
 }
 
 function normalizarTexto(texto) {
@@ -208,54 +227,103 @@ function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').trim();
 }
 
-async function logIaUsage(email, pergunta) {
-  try {
-    if (!sheets) {
-      console.warn('⚠️ Google Sheets não configurado - não é possível registrar uso da IA');
-      return;
-    }
-    
-    const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const newRow = [timestamp, email, pergunta];
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_IA_Usage',
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: [newRow] },
-    });
-  } catch (error) {
-    console.error("ERRO AO REGISTRAR USO DA IA:", error);
-  }
-}
+// Função de log de IA removida - OpenAI desativado
 
 function findMatches(pergunta, faqData) {
+  if (!faqData || faqData.length === 0) {
+    throw new Error("Dados da planilha vazios");
+  }
+  
   const cabecalho = faqData[0];
   const dados = faqData.slice(1);
-  const idxPergunta = cabecalho.indexOf("Pergunta");
-  const idxPalavrasChave = cabecalho.indexOf("Palavras-chave");
-  const idxResposta = cabecalho.indexOf("Resposta");
+  
+  if (!cabecalho || !Array.isArray(cabecalho)) {
+    throw new Error("Cabeçalho da planilha inválido");
+  }
+  
+  console.log('📋 Cabeçalho encontrado:', cabecalho);
+  
+  // Busca case-insensitive das colunas
+  const idxPergunta = cabecalho.findIndex(col => 
+    col && col.toLowerCase().includes('pergunta')
+  );
+  const idxPalavrasChave = cabecalho.findIndex(col => 
+    col && (col.toLowerCase().includes('palavra') || col.toLowerCase().includes('chave'))
+  );
+  const idxResposta = cabecalho.findIndex(col => 
+    col && col.toLowerCase().includes('resposta')
+  );
+  const idxSinonimos = cabecalho.findIndex(col => 
+    col && col.toLowerCase().includes('sinonimo')
+  );
+
+  console.log('📋 Índices das colunas:', {
+    Pergunta: idxPergunta,
+    'Palavras-chave': idxPalavrasChave,
+    Resposta: idxResposta,
+    Sinônimos: idxSinonimos
+  });
 
   if (idxPergunta === -1 || idxResposta === -1 || idxPalavrasChave === -1) {
-    throw new Error("Colunas essenciais (Pergunta, Resposta, Palavras-chave) não encontradas.");
+    throw new Error(`Colunas essenciais não encontradas. Cabeçalho: ${cabecalho.join(', ')}`);
   }
 
-  const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length > 2);
+  // Filtrar palavras da busca (aceitar palavras com 2 ou mais caracteres)
+  const palavrasDaBusca = normalizarTexto(pergunta).split(' ').filter(p => p.length >= 2);
+  const perguntaNormalizada = normalizarTexto(pergunta);
   let todasAsCorrespondencias = [];
+
+  console.log('🔍 Buscando por:', pergunta);
+  console.log('🔍 Palavras da busca:', palavrasDaBusca);
 
   for (let i = 0; i < dados.length; i++) {
     const linhaAtual = dados[i];
+    
+    // Verificar se a linha tem dados válidos
+    if (!linhaAtual || !Array.isArray(linhaAtual)) {
+      console.warn(`⚠️ Linha ${i + 2} inválida ou vazia`);
+      continue;
+    }
+    
+    // Verificar se a linha tem pergunta (coluna obrigatória)
+    if (!linhaAtual[idxPergunta] || linhaAtual[idxPergunta].trim() === '') {
+      console.warn(`⚠️ Linha ${i + 2} sem pergunta, pulando...`);
+      continue;
+    }
+    
     const textoPalavrasChave = normalizarTexto(linhaAtual[idxPalavrasChave] || '');
+    const textoPergunta = normalizarTexto(linhaAtual[idxPergunta] || '');
+    const textoSinonimos = idxSinonimos !== -1 ? normalizarTexto(linhaAtual[idxSinonimos] || '') : '';
+    
     let relevanceScore = 0;
+    
+    // Buscar nas palavras-chave
     palavrasDaBusca.forEach(palavra => {
-      if (textoPalavrasChave.includes(palavra)) relevanceScore++;
+      if (textoPalavrasChave.includes(palavra)) {
+        relevanceScore += 2; // Palavras-chave têm peso maior
+      }
+      // Também buscar na pergunta original
+      if (textoPergunta.includes(palavra)) {
+        relevanceScore += 1;
+      }
+      // Buscar nos sinônimos
+      if (textoSinonimos && textoSinonimos.includes(palavra)) {
+        relevanceScore += 1.5;
+      }
     });
+    
+    // Também verificar correspondência parcial da pergunta completa
+    if (textoPergunta.includes(perguntaNormalizada) || perguntaNormalizada.includes(textoPergunta)) {
+      relevanceScore += 3;
+    }
+    
     if (relevanceScore > 0) {
       todasAsCorrespondencias.push({
-        resposta: linhaAtual[idxResposta],
-        perguntaOriginal: linhaAtual[idxPergunta],
+        resposta: linhaAtual[idxResposta] || '',
+        perguntaOriginal: linhaAtual[idxPergunta] || '',
         sourceRow: i + 2,
         score: relevanceScore,
-        tabulacoes: linhaAtual[3] || null
+        sinonimos: idxSinonimos !== -1 ? (linhaAtual[idxSinonimos] || null) : null
       });
     }
   }
@@ -274,70 +342,7 @@ function findMatches(pergunta, faqData) {
 }
 
 
-// --- FUNÇÃO OPENAI COM TIMEOUT E DETECÇÃO DE LATÊNCIA ---
-async function askOpenAI(pergunta, contextoPlanilha, email, historicoSessao = []) {
-  const startTime = Date.now();
-  
-  try {
-    if (!openai) {
-      throw new Error('OpenAI não configurado');
-    }
-    
-    const prompt = `
-### PERSONA
-Você é o VeloBot, assistente oficial da Velotax. Responda com base no histórico de conversa, no contexto da planilha e nos sites autorizados.
-
-### HISTÓRICO DE CONVERSA
-${historicoSessao.map(h => `${h.role}: ${h.content}`).join("\n")}
-
-### CONTEXTO DA PLANILHA
-${contextoPlanilha}
-
-### REGRAS
-- Se a nova pergunta for ambígua, use o histórico para entender o que o atendente quis dizer.
-- Seja direto e claro, mas natural.
-- Se o atendente disser "não entendi", reformule sua última resposta de forma mais simples.
-- Se não encontrar no contexto ou nos sites, diga: "Não encontrei essa informação nem na base de conhecimento nem nos sites oficiais."
-- Sempre responda em português do Brasil.
-
-### PERGUNTA ATUAL
-"${pergunta}"
-`;
-
-    const completion = await Promise.race([
-      openai.chat.completions.create({
-        model: modeloOpenAI,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.2,
-        max_tokens: 1024,
-      }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI timeout')), OPENAI_TIMEOUT_MS)
-      )
-    ]);
-
-    const latency = Date.now() - startTime;
-    connectivityMonitor.openaiLatency.push(latency);
-    
-    // Manter apenas últimas 10 medições
-    if (connectivityMonitor.openaiLatency.length > 10) {
-      connectivityMonitor.openaiLatency = connectivityMonitor.openaiLatency.slice(-10);
-    }
-
-    return completion.choices[0].message.content;
-  } catch (error) {
-    const latency = Date.now() - startTime;
-    console.error(`❌ ERRO AO CHAMAR OPENAI (${latency}ms):`, error.message);
-    
-    // Se foi timeout, marcar como offline
-    if (error.message === 'OpenAI timeout') {
-      offlineCache.isOnline = false;
-      offlineCache.connectionFailures++;
-    }
-    
-    throw error;
-  }
-}
+// Função OpenAI removida - OpenAI desativado
 
 // --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 module.exports = async function handler(req, res) {
@@ -371,104 +376,172 @@ async function processAskRequest(req, res) {
   try {
     console.log('🔍 Iniciando processAskRequest...');
     
-    const { pergunta, email, reformular, usar_ia_avancada = 'true' } = req.query;
+    const { pergunta, email, reformular, usar_ia_avancada = 'true', isFromOption = 'false' } = req.query;
     if (!pergunta) return res.status(400).json({ error: "Nenhuma pergunta fornecida." });
 
-    console.log('🤖 Nova pergunta recebida:', { pergunta, email, usar_ia_avancada });
+    const isFromOptionBool = isFromOption === 'true';
+    console.log('🤖 Nova pergunta recebida:', { pergunta, email, usar_ia_avancada, isFromOption: isFromOptionBool });
+
+    // Verificar se Google Sheets está configurado
+    if (!sheets) {
+      console.error('❌ Google Sheets não configurado');
+      return res.status(500).json({
+        status: "erro_configuracao",
+        resposta: "Sistema temporariamente indisponível. Erro de configuração.",
+        source: "Sistema",
+        error: "Google Sheets não configurado"
+      });
+    }
 
   // --- SISTEMA DE FALLBACK AUTOMÁTICO DE 3 NÍVEIS ---
   
-  // NÍVEL 1: IA AVANÇADA (OpenAI + busca semântica) - PRIMEIRA TENTATIVA
-  if (usar_ia_avancada === 'true') {
-    try {
-      console.log('🔍 NÍVEL 1: Verificando conectividade...');
-      // Verificar conectividade primeiro
-      const isOnline = await checkConnectivity();
-      console.log('🔍 Conectividade verificada:', isOnline);
-      
-      if (isOnline) {
-        console.log('🚀 NÍVEL 1: Tentando IA Avançada...');
-        
-        const faqData = await getFaqDataOffline();
-        const historico = userSessions[email]?.historico || [];
-        
-        // Timeout para IA avançada
-        const resultadoIA = await Promise.race([
-          processarComIA(pergunta, faqData, historico, email),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('IA Avançada timeout')), OPENAI_TIMEOUT_MS)
-          )
-        ]);
-        
-        // Atualizar histórico da sessão
-        if (email) {
-          if (!userSessions[email]) {
-            userSessions[email] = { contexto: "", ultimaPergunta: "", historico: [] };
-          }
-          userSessions[email].historico.push(
-            { role: "user", content: pergunta },
-            { role: "assistant", content: resultadoIA.resposta }
-          );
-          // Manter apenas últimas 10 interações
-          if (userSessions[email].historico.length > 20) {
-            userSessions[email].historico = userSessions[email].historico.slice(-20);
-          }
-        }
-
-        // Log de uso da IA
-        await logIaUsage(email, pergunta);
-
-        console.log('✅ NÍVEL 1: IA Avançada funcionou');
-        return res.status(200).json({
-          ...resultadoIA,
-          modo: 'online',
-          nivel: 1
-        });
-      }
-    } catch (error) {
-      console.error('❌ NÍVEL 1: Falha na IA Avançada:', error.message);
-      offlineCache.isOnline = false;
-      offlineCache.connectionFailures++;
-    }
-  }
-
-  // NÍVEL 2: Busca local por palavras-chave - FALLBACK AUTOMÁTICO
+  // OpenAI DESATIVADO - usando apenas busca local
+  
+  // NÍVEL 1: Busca local por palavras-chave
   try {
     console.log('🔍 NÍVEL 2: Tentando busca local...');
     
     const faqData = await getFaqDataOffline();
+    console.log('✅ Dados obtidos:', faqData ? `${faqData.length} linhas` : 'null');
+    
+    if (!faqData || faqData.length === 0) {
+      throw new Error('Nenhum dado encontrado na planilha');
+    }
+    
     const correspondencias = findMatches(pergunta, faqData);
+    console.log('✅ Correspondências encontradas:', correspondencias.length);
     
     if (correspondencias.length > 0) {
       console.log('✅ NÍVEL 2: Busca local funcionou');
       
+      // Se veio de uma opção clicada, buscar correspondência exata ou mais próxima
+      if (isFromOptionBool) {
+        // Buscar correspondência exata primeiro
+        const correspondenciaExata = correspondencias.find(c => 
+          c.perguntaOriginal.toLowerCase().trim() === pergunta.toLowerCase().trim()
+        );
+        
+        if (correspondenciaExata) {
+          // Encontrou correspondência exata
+          return res.status(200).json({
+            status: "sucesso",
+            resposta: correspondenciaExata.resposta,
+            sourceRow: correspondenciaExata.sourceRow,
+            sinonimos: correspondenciaExata.sinonimos,
+            source: "Google Sheets",
+            modo: 'online',
+            nivel: 2
+          });
+        } else if (correspondencias.length === 1) {
+          // Apenas uma correspondência, usar ela
+          return res.status(200).json({
+            status: "sucesso",
+            resposta: correspondencias[0].resposta,
+            sourceRow: correspondencias[0].sourceRow,
+            sinonimos: correspondencias[0].sinonimos,
+            source: "Google Sheets",
+            modo: 'online',
+            nivel: 2
+          });
+        } else {
+          // Múltiplas correspondências mas veio de opção - não mostrar nova lista
+          // Usar a primeira (maior score) ou retornar sem correspondência
+          if (correspondencias[0].score > correspondencias[1]?.score) {
+            return res.status(200).json({
+              status: "sucesso",
+              resposta: correspondencias[0].resposta,
+              sourceRow: correspondencias[0].sourceRow,
+              sinonimos: correspondencias[0].sinonimos,
+              source: "Google Sheets",
+              modo: 'online',
+              nivel: 2
+            });
+          } else {
+            // Não há correspondência clara, retornar sem correspondência
+            return res.status(200).json({
+              status: "sem_correspondencia",
+              resposta: `Não encontrei uma resposta específica para "${pergunta}". Por favor, reformule sua pergunta de forma mais detalhada.`,
+              source: "Google Sheets",
+              sourceRow: 'Sem correspondência',
+              modo: 'online',
+              nivel: 2
+            });
+          }
+        }
+      }
+      
+      // Lógica normal para perguntas não vindas de opções
       if (correspondencias.length === 1 || correspondencias[0].score > correspondencias[1]?.score) {
         return res.status(200).json({
-          status: "sucesso_offline",
+          status: "sucesso",
           resposta: correspondencias[0].resposta,
           sourceRow: correspondencias[0].sourceRow,
-          tabulacoes: correspondencias[0].tabulacoes,
-          source: "Cache Local",
-          modo: 'offline',
+          sinonimos: correspondencias[0].sinonimos,
+          source: "Google Sheets",
+          modo: 'online',
           nivel: 2
         });
       } else {
         return res.status(200).json({
-          status: "clarification_needed_offline",
+          status: "clarification_needed",
           resposta: `Encontrei vários tópicos sobre "${pergunta}". Qual deles se encaixa melhor na sua dúvida?`,
           options: correspondencias.map(c => c.perguntaOriginal).slice(0, 12),
-          source: "Cache Local",
+          source: "Google Sheets",
           sourceRow: 'Pergunta de Esclarecimento',
-          modo: 'offline',
+          modo: 'online',
           nivel: 2
         });
       }
+    } else {
+      // Se não encontrou correspondências, retornar mensagem amigável
+      console.log('⚠️ Nenhuma correspondência encontrada para:', pergunta);
+      return res.status(200).json({
+        status: "sem_correspondencia",
+        resposta: `Não encontrei informações específicas sobre "${pergunta}". Tente reformular sua pergunta ou entre em contato com o suporte para mais informações.`,
+        source: "Google Sheets",
+        sourceRow: 'Sem correspondência',
+        modo: 'online',
+        nivel: 2
+      });
     }
   } catch (error) {
     console.error('❌ NÍVEL 2: Falha na busca local:', error.message);
+    console.error('❌ Stack trace:', error.stack);
+    
+    // Verificar tipo de erro para retornar mensagem apropriada
+    let errorMessage = "Sistema temporariamente indisponível. Tente novamente em alguns instantes.";
+    let errorDetails = error.message;
+    
+    if (error.message.includes('PERMISSION_DENIED') || error.message.includes('permission_denied')) {
+      errorMessage = "Erro de permissão: A conta de serviço não tem acesso à planilha. Verifique as permissões no Google Sheets.";
+      errorDetails = "PERMISSION_DENIED: Verifique se a conta de serviço tem permissão de Editor na planilha.";
+    } else if (error.message.includes('UNAUTHORIZED') || error.message.includes('unauthorized')) {
+      errorMessage = "Erro de autenticação: Credenciais inválidas ou expiradas.";
+      errorDetails = "UNAUTHORIZED: Verifique GOOGLE_CREDENTIALS no arquivo .env";
+    } else if (error.message.includes('não configurado')) {
+      errorMessage = "Erro de configuração do sistema. Contate o suporte.";
+    } else if (error.message.includes('Timeout')) {
+      errorMessage = "Timeout ao buscar dados. Tente novamente.";
+    } else if (error.message.includes('vazia') || error.message.includes('não encontrada')) {
+      errorMessage = "Base de dados vazia ou não encontrada.";
+    }
+    
+    // Retornar erro mais detalhado para debug
+    return res.status(500).json({
+      status: "erro_sem_dados",
+      resposta: errorMessage,
+      source: "Sistema",
+      sourceRow: 'Erro',
+      modo: 'offline',
+      nivel: 3,
+      aviso: 'Sistema indisponível - sem acesso à base de dados',
+      error: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
+      errorType: error.message.includes('PERMISSION_DENIED') ? 'permission_denied' : 
+                 error.message.includes('UNAUTHORIZED') ? 'unauthorized' : 'unknown'
+    });
   }
 
-  // NÍVEL 3: Erro - Sem dados disponíveis
+  // NÍVEL 3: Erro - Sem dados disponíveis (não deveria chegar aqui se tudo estiver funcionando)
   console.log('❌ NÍVEL 3: Sem dados disponíveis');
   
   return res.status(500).json({

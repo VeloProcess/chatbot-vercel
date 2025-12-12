@@ -1,20 +1,8 @@
 [
   {
-    "tipo": "alerta",
-    "titulo": "🚨 Velonews – Prazo para baixa de quitação antecipada",
-    "conteudo": "Pessoal,\nReforçando uma informação importante: após a quitação antecipada de uma parcela, seja de Crédito Pessoal ou do Crédito do Trabalhador, o prazo para que a baixa apareça em nossa plataforma é de até 3 dias úteis.\nEsse é o tempo necessário para que a compensação seja concluída pela Celcoin, que é quem processa esses pagamentos.\nPortanto, caso um cliente questione, é só orientar que o prazo de até 3 dias úteis é normal e que a atualização acontecerá automaticamente.\nNo mais, seguimos acompanhando!",
-    "publicadoEm": "15/09/2025"
-  },
-  {
     "tipo": "info",
-    "titulo": "🚨 Velonews – Reforço sobre Casos Especiais",
-    "conteudo": "Pessoal,\nReforçando um ponto muito importante: em todos os casos que forem escalados para o time de Casos Especiais, é obrigatório registrar:\nO número de contato do cliente;\nO canal de preferência (WhatsApp ou ligação);\nEssas informações são essenciais para que o time responsável consiga dar sequência na tratativa de forma ágil e assertiva.\nContamos com a atenção de todos para que esse procedimento seja seguido em 100% dos casos. ✅",
-    "publicadoEm": "10/09/2025"
-  },
-  {
-    "tipo": "critico",
-    "titulo": "📢 Velonews – Consulta de Declaração e Recibo",
-    "conteudo": "Oi, pessoal!\n\nPara conhecimento: o acesso aos documentos da declaração do cliente pelo app foi desativado, assim como o acesso ao recibo da declaração.\n\n➡️ Em casos onde o cliente solicitar consulta dessas informações, devemos direcioná-lo para o portal MIR (Meu Imposto de Renda).\n\n🚨 Fiquem atentos para orientar corretamente os clientes.",
-    "publicadoEm": "10/09/2025"
+    "titulo": "Em breve, noticias em tempo real",
+    "conteudo": "",
+    "publicadoEm": ""
   }
 ]

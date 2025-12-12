@@ -4,7 +4,7 @@ const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 
-const SPREADSHEET_ID = "1tnWusrOW-UXHFM8GT3o0Du93QDwv5G3Ylvgebof9wfQ";
+const SPREADSHEET_ID = "1d0h9zr4haDx6etLtdMqPVsBXdVvH7n9OsRdqAhOJOp0";
 
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
@@ -105,7 +105,7 @@ async function getOnlineUsers(res) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_Acessos!A:D',
+      range: 'LOGS!A:D',
     });
 
     const rows = response.data.values || [];
@@ -154,7 +154,7 @@ async function forceLogoutUser(email, adminEmail, res) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_Acessos',
+      range: 'LOGS',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [[
@@ -168,7 +168,7 @@ async function forceLogoutUser(email, adminEmail, res) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_Admin',
+      range: 'LOGS',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [[
@@ -199,7 +199,7 @@ async function getUserHistory(email, res) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Log_Acessos!A:D',
+      range: 'LOGS!A:D',
     });
 
     const rows = response.data.values || [];
