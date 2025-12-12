@@ -4,3 +4,13 @@ node_modules
 # Arquivos de ambiente e credenciais
 .env
 credentials.json
+
+# Arquivos do editor
+.vscode/
+.cursor/
+.codeium/
+.windsurf/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
